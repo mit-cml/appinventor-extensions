@@ -232,6 +232,9 @@ public final class YoungAndroidFormUpgrader {
       } else if (componentType.equals("BluetoothServer")) {
         srcCompVersion = upgradeBluetoothServerProperties(componentProperties, srcCompVersion);
 
+      } else if (componentType.equals("BluetoothLE")) {
+        srcCompVersion = upgradeBluetoothLEProperties(componentProperties, srcCompVersion);
+
       } else if (componentType.equals("Slider")) {
         srcCompVersion = upgradeSliderProperties(componentProperties, srcCompVersion);
 
@@ -345,8 +348,10 @@ public final class YoungAndroidFormUpgrader {
 
       } else if (componentType.equals("WebViewer")) {
         srcCompVersion = upgradeWebViewerProperties(componentProperties, srcCompVersion);
+
       } else if (componentType.equals("FirebaseDB")) {
         srcCompVersion = upgradeFirebaseDBProperties(componentProperties, srcCompVersion);
+
       } else if (componentType.equals("Pedometer")) {
         srcCompVersion = upgradePedometerProperties(componentProperties, srcCompVersion);
       }
@@ -550,6 +555,23 @@ public final class YoungAndroidFormUpgrader {
     }
     return srcCompVersion;
   }
+
+  private static int upgradeBluetoothLEProperties(Map<String, JSONValue> componentProperties,
+      int srcCompVersion) {
+    if (srcCompVersion < 1) {
+      // Initial version. Placeholder for future upgrades
+      srcCompVersion = 1;
+    }
+    if (srcCompVersion < 2) {
+      // The Alignment property was renamed to TextAlignment.
+      handlePropertyRename(componentProperties, "GetAdvertiserAdresses", "TAdvertiserAdresses");
+      handlePropertyRename(componentProperties, "GetAdvertiserNames", "AdvertiserNames");
+      // Properties related to this component have now been upgraded to version 2.
+      srcCompVersion = 2;
+    }
+    return srcCompVersion;
+  }
+
   private static int upgradeSliderProperties(Map<String, JSONValue> componentProperties,
       int srcCompVersion) {
     if (srcCompVersion < 1) {

@@ -2498,6 +2498,10 @@ public interface OdeMessages extends Messages {
   @Description("")
   String bluetoothServerComponentPallette();
 
+  @DefaultMessage("BluetoothServer")
+  @Description("")
+  String bluetoothLEComponentPallette();
+
   @DefaultMessage("Notifier")
   @Description("")
   String notifierComponentPallette();
@@ -5597,6 +5601,10 @@ public interface OdeMessages extends Messages {
   @Description("")
   String BluetoothServerHelpStringComponentPallette();
 
+  @DefaultMessage("Bluetooth LE component")
+  @Description("")
+  String BluetoothLEHelpStringComponentPallette();
+
   @DefaultMessage("Button with the ability to detect clicks.  Many aspects of its appearance can be changed, as well as whether it is clickable (<code>Enabled</code>), can be changed in the Designer or in the Blocks Editor.")
   @Description("")
   String ButtonHelpStringComponentPallette();
@@ -6246,9 +6254,277 @@ public interface OdeMessages extends Messages {
   @Description("")
   String firebaseExperimentalWarning();
 
+  @DefaultMessage("BatteryValue")
+  @Description("")
+  String BatteryValueProperties();
+
+  @DefaultMessage("ByteValue")
+  @Description("")
+  String ByteValueProperties();
+
+  @DefaultMessage("DeviceList")
+  @Description("")
+  String DeviceListProperties();
+
+  @DefaultMessage("HeartRateValue")
+  @Description("")
+  String HeartRateValueProperties();
+
+  @DefaultMessage("ConnectedDeviceRssi")
+  @Description("")
+  String ConnectedDeviceRssiProperties();
+
+  @DefaultMessage("IsDeviceConnected")
+  @Description("")
+  String IsDeviceConnectedProperties();
+
+  @DefaultMessage("LinkLossValue")
+  @Description("")
+  String LinkLossValueProperties();
+
+  @DefaultMessage("IntValue")
+  @Description("")
+  String IntValueProperties();
+
+  @DefaultMessage("StringValue")
+  @Description("")
+  String StringValueProperties();
+
+  @DefaultMessage("Connected")
+  @Description("")
+  String ConnectedEvents();
+
+  @DefaultMessage("RssiChanged")
+  @Description("")
+  String RssiChangedEvents();
+
+  @DefaultMessage("DeviceFound")
+  @Description("")
+  String DeviceFoundEvents();
+
+  @DefaultMessage("ValueRead")
+  @Description("")
+  String ValueReadEvents();
+
+  @DefaultMessage("ValueWrite")
+  @Description("")
+  String ValueWriteEvents();
+
+  @DefaultMessage("ValueChanged")
+  @Description("")
+  String ValueChangedEvents();
+
+  @DefaultMessage("TemperatureValue")
+  @Description("")
+  String TemperatureValueProperties();
+
+  @DefaultMessage("TxPower")
+  @Description("")
+  String TxPowerProperties();
+
+  @DefaultMessage("ConnectWithAddress")
+  @Description("")
+  String ConnectWithAddressMethods();
+
+  @DefaultMessage("DisconnectWithAddress")
+  @Description("")
+  String DisconnectWithAddressMethods();
+
+  @DefaultMessage("FoundDeviceName")
+  @Description("")
+  String FoundDeviceNameMethods();
+
+  @DefaultMessage("FoundDeviceAddress")
+  @Description("")
+  String FoundDeviceAddressMethods();
+
+  @DefaultMessage("FoundDeviceRssi")
+  @Description("")
+  String FoundDeviceRssiMethods();
+
+  @DefaultMessage("ReadBattery")
+  @Description("")
+  String ReadBatteryMethods();
+
+  @DefaultMessage("ReadFloatValue")
+  @Description("")
+  String ReadFloatValueMethods();
+
+  @DefaultMessage("ReadByteValue")
+  @Description("")
+  String ReadByteValueMethods();
+
+  @DefaultMessage("ReadIntValue")
+  @Description("")
+  String ReadIntValueMethods();
+
+  @DefaultMessage("ReadStringValue")
+  @Description("")
+  String ReadStringValueMethods();
+
+  @DefaultMessage("ReadTemperature")
+  @Description("")
+  String ReadTemperatureMethods();
+
+  @DefaultMessage("ReadHeartRate")
+  @Description("")
+  String ReadHeartRateMethods();
+
+  @DefaultMessage("ReadTxPower")
+  @Description("")
+  String ReadTxPowerMethods();
+
+  @DefaultMessage("SetLinkLoss")
+  @Description("")
+  String SetLinkLossMethods();
+
+  @DefaultMessage("StartScanning")
+  @Description("")
+  String StartScanningMethods();
+
+  @DefaultMessage("StopScanning")
+  @Description("")
+  String StopScanningMethods();
+
+  @DefaultMessage("WriteIntValue")
+  @Description("")
+  String WriteIntValueMethods();
+
+  @DefaultMessage("WriteStringValue")
+  @Description("")
+  String WriteStringValueMethods();
+
+  @DefaultMessage("WriteFindMe")
+  @Description("")
+  String WriteFindMeMethods();
+
+  @DefaultMessage("SupportedServices")
+  @Description("")
+  String SupportedServicesMethods();
+
+  @DefaultMessage("ServiceByIndex")
+  @Description("")
+  String ServiceByIndexMethods();
+
+  @DefaultMessage("SupportedCharacteristics")
+  @Description("")
+  String SupportedCharacteristicsMethods();
+
+  @DefaultMessage("CharacteristicByIndex")
+  @Description("")
+  String CharacteristicByIndexMethods();
+
+  @DefaultMessage("StartAdvertising")
+  @Description("")
+  String StartAdvertisingMethods();
+
+  @DefaultMessage("serviceUuid")    
+  @Description("name of the service UUID parameter")    
+  String serviceUuidParams();
+
+  @DefaultMessage("deviceAddress")
+  @Description("name of the bluetooth address parameter")
+  String deviceAddressParams();
+
+  @DefaultMessage("inData")   
+  @Description("name of the StartAdvertising input data parameter")   
+  String inDataParams();
+
+  @DefaultMessage("ScanAdvertisements")
+  @Description("")
+  String ScanAdvertisementsMethods();
+
+  @DefaultMessage("scanPeriod")   
+  @Description("name of ScanAdvertisements parameter")    
+  String scanPeriodParams();
+
+  @DefaultMessage("AdvertiserNames")
+  @Description("")    
+  String AdvertiserNamesProperties();
+
+  @DefaultMessage("AdvertiserAddresses")
+  @Description("")    
+  String AdvertiserAddressesProperties();
+
+  @DefaultMessage("AdvertiserServiceUuids")
+  @Description("")    
+  String AdvertiserServiceUuidsMethods();
+
+  @DefaultMessage("AdvertisementData")
+  @Description("")    
+  String AdvertisementDataMethods();
+
+  @DefaultMessage("AdvertiserAddress")
+  @Description("")    
+  String AdvertiserAddressMethods();
+
+  @DefaultMessage("deviceName")   
+  @Description("name of variable representing the name of a bluetooth device")    
+  String deviceNameParams();
+
+  @DefaultMessage("IsDeviceAdvertising")    
+  @Description("")    
+  String IsDeviceAdvertisingProperties();
+
+  @DefaultMessage("StopAdvertising")
+  @Description("")
+  String StopAdvertisingMethods();
+
+  @DefaultMessage("StopScanningAdvertisements")
+  @Description("")
+  String StopScanningAdvertisementsMethods();
+
+  @DefaultMessage("AdvertisementScanResult")
+  @Description("")
+  String AdvertisementScanResultProperties();
+
+  @DefaultMessage("AdvertisementScanPeriod")
+  @Description("")
+  String AdvertisementScanPeriodProperties();
+
+  @DefaultMessage("ByteValueRead")
+  @Description("")
+  String ByteValueReadEvents();
+
+  @DefaultMessage("IntValueRead")
+  @Description("")
+  String IntValueReadEvents();
+
+  @DefaultMessage("StringValueRead")
+  @Description("")
+  String StringValueReadEvents();
+
+  @DefaultMessage("ByteValueChanged")
+  @Description("")
+  String ByteValueChangedEvents();
+
+  @DefaultMessage("IntValueChanged")
+  @Description("")
+  String IntValueChangedEvents();
+
+  @DefaultMessage("StringValueChanged")
+  @Description("")
+  String StringValueChangedEvents();
+
+  @DefaultMessage("FloatValueChanged")
+  @Description("")
+  String FloatValueChangedEvents();
+
+  @DefaultMessage("FloatValueRead")
+  @Description("")
+  String FloatValueReadEvents();
+
   @DefaultMessage("You are in Read Only Mode")
   @Description("")
   String readOnlyMode();
+  
+  @DefaultMessage("WriteFloatValue")
+  @Description("")
+  String WriteFloatValueMethods();
+  
+  @DefaultMessage("WriteByteValue")
+  @Description("")
+  String WriteByteValueMethods();
 
   @DefaultMessage("Either your session has expired, or App Inventor has been upgraded. " +
     "You will need to \"Reload\" your session to continue. Press the \"Reload\" Button " +

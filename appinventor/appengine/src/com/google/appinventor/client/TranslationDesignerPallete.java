@@ -179,6 +179,8 @@ public class TranslationDesignerPallete {
       value = MESSAGES.bluetoothClientComponentPallette();
     } else if (key.equals("BluetoothServer")) {
       value = MESSAGES.bluetoothServerComponentPallette();
+    } else if (key.equals("BluetoothLE")) {
+      value = MESSAGES.bluetoothLEComponentPallette();
     } else if (key.equals("Notifier")) {
       value = MESSAGES.notifierComponentPallette();
     } else if (key.equals("ProximitySensor")) {
@@ -219,6 +221,8 @@ public class TranslationDesignerPallete {
       value = MESSAGES.BluetoothClientHelpStringComponentPallette();
     } else if (key.equals("BluetoothServer-helpString")) {
       value = MESSAGES.BluetoothServerHelpStringComponentPallette();
+    } else if (key.equals("BluetoothLE-helpString")) {
+      value = MESSAGES.BluetoothLEHelpStringComponentPallette();
     } else if (key.equals("Button-helpString")) {
       value = MESSAGES.ButtonHelpStringComponentPallette();
     } else if (key.equals("Camcorder-helpString")) {
