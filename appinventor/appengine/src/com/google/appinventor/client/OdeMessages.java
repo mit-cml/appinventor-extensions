@@ -2498,10 +2498,6 @@ public interface OdeMessages extends Messages {
   @Description("")
   String bluetoothServerComponentPallette();
 
-  @DefaultMessage("BluetoothServer")
-  @Description("")
-  String bluetoothLEComponentPallette();
-
   @DefaultMessage("Notifier")
   @Description("")
   String notifierComponentPallette();
@@ -5600,10 +5596,6 @@ public interface OdeMessages extends Messages {
   @DefaultMessage("Bluetooth server component")
   @Description("")
   String BluetoothServerHelpStringComponentPallette();
-
-  @DefaultMessage("Bluetooth LE component")
-  @Description("")
-  String BluetoothLEHelpStringComponentPallette();
 
   @DefaultMessage("Button with the ability to detect clicks.  Many aspects of its appearance can be changed, as well as whether it is clickable (<code>Enabled</code>), can be changed in the Designer or in the Blocks Editor.")
   @Description("")

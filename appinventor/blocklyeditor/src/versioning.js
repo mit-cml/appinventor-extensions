@@ -1182,27 +1182,6 @@ Blockly.Versioning.AllUpgradeMaps =
 
   }, // End BluetoothServer upgraders
 
-  "BluetoothLE": {
-
-    //This is initial version. Placeholder for future upgrades
-    1: "noUpgrade",
-
-    // Renamed Method and property names by removing "Get"
-    2:
-        [
-          Blockly.Versioning.changeMethodName("BluetoothLE", "GetAdvertisementData", "AdvertisementData"),
-          Blockly.Versioning.changeMethodName("BluetoothLE", "GetAdvertiserAddress", "AdvertiserAddress"),
-          Blockly.Versioning.changeMethodName("BluetoothLE", "GetAdvertiserServiceUuids", "AdvertiserServiceUuids"),
-          Blockly.Versioning.changeMethodName("BluetoothLE", "GetCharacteristicbyIndex", "CharacteristicByIndex"),
-          Blockly.Versioning.changeMethodName("BluetoothLE", "GetServicebyIndex", "ServiceByIndex"),
-          Blockly.Versioning.changeMethodName("BluetoothLE", "GetSupportedCharacteristics", "SupportedCharacteristics"),
-          Blockly.Versioning.changeMethodName("BluetoothLE", "GetSupportedServices", "SupportedServices"),
-          Blockly.Versioning.changePropertyName("BluetoothLE", "GetAdvertiserAddresses", "AdvertiserAddresses"),
-          Blockly.Versioning.changePropertyName("BluetoothLE", "GetAdvertiserNames", "AdvertiserNames")
-        ]
-
-  }, // End BluetoothLE upgraders
-
   "Button": {
 
     // A1: The Alignment property was renamed to TextAlignment.

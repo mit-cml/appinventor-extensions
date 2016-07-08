@@ -1,5 +1,5 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2011-2016 MIT, All rights reserved
+// Copyright 2015-2016 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -20,62 +20,62 @@ import com.google.appinventor.components.annotations.SimpleProperty;
 import com.google.appinventor.components.annotations.UsesPermissions;
 
 import com.google.appinventor.components.common.ComponentCategory;
-import com.google.appinventor.components.common.YaVersion;
 
 import com.google.appinventor.components.runtime.AndroidNonvisibleComponent;
 import com.google.appinventor.components.runtime.Component;
 import com.google.appinventor.components.runtime.ComponentContainer;
-import com.google.appinventor.components.runtime.Notifier;
 import com.google.appinventor.components.runtime.util.SdkLevel;
 
 import java.util.List;
 
 
 /**
- * Author: Andrew McKinney <mckinney@mit.edu>
- * Author: Cristhian Ulloa <cristhian2ulloa@gmail.com>
- * Author: tiffanyle <le.tiffanya@gmail.com>
+ * @author Andrew McKinney (mckinney@mit.edu)
+ * @author Cristhian Ulloa (cristhian2ulloa@gmail.com)
+ * @author tiffanyle (le.tiffanya@gmail.com)
+ * @author William Byrne (will2596@gmail.com) (minor bugfixes)
  */
 
-@DesignerComponent(version = 1,
+@DesignerComponent(version = 2,
     description = "Bluetooth Low Energy, also referred to as Bluetooth LE " +
         "or simply BLE, is a new protocol similar to classic Bluetooth except " +
         "that it is designed to consume less power while maintaining comparable " +
         "functionality. For this reason, Bluetooth LE is the preferred choice of " +
-        "communication with IoT devices that have limited power resources." +
-        "Starting with Android 4.3, Google introduced built-in support for Bluetooth Low Energy.",
+        "communication with IoT devices that have limited power resources. " +
+        "Starting with Android 4.3, Google introduced built-in support for Bluetooth Low Energy. " +
+        "The BluetoothLE extension requires Android 5.0 or higher to avoid known " +
+        "issues with Google's Bluetooth LE support prior to Android 5.0.",
     category = ComponentCategory.EXTENSION,
     nonVisible = true,
     iconName = "images/bluetooth.png")
 @SimpleObject(external = true)
-@UsesPermissions(permissionNames = "android.permission.BLUETOOTH, " + "android.permission.BLUETOOTH_ADMIN," + "android.permission.ACCESS_COARSE_LOCATION")
-
+@UsesPermissions(permissionNames = "android.permission.BLUETOOTH, " + "android.permission.BLUETOOTH_ADMIN,"
+    + "android.permission.ACCESS_COARSE_LOCATION")
 public class BluetoothLE extends AndroidNonvisibleComponent implements Component {
 
   /**
-   * Basic Variable
+   * Basic Variables
    */
-  private static final String LOG_TAG = "BluetoothLEComponent";
+  private static final String LOG_TAG = "BluetoothLE";
   private final Activity activity;
   private BluetoothLEint inner;
 
   public BluetoothLE(ComponentContainer container) {
     super(container.$form());
 
-    activity = (Activity) container.$context();
-    inner = null;
+    activity = container.$context();
 
-    // See if we are usable on this device
-    if (!container.$form().getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
-      Notifier.oneButtonAlert(container.$context(), "Bluetooth Not Supported, sorry.", "Unsupported", "Oh Well");
-      return;
-    }
-
-    Log.d(LOG_TAG, "Appear to have Bluetooth LE support, continuing...");
-
-    if (SdkLevel.getLevel() < SdkLevel.LEVEL_LOLLIPOP) {
-      Notifier.oneButtonAlert(container.$context(), "Bluetooth Not Supported, sorry.", "Unsupported", "Oh Well");
-      return;
+    // Perform preliminary checks to see if we are usable on this device.
+    // If this test does not pass, we log an advanced warning then proceed.
+    // Individualized errors are signaled in each @SimpleFunction.
+    if(!container.$form().getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
+      Log.e(LOG_TAG, "Bluetooth LE is unsupported on this hardware. " +
+          "Any subsequent function calls will complain.");
+    } else if(SdkLevel.getLevel() < SdkLevel.LEVEL_LOLLIPOP) {
+      Log.e(LOG_TAG, "The BluetoothLE extension is unsupported at this API Level. " +
+          "Any subsequent function calls will complain.");
+    } else {
+      Log.d(LOG_TAG, "Appear to have Bluetooth LE support, continuing...");
     }
 
     inner = new BluetoothLEint(this, activity, container);
@@ -95,91 +95,106 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
     }
   }
 
-  @SimpleFunction(description = "Connect to a BluetoothLE device with index. Index specifies the position in BluetoothLE device list, starting from 0.")
+  @SimpleFunction(description = "Connect to a BluetoothLE device with index. Index specifies the position in" +
+      " BluetoothLE device list, starting from 1.")
   public void Connect(int index) {
     if (inner != null) {
       inner.Connect(index);
     }
   }
 
-  @SimpleFunction(description = "Connect to BluetoothLE device with address. Address specifies bluetooth address of the BluetoothLE device.")
+  @SimpleFunction(description = "Connect to BluetoothLE device with address. Address specifies bluetooth address" +
+      " of the BluetoothLE device.")
   public void ConnectWithAddress(String address) {
     if (inner != null) {
       inner.ConnectWithAddress(address);
     }
   }
 
-  @SimpleFunction(description = "Disconnect from connected BluetoothLE device with address. Address specifies bluetooth address of the BluetoothLE device.")
+  @SimpleFunction(description = "Disconnect from the currently connected BluetoothLE device if a device is connected.")
+  public void Disconnect() {
+    if(inner != null) {
+      inner.Disconnect();
+    }
+  }
+
+  @SimpleFunction(description = "Disconnect from connected BluetoothLE device with address. Address specifies" +
+      " bluetooth address of the BluetoothLE device.")
   public void DisconnectWithAddress(String address) {
     if (inner != null) {
       inner.DisconnectWithAddress(address);
     }
   }
 
-  @SimpleFunction(description = "Write String value to a connected BluetoothLE device. Service Unique ID, Characteristic Unique ID and String value"
-      + "are required.")
+  @SimpleFunction(description = "Write String value to a connected BluetoothLE device. Service Unique ID," +
+      " Characteristic Unique ID and String value are required.")
   public void WriteStringValue(String service_uuid, String characteristic_uuid, String value) {
     if (inner != null) {
       inner.WriteStringValue(service_uuid, characteristic_uuid, value);
     }
   }
 
-  @SimpleFunction(description = "Write Integer value to a connected BluetoothLE device. Service Unique ID, Characteristic Unique ID, Integer value"
-      + " and offset are required. Offset specifies the start position of writing data.")
+  @SimpleFunction(description = "Write Integer value to a connected BluetoothLE device. Service Unique ID," +
+      " Characteristic Unique ID, Integer value and offset are required. Offset specifies the start position" +
+      " of writing data.")
   public void WriteIntValue(String service_uuid, String characteristic_uuid, int value, int offset) {
     if (inner != null) {
       inner.WriteIntValue(service_uuid, characteristic_uuid, value, offset);
     }
   }
 
-  @SimpleFunction(description="Write Float value to a connected BluetoothLE device. Service Unique ID, Characteristic Unique ID, Integer value"
-      + " and offset are required. Offset specifies the start position of writing data. Value converted to IEEE 754 floating-point 32-bit layout before writing.")
+  @SimpleFunction(description="Write Float value to a connected BluetoothLE device. Service Unique ID," +
+      " Characteristic Unique ID, Integer value and offset are required. Offset specifies the start position" +
+      " of writing data. Value converted to IEEE 754 floating-point 32-bit layout before writing.")
   public void WriteFloatValue(String service_uuid, String characteristic_uuid, float value, int offset) {
     if (inner != null) {
       inner.WriteFloatValue(service_uuid, characteristic_uuid, value, offset);
     }
   }
 
-  @SimpleFunction(description = "Write byte value to a connected BluetoothLE device. Service Unique ID, Characteristic Unique ID, Integer value"
-      + " and offset are required. Offset specifies the start position of writing data.")
+  @SimpleFunction(description = "Write byte value to a connected BluetoothLE device. Service Unique ID," +
+      " Characteristic Unique ID, Integer value and offset are required. Offset specifies the start" +
+      " position of writing data.")
   public void WriteByteValue(String service_uuid, String characteristic_uuid, String value) {
     if (inner != null) {
       inner.WriteByteValue(service_uuid, characteristic_uuid, value);
     }
   }
 
-  @SimpleFunction(description = "Read Integer value from a connected BluetoothLE device. Service Unique ID, Characteristic Unique ID and offset"
-      + " are required. Offset specifies the start position of reading data.")
+  @SimpleFunction(description = "Read Integer value from a connected BluetoothLE device. Service Unique ID," +
+      " Characteristic Unique ID and offset are required. Offset specifies the start position of reading data.")
   public void ReadIntValue(String service_uuid, String characteristic_uuid, int intOffset) {
     if (inner != null) {
       inner.ReadIntValue(service_uuid, characteristic_uuid, intOffset);
     }
   }
 
-  @SimpleFunction(description = "Read String value from a connected BluetoothLE device. Service Unique ID, Characteristic Unique ID and offset"
-      + " are required. Offset specifies the start position of reading data.")
+  @SimpleFunction(description = "Read String value from a connected BluetoothLE device. Service Unique ID," +
+      " Characteristic Unique ID and offset are required. Offset specifies the start position of reading data.")
   public void ReadStringValue(String service_uuid, String characteristic_uuid, int strOffset) {
     if (inner != null) {
       inner.ReadStringValue(service_uuid, characteristic_uuid, strOffset);
     }
   }
 
-  @SimpleFunction(description = "Read Float value from a connected BluetoothLE device. Service Unique ID, Characteristic Unique ID and offset"
-      + " are required. Offset specifies the start position of reading data.")
+  @SimpleFunction(description = "Read Float value from a connected BluetoothLE device. Service Unique ID," +
+      " Characteristic Unique ID and offset are required. Offset specifies the start position of reading data.")
   public void ReadFloatValue(String service_uuid, String characteristic_uuid, int floatOffset) {
     if (inner != null) {
       inner.ReadFloatValue(service_uuid, characteristic_uuid, floatOffset);
     }
   }
 
-  @SimpleFunction(description = "Read Byte value from a connected BluetoothLE device. Service Unique ID and Characteristic Unique ID are required.")
+  @SimpleFunction(description = "Read Byte value from a connected BluetoothLE device. Service Unique ID" +
+      " and Characteristic Unique ID are required.")
   public void ReadByteValue(String service_uuid, String characteristic_uuid) {
     if (inner != null) {
       inner.ReadByteValue(service_uuid, characteristic_uuid);
     }
   }
 
-  @SimpleFunction(description = "Get the RSSI (Received Signal Strength Indicator) of found device with index. Index specifies the position in BluetoothLE device list, starting from 0.")
+  @SimpleFunction(description = "Get the RSSI (Received Signal Strength Indicator) of found device with index." +
+      " Index specifies the position in BluetoothLE device list, starting from 1.")
   public int FoundDeviceRssi(int index) {
     if (inner != null) {
       return inner.FoundDeviceRssi(index);
@@ -187,7 +202,8 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
     return 0;
   }
 
-  @SimpleFunction(description = "Get the name of found device with index. Index specifies the position in BluetoothLE device list, starting from 0.")
+  @SimpleFunction(description = "Get the name of found device with index. Index specifies the position in" +
+      " BluetoothLE device list, starting from 1.")
   public String FoundDeviceName(int index) {
     if (inner != null) {
       return inner.FoundDeviceName(index);
@@ -195,7 +211,8 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
     return null;
   }
 
-  @SimpleFunction(description = "Get the address of found device with index. Index specifies the position in BluetoothLE device list, starting from 0.")
+  @SimpleFunction(description = "Get the address of found device with index. Index specifies the position" +
+      " in BluetoothLE device list, starting from 1.")
   public String FoundDeviceAddress(int index) {
     if (inner != null) {
       return inner.FoundDeviceAddress(index);
@@ -203,7 +220,8 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
     return null;
   }
 
-  @SimpleFunction(description = "Create and publish a Bluetooth LE advertisement. inData specifies the data that will be included in the advertisement. serviceUuid specifies the UUID of the advertisement.")
+  @SimpleFunction(description = "Create and publish a Bluetooth LE advertisement. inData specifies the data that" +
+      " will be included in the advertisement. serviceUuid specifies the UUID of the advertisement.")
   public void StartAdvertising(String inData, String serviceUuid) {
     if (inner != null) {
       inner.StartAdvertising(inData, serviceUuid);
@@ -217,7 +235,8 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
     }
   }
 
-  @SimpleFunction(description = "Scans for Bluetooth LE advertisements. scanPeriod specifies how long the scan will run.")
+  @SimpleFunction(description = "Scans for Bluetooth LE advertisements. scanPeriod specifies how" +
+      " long the scan will run.")
   public void ScanAdvertisements(long scanPeriod) {
     if (inner != null) {
       inner.ScanAdvertisements(scanPeriod);
@@ -271,7 +290,8 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
     return 0;
   }
 
-  @SimpleProperty(description = "Return true if a BluetoothLE device is connected; Otherwise, return false.", category = PropertyCategory.BEHAVIOR)
+  @SimpleProperty(description = "Return true if a BluetoothLE device is connected; Otherwise, return false.",
+      category = PropertyCategory.BEHAVIOR)
   public boolean IsDeviceConnected() {
     if (inner != null) {
       return inner.IsDeviceConnected();
@@ -279,7 +299,8 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
     return false;
   }
 
-  @SimpleProperty(description = "Return a sorted list of BluetoothLE devices as a String.", category = PropertyCategory.BEHAVIOR)
+  @SimpleProperty(description = "Return a sorted list of BluetoothLE devices as a String.",
+      category = PropertyCategory.BEHAVIOR)
   public String DeviceList() {
     if (inner != null) {
       return inner.DeviceList();
@@ -287,7 +308,8 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
     return null;
   }
 
-  @SimpleProperty(description = "Return the RSSI (Received Signal Strength Indicator) of connected device.", category = PropertyCategory.BEHAVIOR)
+  @SimpleProperty(description = "Return the RSSI (Received Signal Strength Indicator) of connected device.",
+      category = PropertyCategory.BEHAVIOR)
   public String ConnectedDeviceRssi() {
     if (inner != null) {
       return inner.ConnectedDeviceRssi();
@@ -331,7 +353,13 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
   public void Connected() {
   }
 
-  @SimpleEvent(description = "Trigger event when RSSI (Received Signal Strength Indicator) of found BluetoothLE device changes")
+  @SimpleEvent(description = "This event is triggered when a BluetoothLE device is disconnected.")
+  public void Disconnected() {
+
+  }
+
+  @SimpleEvent(description = "Trigger event when RSSI (Received Signal Strength Indicator) of found" +
+      " BluetoothLE device changes")
   public void RssiChanged(final int device_rssi) {
   }
 
@@ -383,10 +411,11 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
     return null;
   }
 
-  @SimpleFunction(description = "Return Unique ID of selected service with index. Index specified by list of supported services for a connected device, starting from 0.")
+  @SimpleFunction(description = "Return Unique ID of selected service with index. Index specified by list of" +
+      " supported services for a connected device, starting from 1.")
   public String ServiceByIndex(int index) {
     if (inner != null) {
-      return inner.GetServicebyIndex(index);
+      return inner.GetServiceByIndex(index);
     }
     return null;
   }
@@ -399,10 +428,11 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
     return null;
   }
 
-  @SimpleFunction(description = "Return Unique ID of selected characteristic with index. Index specified by list of supported characteristics for a connected device, starting from 0.")
+  @SimpleFunction(description = "Return Unique ID of selected characteristic with index. Index specified by list" +
+      " of supported characteristics for a connected device, starting from 1.")
   public String CharacteristicByIndex(int index) {
     if (inner != null) {
-      return inner.GetCharacteristicbyIndex(index);
+      return inner.GetCharacteristicByIndex(index);
     }
     return null;
   }

@@ -1,6 +1,5 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2016 MIT, All rights reserved
+// Copyright 2015-2016 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -28,6 +27,7 @@ import android.bluetooth.le.ScanResult;
 import android.bluetooth.le.ScanSettings;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 
 import android.os.Handler;
@@ -37,31 +37,108 @@ import android.text.TextUtils;
 
 import android.util.Log;
 
+import com.google.appinventor.components.runtime.ActivityResultListener;
 import com.google.appinventor.components.runtime.ComponentContainer;
 import com.google.appinventor.components.runtime.EventDispatcher;
-import com.google.appinventor.components.runtime.EventDispatcher;
-import com.google.appinventor.components.runtime.Notifier;
-import com.google.appinventor.components.runtime.util.ErrorMessages;
+import com.google.appinventor.components.runtime.errors.IllegalArgumentError;
 import com.google.appinventor.components.runtime.util.SdkLevel;
 
 import java.nio.charset.Charset;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.UUID;
 
-
 /**
- * Author: Andrew McKinney <mckinney@mit.edu>
- * Author: Cristhian Ulloa <cristhian2ulloa@gmail.com>
- * Author: tiffanyle <le.tiffanya@gmail.com>
+ * The internal implementation of the BluetoothLE component.
+ *
+ * @author Andrew McKinney (mckinney@mit.edu)
+ * @author Cristhian Ulloa (cristhian2ulloa@gmail.com)
+ * @author tiffanyle (le.tiffanya@gmail.com)
+ * @author William Byrne (will2596@gmail.com) (refactoring, bug fixes,
+ *                                             error handling, and UUID validation)
  */
 
-public class BluetoothLEint {
+final class BluetoothLEint {
+
+  /**
+   * Class representing an action on the device's Bluetooth hardware
+   *
+   * @param <T> the return type for this action
+   */
+  private abstract class BLEAction<T> implements ActivityResultListener {
+    private final int requestEnableBT;
+    private final String functionName;
+
+    BLEAction(String functionName) {
+      this.requestEnableBT = container.$form().registerForActivityResult(this);
+      this.functionName = functionName;
+    }
+
+    public abstract T action();
+
+    public final T run() {
+      // Determine whether we are usable on this device
+      if (!container.$form().getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
+        signalError(functionName, ERROR_BLUETOOTH_LE_NOT_SUPPORTED);
+        return null;
+      }
+
+      if (SdkLevel.getLevel() < SdkLevel.LEVEL_LOLLIPOP) {
+        signalError(functionName, ERROR_API_LEVEL_TOO_LOW);
+        return null;
+      }
+
+      return action();
+    }
+
+    final BluetoothAdapter obtainBluetoothAdapter() {
+      final BluetoothManager bluetoothManager = (BluetoothManager) activity
+          .getSystemService(Context.BLUETOOTH_SERVICE);
+      BluetoothAdapter bluetoothAdapter = bluetoothManager.getAdapter();
+
+      if (bluetoothAdapter != null) {
+        if (!bluetoothAdapter.isEnabled()) {
+          Log.i(LOG_TAG, "Bluetooth is not enabled, attempting to enable now...");
+          // Technically, we have the BLUETOOTH_ADMIN permission and could simply
+          // call bluetoothAdapter.enable(), but doing so is intrusive to and
+          // possibly unwanted by the user. Instead, we start an activity to enable
+          // Bluetooth and listen for the result.
+          activity.startActivityForResult(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE), requestEnableBT);
+        }
+      } else {
+        signalError(functionName, ERROR_BLUETOOTH_LE_NOT_SUPPORTED);
+      }
+
+      return bluetoothAdapter;
+    }
+
+    /**
+     * Callback method to get the result returned by the implicit intent activity
+     * for enabling Bluetooth.
+     *
+     * @param requestCode a code identifying the request.
+     * @param resultCode a code specifying success or failure of the activity
+     * @param data the returned data, in this case an Intent whose data field
+     *        contains the selected item.
+     */
+    @Override
+    public void resultReturned(int requestCode, int resultCode, Intent data) {
+      if(requestCode == requestEnableBT) {
+        if (resultCode == Activity.RESULT_OK) {
+          // Now that Bluetooth is enabled, we attempt to run the action again.
+          run();
+        } else if (resultCode == Activity.RESULT_CANCELED) {
+          signalError(functionName, ERROR_BLUETOOTH_LE_NOT_ENABLED);
+        }
+      }
+    }
+  }
 
   /**
    * Reference to our "outer" class
@@ -71,21 +148,73 @@ public class BluetoothLEint {
   ComponentContainer container;
 
   /**
-   * Basic Variable
+   * Constants
    */
   private static final String LOG_TAG = "BluetoothLEint";
+  private static final Map<Integer, String> errorMessages;
+  private static final int ERROR_BLUETOOTH_LE_NOT_SUPPORTED = 9001;
+  private static final int ERROR_BLUETOOTH_LE_NOT_ENABLED = 9002;
+  private static final int ERROR_API_LEVEL_TOO_LOW = 9003;
+  private static final int ERROR_NO_DEVICE_SCAN_IN_PROGRESS = 9004;
+  private static final int ERROR_NOT_CURRENTLY_CONNECTED = 9005;
+  private static final int ERROR_INDEX_OUT_OF_BOUNDS = 9006;
+  private static final int ERROR_DEVICE_LIST_EMPTY = 9007;
+  private static final int ERROR_INVALID_UUID_CHARACTERS = 9008;
+  private static final int ERROR_INVALID_UUID_FORMAT = 9009;
+  private static final int ERROR_ADVERTISEMENTS_NOT_SUPPORTED = 9010;
+
+  static {
+    errorMessages = new HashMap<Integer, String>();
+    errorMessages.put(ERROR_BLUETOOTH_LE_NOT_SUPPORTED,
+        "BluetoothLE is not supported on your phone's hardware!");
+    errorMessages.put(ERROR_BLUETOOTH_LE_NOT_ENABLED,
+        "BluetoothLE is not enabled!");
+    errorMessages.put(ERROR_API_LEVEL_TOO_LOW,
+        "BluetoothLE requires Android 5.0 or newer!");
+    errorMessages.put(ERROR_NO_DEVICE_SCAN_IN_PROGRESS,
+        "StopScan cannot be called before StartScan! There is no scan currently in progress.");
+    errorMessages.put(ERROR_NOT_CURRENTLY_CONNECTED,
+        "Disconnect cannot be called before you are connected! There is no Bluetooth LE device currently connected.");
+    errorMessages.put(ERROR_INDEX_OUT_OF_BOUNDS,
+        "Block %1s attempted to access %2s with an invalid index. Index out of bounds!");
+    errorMessages.put(ERROR_DEVICE_LIST_EMPTY,
+        "You cannot connect to a device when the device list is empty! Try scanning again.");
+    errorMessages.put(ERROR_INVALID_UUID_CHARACTERS,
+        "%1s UUID string in block %2s contains invalid characters! " +
+            "Try typing it in again and rebuilding your app.");
+    errorMessages.put(ERROR_INVALID_UUID_FORMAT,
+        "%1s UUID string in block %2s does not use the proper format! " +
+            "Try typing it in again and rebuilding your app.");
+    errorMessages.put(ERROR_ADVERTISEMENTS_NOT_SUPPORTED,
+        "Bluetooth Advertisements not supported!");
+  }
+
+  /**
+   * Basic Variables
+   */
   private final Activity activity;
-  private BluetoothAdapter mBluetoothAdapter;
-  private BluetoothGatt currentBluetoothGatt;
+  private BluetoothLeScanner mBluetoothLeDeviceScanner;
+  private BluetoothGatt mBluetoothGatt;
   private int device_rssi = 0;
   private final Handler uiThread;
-  private boolean mLogEnabled = true;
-  private String mLogMessage;
+
+  /**
+   * BluetoothLE Device Scanning and Connection Callbacks
+   */
+  private ScanCallback mDeviceScanCallback;
+  private BluetoothGattCallback mGattCallback;
+
+  /**
+   * Advertising and Advertisement Scanning Callbacks
+   */
+  private ScanCallback mAdvertisementScanCallback; // Entered when a BLE Advertisement is found
+  private AdvertiseCallback mAdvertiseCallback; // Entered when Advertising is started
 
   /**
    * BluetoothLE Info List
    */
-  private HashMap<String, BluetoothGatt> gattList;
+  //TODO(Will): Delete the gattMap variable when DisconnectWithAddress is removed
+  private HashMap<String, BluetoothGatt> gattMap;
   private String deviceInfoList = "";
   private List<BluetoothDevice> mLeDevices;
   private List<BluetoothGattService> mGattService;
@@ -98,21 +227,16 @@ public class BluetoothLEint {
   /**
    * BluetoothLE Device Status
    */
-  private boolean isEnabled = false;
   private boolean isScanning = false;
   private boolean isConnected = false;
   private boolean isCharRead = false;
-  private boolean isCharWrite = false;
+  private boolean isCharWritten = false;
   private boolean isServiceRead = false;
 
   /**
-   * GATT value
+   * GATT values
    */
   private int battery = -1;
-  private String tempUnit = "";
-  private byte[] bodyTemp;
-  private byte[] heartRate;
-  private int linkLoss_value = -1;
   private int txPower = -1;
   private byte[] data;
   private byte[] descriptorValue;
@@ -124,12 +248,21 @@ public class BluetoothLEint {
   private int strOffset = 0;
   private int floatOffset = 0;
 
-  private int charType = 0; //byte = 0; int = 1; string = 2; float = 3
+  /**
+   * Enum describing the data type of a characteristic.
+   */
+  private enum CharType {
+    BYTE, INT, STRING, FLOAT
+  }
 
-  // BLE Advertisements
-  private BluetoothLeScanner mBluetoothLeScanner;
+  // The data type of a characteristic: Byte, Int, String, or Float.
+  private CharType charType = CharType.BYTE;
+
+  /**
+   * Advertising Support
+   */
+  private BluetoothLeScanner mBluetoothLeAdvertisementScanner;
   private Handler mHandler = new Handler();
-  private AdvertiseCallback mAdvertiseCallback;
   private BluetoothLeAdvertiser mBluetoothLeAdvertiser;
   private long SCAN_PERIOD = 5000;
   private String advertisementScanResult = "";
@@ -139,248 +272,585 @@ public class BluetoothLEint {
   private HashMap<String, String> nameToAddress = new HashMap<String, String>();
   private boolean isAdvertising = false;
 
-  public BluetoothLEint(BluetoothLE outer, Activity activity, ComponentContainer container) {
+  BluetoothLEint(BluetoothLE outer, final Activity activity, ComponentContainer container) {
 
     this.outer = outer;
     this.activity = activity;
     this.container = container;
 
-    mLeDevices = new ArrayList<BluetoothDevice>();
-    mGattService = new ArrayList<BluetoothGattService>();
-    gattChars = new ArrayList<BluetoothGattCharacteristic>();
-    mLeDeviceRssi = new HashMap<BluetoothDevice, Integer>();
-    gattList = new HashMap<String, BluetoothGatt>();
-    uiThread = new Handler();
+    this.mLeDevices = new ArrayList<BluetoothDevice>();
+    this.mGattService = new ArrayList<BluetoothGattService>();
+    this.gattChars = new ArrayList<BluetoothGattCharacteristic>();
+    this.mLeDeviceRssi = new HashMap<BluetoothDevice, Integer>();
+    this.gattMap = new HashMap<String, BluetoothGatt>();
+    this.uiThread = new Handler();
 
-    // See if we are usable on this device
-    if (!container.$form().getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
-      Notifier.oneButtonAlert(container.$context(), "Bluetooth Not Supported, sorry.", "Unsupported", "Oh Well");
-      return;
-    }
+    this.mDeviceScanCallback = new ScanCallback() {
+      @Override
+      public void onScanResult(final int callbackType, final ScanResult scanResult) {
+        super.onScanResult(callbackType, scanResult);
 
-    if (SdkLevel.getLevel() < SdkLevel.LEVEL_LOLLIPOP) {
-      Notifier.oneButtonAlert(container.$context(), "Bluetooth Not Supported, sorry.", "Unsupported", "Oh Well");
-      mBluetoothAdapter = null;
-    } else {
-      mBluetoothAdapter = newBluetoothAdapter(activity);
-    }
+        if (scanResult == null || scanResult.getDevice() == null) {
+          return;
+        }
 
-    if (mBluetoothAdapter == null || !mBluetoothAdapter.isEnabled()) {
-      isEnabled = false;
-      LogMessage("No Valid BTLE Device on platform", "e");
-      container.$form().dispatchErrorOccurredEvent(outer, "BluetoothLE", ErrorMessages.ERROR_BLUETOOTH_NOT_ENABLED);
-    } else {
-      isEnabled = true;
-      LogMessage("BluetoothLE Device found", "i");
-    }
-
-    if( !BluetoothAdapter.getDefaultAdapter().isMultipleAdvertisementSupported() ) {
-      Notifier.oneButtonAlert(container.$context(), "Bluetooth Advertisements Not Supported, sorry.", "Unsupported", "Oh Well");
-    }
-  }
-
-  private void LogMessage(String message, String level) {
-    if (mLogEnabled) {
-      mLogMessage = message;
-      String errorLevel = "e";
-      String warningLevel = "w";
-
-      // push to appropriate logging
-      if (level.equals(errorLevel)) {
-        Log.e(LOG_TAG, message);
-      } else if (level.equals(warningLevel)) {
-        Log.w(LOG_TAG, message);
-      } else {
-        Log.i(LOG_TAG, message);
+        uiThread.post(new Runnable() {
+          @Override
+          public void run() {
+            isScanning = true;
+            addDevice(scanResult.getDevice(), scanResult.getRssi());
+          }
+        });
       }
-    }
-  }
+      @Override
+      public void onBatchScanResults(List<ScanResult> results) {
+        super.onBatchScanResults(results);
+      }
 
-  public static BluetoothAdapter newBluetoothAdapter(Context context) {
-    final BluetoothManager bluetoothManager = (BluetoothManager) context
-        .getSystemService(Context.BLUETOOTH_SERVICE);
-    return bluetoothManager.getAdapter();
-  }
+      @Override
+      public void onScanFailed(int errorCode) {
+        switch(errorCode) {
+          case SCAN_FAILED_ALREADY_STARTED:
+            Log.e(LOG_TAG, "Device Scan failed. There is already a scan in progress.");
+            break;
+          default:
+            Log.e(LOG_TAG, "Device Scan failed due to an internal error. Error Code: " + errorCode);
+        }
+        super.onScanFailed(errorCode);
+      }
+    };
 
-  public void StartScanning() {
-    if (!mLeDevices.isEmpty()) {
-      mLeDevices.clear();
-      mLeDeviceRssi.clear();
-    }
-    mBluetoothAdapter.startLeScan(mLeScanCallback);
-    LogMessage("StartScanning Successfully.", "i");
-  }
+    this.mGattCallback = new BluetoothGattCallback() {
+      @Override
+      public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
+        if (newState == BluetoothProfile.STATE_CONNECTED) {
+          isConnected = true;
+          gatt.discoverServices();
+          gatt.readRemoteRssi();
+          Connected();
+          Log.i(LOG_TAG, "Connect successful.");
+        }
 
-  public void StopScanning() {
-    mBluetoothAdapter.stopLeScan(mLeScanCallback);
-    LogMessage("StopScanning Successfully.", "i");
-  }
+        if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+          isConnected = false;
+          mBluetoothGatt.close();
+          mBluetoothGatt = null;
+          Disconnected();
+          Log.i(LOG_TAG, "Disconnect successful.");
+        }
 
-  public void Connect(int index) {
-    BluetoothGattCallback newGattCallback = null;
-    currentBluetoothGatt = mLeDevices.get(index - 1).connectGatt(activity, false, initCallBack(newGattCallback));
-    if (currentBluetoothGatt != null) {
-      gattList.put(mLeDevices.get(index - 1).toString(), currentBluetoothGatt);
-      LogMessage("Connect Successfully.", "i");
-    } else {
-      LogMessage("Connect Fail.", "e");
-    }
-  }
+        Log.i(LOG_TAG, "onConnectionStateChange fired with status: " + status);
+        Log.i(LOG_TAG, "onConnectionStateChange fired with newState: " + newState);
+      }
 
-  public void ConnectWithAddress(String address) {
-    for (BluetoothDevice bluetoothDevice : mLeDevices) {
-      if (bluetoothDevice.toString().equals(address)) {
-        BluetoothGattCallback newGattCallback = null;
-        currentBluetoothGatt = bluetoothDevice.connectGatt(activity, false, initCallBack(newGattCallback));
-        if (currentBluetoothGatt != null) {
-          gattList.put(bluetoothDevice.toString(), currentBluetoothGatt);
-          LogMessage("Connect with Address Successfully.", "i");
-          break;
-        } else {
-          LogMessage("Connect with Address Fail.", "e");
+      @Override
+      // New services discovered
+      public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+        if (status == BluetoothGatt.GATT_SUCCESS) {
+          Log.i(LOG_TAG, "Services Discovered!");
+          mGattService = gatt.getServices();
+          isServiceRead = true;
+        }
+        Log.i(LOG_TAG, "onServicesDiscovered fired with status: " + status);
+      }
+
+      @Override
+      // Result of a characteristic read operation
+      public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+        if (status == BluetoothGatt.GATT_SUCCESS) {
+          data = characteristic.getValue();
+          Log.i(LOG_TAG, "dataLength: " + data.length);
+          switch(charType) {
+            case BYTE:
+              byteValue = "";
+              for (byte i : data) {
+                byteValue += i;
+              }
+              Log.i(LOG_TAG, "byteValue: " + byteValue);
+              ByteValueRead(byteValue);
+              break;
+            case INT:
+              intValue = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT32, intOffset);
+              Log.i(LOG_TAG, "intValue: " + intValue);
+              IntValueRead(intValue);
+              break;
+            case STRING:
+              stringValue = characteristic.getStringValue(strOffset);
+              Log.i(LOG_TAG, "stringValue: " + stringValue);
+              StringValueRead(stringValue);
+              break;
+            case FLOAT:
+              floatValue = characteristic.getFloatValue(BluetoothGattCharacteristic.FORMAT_FLOAT, floatOffset);
+              Log.i(LOG_TAG, "floatValue: " + floatValue);
+              FloatValueRead(floatValue);
+          }
+
+          isCharRead = true;
         }
       }
-    }
+
+      @Override
+      // Result of a characteristic read operation is changed
+      public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+        data = characteristic.getValue();
+        Log.i(LOG_TAG, "dataLength: " + data.length);
+        Log.i(LOG_TAG, "dataValue: " + Arrays.toString(data));
+        switch (charType) {
+          case BYTE:
+            byteValue = "";
+            for (byte i : data) {
+              byteValue += i;
+            }
+            Log.i(LOG_TAG, "byteValue: " + byteValue);
+            ByteValueChanged(byteValue);
+            break;
+          case INT:
+            intValue = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, intOffset);
+            Log.i(LOG_TAG, "intValue: " + intValue);
+            IntValueChanged(intValue);
+            break;
+          case STRING:
+            stringValue = characteristic.getStringValue(strOffset);
+            Log.i(LOG_TAG, "stringValue: " + stringValue);
+            StringValueChanged(stringValue);
+            break;
+          case FLOAT:
+            if (data.length == 1) {
+              floatValue = (float) (data[0] * Math.pow(10, 0));
+            } else if (data.length == 2 || data.length == 3) {
+              floatValue = characteristic.getFloatValue(BluetoothGattCharacteristic.FORMAT_SFLOAT, floatOffset);
+            } else {
+              floatValue = characteristic.getFloatValue(BluetoothGattCharacteristic.FORMAT_FLOAT, floatOffset);
+            }
+            Log.i(LOG_TAG, "floatValue: " + floatValue);
+            FloatValueChanged(floatValue);
+        }
+        isCharRead = true;
+      }
+
+      @Override
+      // set value of characteristic
+      public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+        Log.i(LOG_TAG, "Write Characteristic Successfully.");
+        ValueWrite();
+      }
+
+      @Override
+      public void onDescriptorRead(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
+        descriptorValue = descriptor.getValue();
+      }
+
+      @Override
+      public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
+        Log.i(LOG_TAG, "Write Descriptor Successfully.");
+      }
+
+      @Override
+      public void onReadRemoteRssi(BluetoothGatt gatt, int rssi, int status) {
+        device_rssi = rssi;
+        RssiChanged(device_rssi);
+      }
+    };
+
+    mAdvertisementScanCallback = new ScanCallback() {
+      @Override
+      public void onScanResult(int callbackType, ScanResult result) {
+        super.onScanResult(callbackType, result);
+
+        if (result == null || result.getDevice() == null || TextUtils.isEmpty(result.getDevice().getName())) {
+          return;
+        }
+
+        String advertiserAddress = result.getDevice().getAddress();
+        String advertiserName = result.getDevice().getName();
+        advertiserAddresses.add(advertiserAddress);
+        scannedAdvertisers.put(advertiserAddress, result);
+        scannedAdvertiserNames.add(advertiserName);
+        nameToAddress.put(advertiserName, advertiserAddress);
+      }
+
+      @Override
+      public void onBatchScanResults(List<ScanResult> results) {
+        super.onBatchScanResults(results);
+      }
+
+      @Override
+      public void onScanFailed(int errorCode) {
+        Log.e(LOG_TAG, "Advertisement onScanFailed: " + errorCode);
+        ///signalError(); fix me
+        super.onScanFailed(errorCode);
+      }
+    };
   }
 
-  public void DisconnectWithAddress(String address) {
-    if (gattList.containsKey(address)) {
-      gattList.get(address).disconnect();
-      isConnected = false;
-      gattList.remove(address);
-      LogMessage("Disconnect Successfully.", "i");
-    } else {
-      LogMessage("Disconnect Fail. No Such Address in the List", "e");
-    }
+  void StartScanning() {
+    new BLEAction<Void>("StartScanning") {
+      @Override
+      public Void action() {
+        if (!mLeDevices.isEmpty()) {
+          mLeDevices.clear();
+          mLeDeviceRssi.clear();
+        }
+
+        BluetoothAdapter btAdapter = obtainBluetoothAdapter();
+
+        if (btAdapter != null) {
+          if (mBluetoothLeDeviceScanner == null) {
+            mBluetoothLeDeviceScanner = btAdapter.getBluetoothLeScanner();
+          }
+
+          ScanSettings settings = new ScanSettings.Builder()
+              .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+              .build();
+
+          List<ScanFilter> filters = new ArrayList<ScanFilter>();
+          ScanFilter filter = new ScanFilter.Builder().build();
+          filters.add(filter);
+
+          mBluetoothLeDeviceScanner.startScan(filters, settings, mDeviceScanCallback);
+          Log.i(LOG_TAG, "StartScanning successful.");
+        }
+
+        return null;
+      }
+    }.run();
   }
 
-  public void WriteStringValue(String service_uuid, String characteristic_uuid, String value) {
-    LogMessage("stringValue: " + value, "i");
-    writeChar(UUID.fromString(service_uuid), UUID.fromString(characteristic_uuid), value);
+  void StopScanning() {
+    new BLEAction<Void>("StopScanning") {
+      @Override
+      public Void action() {
+        if (mBluetoothLeDeviceScanner != null) {
+          // After carefully examining the source code for android.bluetooth.le.BluetoothLeScanner, it is clear
+          // that the ScanCallback parameter of BluetoothLeScanner.stopScan(ScanCallback) is only used as a key to
+          // identify the current scan. It is never fired.
+          mBluetoothLeDeviceScanner.stopScan(mDeviceScanCallback);
+          Log.i(LOG_TAG, "StopScanning successful.");
+        } else {
+          signalError("StopScanning", ERROR_NO_DEVICE_SCAN_IN_PROGRESS);
+        }
+        return null;
+      }
+    }.run();
   }
 
-  public void WriteIntValue(String service_uuid, String characteristic_uuid, int value, int offset) {
-    LogMessage("intValue: " + value, "i");
-    writeChar(UUID.fromString(service_uuid), UUID.fromString(characteristic_uuid), value, BluetoothGattCharacteristic.FORMAT_SINT32, offset);
+  void Connect(final int index) {
+    new BLEAction<Void>("Connect") {
+      @Override
+      public Void action() {
+        try {
+          if (!mLeDevices.isEmpty()) {
+            mBluetoothGatt = mLeDevices.get(index - 1).connectGatt(activity, false, mGattCallback);
+            if (mBluetoothGatt != null) {
+              //TODO(Will): Delete the puts to this map
+              gattMap.put(mLeDevices.get(index - 1).toString(), mBluetoothGatt);
+            } else {
+              Log.e(LOG_TAG, "Connect failed.");
+            }
+          } else {
+            signalError("Connect", ERROR_DEVICE_LIST_EMPTY);
+          }
+        } catch (IndexOutOfBoundsException e) {
+          signalError("Connect", ERROR_INDEX_OUT_OF_BOUNDS, "Connect", "DeviceList");
+        }
+        return null;
+      }
+    }.run();
+
   }
 
-  public void WriteFloatValue(String service_uuid, String characteristic_uuid, float value, int offset) {
-
-   int floatrep = Float.floatToIntBits(value);
-
-    LogMessage("floatrep: " + floatrep, "i");
-
-    writeChar(UUID.fromString(service_uuid), UUID.fromString(characteristic_uuid), floatrep, BluetoothGattCharacteristic.FORMAT_SINT32, offset);
+  void ConnectWithAddress(final String address) {
+    new BLEAction<Void>("ConnectWithAddress") {
+      @Override
+      public Void action() {
+        try {
+          if (!mLeDevices.isEmpty()) {
+            for (BluetoothDevice bluetoothDevice : mLeDevices) {
+              if (bluetoothDevice.getAddress().equals(address)) {
+                mBluetoothGatt = bluetoothDevice.connectGatt(activity, false, mGattCallback);
+                if (mBluetoothGatt != null) {
+                  //TODO(Will): Delete the puts to this map
+                  gattMap.put(bluetoothDevice.getAddress(), mBluetoothGatt);
+                  Log.i(LOG_TAG, "ConnectWithAddress successful.");
+                  break;
+                } else {
+                  Log.e(LOG_TAG, "ConnectWithAddress failed.");
+                }
+              }
+            }
+          } else {
+            signalError("ConnectWithAddress", ERROR_DEVICE_LIST_EMPTY);
+          }
+        } catch (IndexOutOfBoundsException e) {
+          signalError("ConnectWithAddress", ERROR_INDEX_OUT_OF_BOUNDS, "ConnectWithAddress", "DeviceList");
+        }
+        return null;
+      }
+    }.run();
   }
 
-  public void WriteByteValue(String service_uuid, String characteristic_uuid, String value) {
-    byte[] bval = value.getBytes();
-    LogMessage("byteValue: " + bval, "i");
-    writeChar(UUID.fromString(service_uuid), UUID.fromString(characteristic_uuid), bval);
+  void Disconnect() {
+    new BLEAction<Void>("Disconnect") {
+      @Override
+      public Void action() {
+        if(mBluetoothGatt != null) {
+          mBluetoothGatt.disconnect();
+        } else {
+          signalError("Disconnect", ERROR_NOT_CURRENTLY_CONNECTED);
+        }
+        return null;
+      }
+    }.run();
   }
 
-  public void ReadIntValue(String service_uuid, String characteristic_uuid, int intOffset) {
-    charType = 1;
-    this.intOffset = intOffset;
-    readChar(UUID.fromString(service_uuid), UUID.fromString(characteristic_uuid));
+  //TODO(Will): Delete this
+  void DisconnectWithAddress(final String address) {
+    new BLEAction<Void>("DisconnectWithAddress") {
+      @Override
+      public Void action() {
+        if (gattMap.containsKey(address)) {
+          BluetoothGatt addressedGatt = gattMap.get(address);
+          addressedGatt.disconnect();
+          gattMap.remove(address);
+          Log.i(LOG_TAG, "Disconnect successful.");
+        } else {
+          // signalError here
+          Log.e(LOG_TAG, "Disconnect failed. No such address in the list.");
+        }
+        return null;
+      }
+    }.run();
   }
 
-  public void ReadStringValue(String service_uuid, String characteristic_uuid, int strOffset) {
-    charType = 2;
-    this.strOffset = strOffset;
-    readChar(UUID.fromString(service_uuid), UUID.fromString(characteristic_uuid));
+  void WriteStringValue(final String service_uuid, final String characteristic_uuid, final String value) {
+    new BLEAction<Void>("WriteStringValue") {
+      @Override
+      public Void action() {
+        if (!validateUUID(service_uuid, "Service", "WriteStringValue")
+            || !validateUUID(characteristic_uuid, "Characteristic", "WriteStringValue"))
+          return null;
+
+        Log.i(LOG_TAG, "stringValue: " + value);
+
+        writeChar(UUID.fromString(service_uuid), UUID.fromString(characteristic_uuid), value);
+        return null;
+      }
+    }.run();
   }
 
-  public void ReadFloatValue(String service_uuid, String characteristic_uuid, int floatOffset) {
-    charType = 3;
-    this.floatOffset = floatOffset;
-    readChar(UUID.fromString(service_uuid), UUID.fromString(characteristic_uuid));
+  void WriteIntValue(final String service_uuid, final String characteristic_uuid, final int value, final int offset) {
+    new BLEAction<Void>("WriteIntValue") {
+      @Override
+      public Void action() {
+        if (!validateUUID(service_uuid, "Service", "WriteIntValue")
+            || !validateUUID(characteristic_uuid, "Characteristic", "WriteIntValue"))
+          return null;
+
+        Log.i(LOG_TAG, "intValue: " + value);
+
+        int[] payload = {value, BluetoothGattCharacteristic.FORMAT_SINT32, offset};
+        writeChar(UUID.fromString(service_uuid), UUID.fromString(characteristic_uuid), payload);
+        return null;
+      }
+    }.run();
   }
 
-  public void ReadByteValue(String service_uuid, String characteristic_uuid) {
-    charType = 0;
-    readChar(UUID.fromString(service_uuid), UUID.fromString(characteristic_uuid));
+  void WriteFloatValue(final String service_uuid, final String characteristic_uuid, final float value, final int offset) {
+    new BLEAction<Void>("WriteFloatValue") {
+      @Override
+      public Void action() {
+        if (!validateUUID(service_uuid, "Service", "WriteFloatValue")
+            || !validateUUID(characteristic_uuid, "Characteristic", "WriteFloatValue"))
+          return null;
+
+        int floatRep = Float.floatToIntBits(value);
+        Log.i(LOG_TAG, "floatRepresentation: " + floatRep);
+
+        int[] payload = {floatRep, BluetoothGattCharacteristic.FORMAT_SINT32, offset};
+        writeChar(UUID.fromString(service_uuid), UUID.fromString(characteristic_uuid), payload);
+        return null;
+      }
+    }.run();
   }
 
-  public int FoundDeviceRssi(int index) {
-    if (index <= mLeDevices.size())
-      return mLeDeviceRssi.get(mLeDevices.get(index - 1));
-    else
-      return -1;
+  void WriteByteValue(final String service_uuid, final String characteristic_uuid, final String value) {
+    new BLEAction<Void>("WriteByteValue") {
+      @Override
+      public Void action() {
+        if (!validateUUID(service_uuid, "Service", "WriteByteValue")
+            || !validateUUID(characteristic_uuid, "Characteristic", "WriteByteValue"))
+          return null;
+
+        byte[] bytes = value.getBytes();
+        Log.i(LOG_TAG, "byteValue: " + Arrays.toString(bytes));
+
+        writeChar(UUID.fromString(service_uuid), UUID.fromString(characteristic_uuid), bytes);
+        return null;
+      }
+    }.run();
+
   }
 
-  public String FoundDeviceName(int index) {
+  void ReadIntValue(final String service_uuid, final String characteristic_uuid, final int intOffset) {
+    new BLEAction<Void>("ReadIntValue") {
+      @Override
+      public Void action() {
+        if (!validateUUID(service_uuid, "Service", "ReadIntValue")
+            || !validateUUID(characteristic_uuid, "Characteristic", "ReadIntValue"))
+          return null;
+
+        charType = CharType.INT;
+        BluetoothLEint.this.intOffset = intOffset;
+        readChar(UUID.fromString(service_uuid), UUID.fromString(characteristic_uuid));
+        return null;
+      }
+    }.run();
+  }
+
+  void ReadStringValue(final String service_uuid, final String characteristic_uuid, final int strOffset) {
+    new BLEAction<Void>("ReadStringValue") {
+      @Override
+      public Void action() {
+        if (!validateUUID(service_uuid, "Service", "ReadStringValue")
+            || !validateUUID(characteristic_uuid, "Characteristic", "ReadStringValue"))
+          return null;
+
+        charType = CharType.STRING;
+        BluetoothLEint.this.strOffset = strOffset;
+        readChar(UUID.fromString(service_uuid), UUID.fromString(characteristic_uuid));
+        return null;
+      }
+    }.run();
+  }
+
+  void ReadFloatValue(final String service_uuid, final String characteristic_uuid, final int floatOffset) {
+    new BLEAction<Void>("ReadFloatValue") {
+      @Override
+      public Void action() {
+        if (!validateUUID(service_uuid, "Service", "ReadFloatValue")
+            || !validateUUID(characteristic_uuid, "Characteristic", "ReadFloatValue"))
+          return null;
+
+        charType = CharType.FLOAT;
+        BluetoothLEint.this.floatOffset = floatOffset;
+        readChar(UUID.fromString(service_uuid), UUID.fromString(characteristic_uuid));
+        return null;
+      }
+    }.run();
+  }
+
+  void ReadByteValue(final String service_uuid, final String characteristic_uuid) {
+    new BLEAction<Void>("ReadByteValue") {
+      @Override
+      public Void action() {
+        if (!validateUUID(service_uuid, "Service", "ReadByteValue")
+            || !validateUUID(characteristic_uuid, "Characteristic", "ReadByteValue"))
+          return null;
+
+        charType = CharType.BYTE;
+        readChar(UUID.fromString(service_uuid), UUID.fromString(characteristic_uuid));
+        return null;
+      }
+    }.run();
+  }
+
+  int FoundDeviceRssi(final int index) {
+    Integer result = new BLEAction<Integer>("FoundDeviceRssi") {
+      @Override
+      public Integer action() {
+        if (index <= mLeDevices.size()) {
+          try {
+            if(!mLeDevices.isEmpty()) {
+              return mLeDeviceRssi.get(mLeDevices.get(index - 1));
+            } else {
+              signalError("FoundDeviceRssi", ERROR_DEVICE_LIST_EMPTY);
+            }
+          } catch(IndexOutOfBoundsException e) {
+            signalError("FoundDeviceRssi", ERROR_INDEX_OUT_OF_BOUNDS, "FoundDeviceRssi", "DeviceList");
+          }
+        }
+        return null;
+      }
+    }.run();
+
+    return (result != null) ? result : -1;
+  }
+
+  String FoundDeviceName(int index) {
     if (index <= mLeDevices.size()) {
-      LogMessage("Device Name is found", "i");
+      Log.i(LOG_TAG, "Device Name is found");
       return mLeDevices.get(index - 1).getName();
     } else {
-      LogMessage("Device Name isn't found", "e");
+      Log.e(LOG_TAG, "Device Name isn't found");
       return null;
     }
   }
 
-  public String FoundDeviceAddress(int index) {
+  String FoundDeviceAddress(int index) {
     if (index <= mLeDevices.size()) {
-      LogMessage("Device Address is found", "i");
+      Log.i(LOG_TAG, "Device Address is found");
       return mLeDevices.get(index - 1).getAddress();
     } else {
-      LogMessage("Device Address is found", "e");
+      Log.e(LOG_TAG, "Device Address is found");
       return "";
     }
   }
 
-  public void StartAdvertising(String inData, String serviceUuid) {
-    //create a scan callback if it does not already exist. If it does, you're already scanning for ads.
-    if (mBluetoothAdapter != null && mBluetoothAdapter.isMultipleAdvertisementSupported()) {
-        mBluetoothLeAdvertiser = mBluetoothAdapter.getBluetoothLeAdvertiser();
+  void StartAdvertising(String inData, String serviceUuid) {
+    // Ensure that the current Bluetooth Adapter supports Advertising.
+    if (!mBluetoothAdapter.isMultipleAdvertisementSupported()) {
+      Log.i(LOG_TAG, "Adapter does not support Bluetooth Advertisements.");
+      signalError("StartAdvertising", ERROR_ADVERTISEMENTS_NOT_SUPPORTED);
+      return;
+    }
+
+    if (!validateUUID(serviceUuid, "Service", "StartAdvertising"))
+      return;
+
+    // Create a scan callback if it does not already exist. If it does, you're already advertising.
+    mBluetoothLeAdvertiser = mBluetoothAdapter.getBluetoothLeAdvertiser();
 
     AdvertiseCallback advertisingCallback = new AdvertiseCallback() {
-        @Override
-        public void onStartSuccess(AdvertiseSettings settingsInEffect) {
-          isAdvertising = true;
-          super.onStartSuccess(settingsInEffect);
-        }
-
-        @Override
-        public void onStartFailure(int errorCode) {
-          LogMessage("Advertising onStartFailure: " + errorCode, "e");
-          super.onStartFailure(errorCode);
-        }
-      };
-
-      AdvertiseSettings advSettings = new AdvertiseSettings.Builder()
-          .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
-          .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_HIGH)
-          .setConnectable(false)
-          .build();
-
-      ParcelUuid pUuid = new ParcelUuid(UUID.fromString(serviceUuid));
-
-      AdvertiseData advData = new AdvertiseData.Builder()
-          .setIncludeDeviceName(true)
-          .addServiceUuid(pUuid)
-          .addServiceData(pUuid, inData.getBytes(Charset.forName("UTF-8")))
-          .build();
-
-      if (mAdvertiseCallback == null) {
-        AdvertiseSettings settings = advSettings;
-        AdvertiseData data = advData;
-
-        mAdvertiseCallback = advertisingCallback;
-
-        if (mBluetoothLeAdvertiser != null) {
-          mBluetoothLeAdvertiser.startAdvertising(settings, data, mAdvertiseCallback);
-        }
+      @Override
+      public void onStartSuccess(AdvertiseSettings settingsInEffect) {
+        isAdvertising = true;
+        super.onStartSuccess(settingsInEffect);
       }
-      LogMessage("StartScanningAdvertisements Successfully.", "i");
-    } else {
-      LogMessage("No bluetooth adapter", "i");
-      Notifier.oneButtonAlert(container.$context(), "Bluetooth Advertisements Not Supported, sorry.", "Unsupported", "Oh Well");
+
+      @Override
+      public void onStartFailure(int errorCode) {
+        Log.e(LOG_TAG, "Advertising onStartFailure: " + errorCode);
+        super.onStartFailure(errorCode);
+      }
+    };
+
+    AdvertiseSettings advSettings = new AdvertiseSettings.Builder()
+        .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
+        .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_HIGH)
+        .setConnectable(false)
+        .build();
+
+    ParcelUuid pUuid = new ParcelUuid(UUID.fromString(serviceUuid));
+
+    AdvertiseData advData = new AdvertiseData.Builder()
+        .setIncludeDeviceName(true)
+        .addServiceUuid(pUuid)
+        .addServiceData(pUuid, inData.getBytes(Charset.forName("UTF-8")))
+        .build();
+
+    if (mAdvertiseCallback == null) {
+      mAdvertiseCallback = advertisingCallback;
+
+      if (mBluetoothLeAdvertiser != null) {
+        mBluetoothLeAdvertiser.startAdvertising(advSettings, advData, mAdvertiseCallback);
+      }
     }
+
+    Log.i(LOG_TAG, "StartScanningAdvertisements Successfully.");
   }
 
-  public void StopAdvertising() {
-    LogMessage("Stopping BLE Advertising", "i");
+  void StopAdvertising() {
+    Log.i(LOG_TAG, "Stopping BLE Advertising");
     if (mBluetoothLeAdvertiser != null) {
       mBluetoothLeAdvertiser.stopAdvertising(mAdvertiseCallback);
       isAdvertising = false;
@@ -388,7 +858,8 @@ public class BluetoothLEint {
     }
   }
 
-  public void ScanAdvertisements(long scanPeriod) {
+  // TODO(Will): Merge this timed scanning functionality with the StartScan/StopScan methods above.
+  void ScanAdvertisements(long scanPeriod) {
     SCAN_PERIOD = scanPeriod;
 
     // clear the information that was saved during previous scan
@@ -402,16 +873,16 @@ public class BluetoothLEint {
     uiThread.postDelayed(new Runnable() {
       @Override
       public void run() {
-        stopAdvertisementScanning();
+        StopScanningAdvertisements();
       }
     }, scanPeriod);
 
     if (mBluetoothAdapter != null) {
-      mBluetoothLeScanner = mBluetoothAdapter.getBluetoothLeScanner();
+      mBluetoothLeAdvertisementScanner = mBluetoothAdapter.getBluetoothLeScanner();
 
-      if (mScanCallback != null) {
+      if (mAdvertisementScanCallback != null) {
 
-        if (mBluetoothLeScanner != null) {
+        if (mBluetoothLeAdvertisementScanner != null) {
           ScanSettings settings = new ScanSettings.Builder()
               .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
               .build();
@@ -419,44 +890,53 @@ public class BluetoothLEint {
           List<ScanFilter> filters = new ArrayList<ScanFilter>();
           ScanFilter filter = new ScanFilter.Builder()
               .build();
-          // NOTE: removed service uuid from filter: ".setServiceUuid( new ParcelUuid(UUID.fromString( "0000b81d-0000-1000-8000-00805f9b34fb" ) ) )""
+          // NOTE: removed service uuid from filter:
+          // ".setServiceUuid( new ParcelUuid(UUID.fromString( "0000b81d-0000-1000-8000-00805f9b34fb" ) ) )""
 
           filters.add(filter);
 
           if (settings != null) {
-            mBluetoothLeScanner.startScan(filters, settings, mScanCallback);
+            mBluetoothLeAdvertisementScanner.startScan(filters, settings, mAdvertisementScanCallback);
           } else {
-            LogMessage("settings or filters are null.", "i");
+            Log.i(LOG_TAG, "settings or filters are null.");
           }
         } else {
-          LogMessage("Bluetooth LE scanner is null", "i");
+          Log.i(LOG_TAG, "Bluetooth LE scanner is null.");
         }
       } else {
-        LogMessage("mScanCallback is null", "i");
+        Log.i(LOG_TAG, "mAdvertisementScanCallback is null.");
       }
     } else {
-      LogMessage("No bluetooth adapter found", "i");
+      Log.i(LOG_TAG, "No bluetooth adapter found.");
     }
   }
 
-  public void StopScanningAdvertisements() {
-    LogMessage("Stopping BLE advertsiment scan.", "i");
-    stopAdvertisementScanning();
+  // TODO(Will): Delete this.
+  void StopScanningAdvertisements() {
+    Log.i(LOG_TAG, "Stopping BLE Advertisement Scan.");
+    mBluetoothLeAdvertisementScanner.stopScan(mAdvertisementScanCallback);
   }
 
-  public String GetAdvertisementData(String deviceAddress, String serviceUuid) {
-    return "" + Arrays.toString(scannedAdvertisers.get(deviceAddress).getScanRecord().getServiceData().get(ParcelUuid.fromString(serviceUuid)));
+  // TODO(Will): Delete this.
+  String GetAdvertisementData(String deviceAddress, String serviceUuid) {
+    if (!validateUUID(serviceUuid, "Service", "GetAdvertisementData"))
+      return "";
+
+    return "" + Arrays.toString(scannedAdvertisers.get(deviceAddress).getScanRecord()
+        .getServiceData().get(ParcelUuid.fromString(serviceUuid)));
   }
 
-  public String GetAdvertiserAddress(String deviceName) {
+  // TODO(Will): Delete this.
+  String GetAdvertiserAddress(String deviceName) {
     return nameToAddress.get(deviceName);
   }
 
-  public List<String> GetAdvertiserServiceUuids(String deviceAddress) {
-    return stringifyServiceList(scannedAdvertisers.get(deviceAddress).getScanRecord().getServiceUuids());
+  List<String> GetAdvertiserServiceUuids(String deviceAddress) {
+    return BLEUtil.stringifyParcelUuids(scannedAdvertisers.get(deviceAddress)
+        .getScanRecord().getServiceUuids());
   }
 
-  public String BatteryValue() {
+  String BatteryValue() {
     if (isCharRead) {
       return Integer.toString(battery);
     } else {
@@ -464,19 +944,15 @@ public class BluetoothLEint {
     }
   }
 
-  public int TxPower() {
+  int TxPower() {
     return txPower;
   }
 
-  public boolean IsDeviceConnected() {
-    if (isConnected) {
-      return true;
-    } else {
-      return false;
-    }
+  boolean IsDeviceConnected() {
+    return isConnected;
   }
 
-  public String DeviceList() {
+  String DeviceList() {
     deviceInfoList = "";
     mLeDevices = sortDeviceList(mLeDevices);
     if (!mLeDevices.isEmpty()) {
@@ -493,27 +969,27 @@ public class BluetoothLEint {
     return deviceInfoList;
   }
 
-  public String ConnectedDeviceRssi() {
+  String ConnectedDeviceRssi() {
     return Integer.toString(device_rssi);
   }
 
-  public long AdvertisementScanPeriod() {
+  long AdvertisementScanPeriod() {
     return SCAN_PERIOD;
   }
 
-  public List<String> GetAdvertiserNames() {
+  List<String> GetAdvertiserNames() {
     return scannedAdvertiserNames;
   }
 
-  public List<String> GetAdvertiserAddresses() {
+  List<String> GetAdvertiserAddresses() {
     return advertiserAddresses;
   }
 
-  public boolean IsDeviceAdvertising() {
+  boolean IsDeviceAdvertising() {
     return isAdvertising;
   }
 
-  public void Connected() {
+  private void Connected() {
     uiThread.post(new Runnable() {
       @Override
       public void run() {
@@ -522,7 +998,16 @@ public class BluetoothLEint {
     });
   }
 
-  public void RssiChanged(final int device_rssi) {
+  private void Disconnected() {
+    uiThread.post(new Runnable() {
+      @Override
+      public void run() {
+        EventDispatcher.dispatchEvent(outer, "Disconnected");
+      }
+    });
+  }
+
+  private void RssiChanged(final int device_rssi) {
     uiThread.postDelayed(new Runnable() {
       @Override
       public void run() {
@@ -531,11 +1016,16 @@ public class BluetoothLEint {
     }, 1000);
   }
 
-  public void DeviceFound() {
-    EventDispatcher.dispatchEvent(outer, "DeviceFound");
+  private void DeviceFound() {
+    uiThread.post(new Runnable() {
+      @Override
+      public void run() {
+        EventDispatcher.dispatchEvent(outer, "DeviceFound");
+      }
+    });
   }
 
-  public void ByteValueRead(final String byteValue) {
+  private void ByteValueRead(final String byteValue) {
     uiThread.post(new Runnable() {
       @Override
       public void run() {
@@ -544,7 +1034,7 @@ public class BluetoothLEint {
     });
   }
 
-  public void IntValueRead(final int intValue) {
+  private void IntValueRead(final int intValue) {
     uiThread.post(new Runnable() {
       @Override
       public void run() {
@@ -553,7 +1043,7 @@ public class BluetoothLEint {
     });
   }
 
-  public void StringValueRead(final String stringValue) {
+  private void StringValueRead(final String stringValue) {
     uiThread.post(new Runnable() {
       @Override
       public void run() {
@@ -562,7 +1052,7 @@ public class BluetoothLEint {
     });
   }
 
-  public void FloatValueRead(final float floatValue) {
+  private void FloatValueRead(final float floatValue) {
     uiThread.post(new Runnable() {
       @Override
       public void run() {
@@ -571,7 +1061,7 @@ public class BluetoothLEint {
     });
   }
 
-  public void ByteValueChanged(final String byteValue) {
+  private void ByteValueChanged(final String byteValue) {
     uiThread.post(new Runnable() {
       @Override
       public void run() {
@@ -580,7 +1070,7 @@ public class BluetoothLEint {
     });
   }
 
-  public void IntValueChanged(final int intValue) {
+  private void IntValueChanged(final int intValue) {
     uiThread.post(new Runnable() {
       @Override
       public void run() {
@@ -589,7 +1079,7 @@ public class BluetoothLEint {
     });
   }
 
-  public void FloatValueChanged(final float floatValue) {
+  private void FloatValueChanged(final float floatValue) {
     uiThread.post(new Runnable() {
       @Override
       public void run() {
@@ -598,7 +1088,7 @@ public class BluetoothLEint {
     });
   }
 
-  public void StringValueChanged(final String stringValue) {
+  private void StringValueChanged(final String stringValue) {
     uiThread.post(new Runnable() {
       @Override
       public void run() {
@@ -607,7 +1097,7 @@ public class BluetoothLEint {
     });
   }
 
-  public void ValueWrite() {
+  private void ValueWrite() {
     uiThread.post(new Runnable() {
       @Override
       public void run() {
@@ -616,7 +1106,7 @@ public class BluetoothLEint {
     });
   }
 
-  public String GetSupportedServices() {
+  String GetSupportedServices() {
     if (mGattService == null) return ",";
     serviceUUIDList = ", ";
     for (int i = 0; i < mGattService.size(); i++) {
@@ -632,11 +1122,11 @@ public class BluetoothLEint {
     return serviceUUIDList;
   }
 
-  public String GetServicebyIndex(int index) {
-    return mGattService.get(index).getUuid().toString();
+  String GetServiceByIndex(int index) {
+    return mGattService.get(index - 1).getUuid().toString();
   }
 
-  public String GetSupportedCharacteristics() {
+  String GetSupportedCharacteristics() {
     if (mGattService == null) return ",";
     charUUIDList = ", ";
     for (int i = 0; i < mGattService.size(); i++) {
@@ -648,35 +1138,135 @@ public class BluetoothLEint {
       }
     }
     String unknownCharString = "Unknown Characteristic";
-    for (int j = 0; j < gattChars.size(); j++) {
-      UUID charUUID = gattChars.get(j).getUuid();
+    for (BluetoothGattCharacteristic gattChar : gattChars) {
+      UUID charUUID = gattChar.getUuid();
       String charName = BluetoothLEGattAttributes.lookup(charUUID, unknownCharString);
       charUUIDList += charUUID + " " + charName + ",";
     }
     return charUUIDList;
   }
 
-  public String GetCharacteristicbyIndex(int index) {
-    return gattChars.get(index).getUuid().toString();
+  String GetCharacteristicByIndex(int index) {
+    return gattChars.get(index - 1).getUuid().toString();
   }
 
   /**
-   * Functions
+   * Non-static helper functions. For static helpers, see {@link edu.mit.appinventor.ble.BLEUtil}.
    */
-  // sort the device list by RSSI
+
+  /*
+   * Signal that an error has occurred. Since we are an extension, we don't have access to the normal
+   * error handling used by built-in App Inventor components. BluetoothLE errors are shown in a dialog
+   * rather than an alert for added clarity.
+   */
+  private void signalError(final String functionName, final int errorNumber, final Object... messageArgs) {
+    final String errorMessage = String.format(errorMessages.get(errorNumber), messageArgs);
+    Log.e(LOG_TAG, errorMessage);
+    activity.runOnUiThread(new Runnable() {
+      @Override
+      public void run() {
+        container.$form().ErrorOccurredDialog(BluetoothLEint.this.outer,
+            functionName,
+            errorNumber,
+            errorMessage,
+            "BluetoothLE",
+            "Dismiss");
+      }
+    });
+  }
+
+  /*
+   * Obtain a new Bluetooth adapter instance. This method will return null
+   * if Bluetooth LE is unsupported.
+   */
+  private BluetoothAdapter getBluetoothAdapter(String functionName, OnBluetoothEnabledListener listener) {
+    // Determine whether we are usable on this device
+    if (!container.$form().getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
+      signalError(functionName, ERROR_BLUETOOTH_LE_NOT_SUPPORTED);
+      return null;
+    }
+
+    if (SdkLevel.getLevel() < SdkLevel.LEVEL_LOLLIPOP) {
+      signalError(functionName, ERROR_API_LEVEL_TOO_LOW);
+      return null;
+    }
+
+    final BluetoothManager bluetoothManager = (BluetoothManager) activity
+        .getSystemService(Context.BLUETOOTH_SERVICE);
+    BluetoothAdapter bluetoothAdapter = bluetoothManager.getAdapter();
+
+    if (bluetoothAdapter != null) {
+      if (!bluetoothAdapter.isEnabled()) {
+        Log.i(LOG_TAG, "Bluetooth is not enabled, attempting to enable now...");
+        // Technically, we have the BLUETOOTH_ADMIN permission and could simply
+        // call bluetoothAdapter.enable(), but doing so is intrusive to and
+        // possibly unwanted by the user. Instead, we start an activity to enable
+        // Bluetooth and listen for the result.
+        this.setOnBluetoothEnabledListener(listener);
+        activity.startActivityForResult(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE), requestEnableBT);
+      }
+    } else {
+      signalError(functionName, ERROR_BLUETOOTH_LE_NOT_SUPPORTED);
+    }
+    return bluetoothAdapter;
+  }
+
+  /*
+   * Ask the user to enable this device's Bluetooth adapter.
+   */
+  private void enableBluetoothAdapter(String caller, OnBluetoothEnabledListener callback) {
+    Log.i(LOG_TAG, "Bluetooth is not enabled, attempting to enable now...");
+    // Technically, we have the BLUETOOTH_ADMIN permission and could simply
+    // call BluetoothAdapter#enable(), but doing so is intrusive to and
+    // possibly unwanted by the user. Instead, we start an activity to enable it.
+    activity.startActivityForResult(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE), requestEnableBT);
+  }
+
+  /*
+   * Verify that the BluetoothLE extension is supported on this device.
+   */
+  private boolean isBLESupported(String caller) {
+    if (!container.$form().getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
+      signalError(caller, ERROR_BLUETOOTH_LE_NOT_SUPPORTED);
+      return false;
+    } else if (SdkLevel.getLevel() < SdkLevel.LEVEL_LOLLIPOP) {
+      signalError(caller, ERROR_API_LEVEL_TOO_LOW);
+      return false;
+    }
+    return true;
+  }
+
+  // Validates the given UUID and signals the relevant error when it is invalid.
+  private boolean validateUUID(String UUID, String type, String callerBlock) {
+    if (BLEUtil.hasValidUUIDFormat(UUID)) {
+      return true;
+    } else if (BLEUtil.hasInvalidUUIDChars(UUID)) {
+      signalError(callerBlock, ERROR_INVALID_UUID_CHARACTERS, type, callerBlock);
+      return false;
+    } else {
+      signalError(callerBlock, ERROR_INVALID_UUID_FORMAT, type, callerBlock);
+      return false;
+    }
+  }
+
+  // Set the OnBluetoothEnabledListener.
+  private void setOnBluetoothEnabledListener(OnBluetoothEnabledListener listener) {
+    this.mBTEnabledListener = listener;
+  }
+
+  // Sort the device list by RSSI from highest to lowest
   private List<BluetoothDevice> sortDeviceList(List<BluetoothDevice> deviceList) {
     Collections.sort(deviceList, new Comparator<BluetoothDevice>() {
       @Override
       public int compare(BluetoothDevice device1, BluetoothDevice device2) {
-        return mLeDeviceRssi.get(device1) - mLeDeviceRssi.get(device2);
+        return mLeDeviceRssi.get(device2) - mLeDeviceRssi.get(device1);
       }
     });
-    Collections.reverse(deviceList);
     return deviceList;
   }
 
-  // add device when scanning
-  private void addDevice(BluetoothDevice device, int rssi, byte[] scanRecord) {
+  // Used by mLeDeviceScanCallback to add to the device list
+  private void addDevice(BluetoothDevice device, int rssi) {
     if (!mLeDevices.contains(device)) {
       mLeDevices.add(device);
       mLeDeviceRssi.put(device, rssi);
@@ -687,292 +1277,83 @@ public class BluetoothLEint {
     RssiChanged(rssi);
   }
 
-  // read characteristic based on UUID
-  private void readChar(UUID ser_uuid, UUID char_uuid) {
+  /*
+   * Look-up the BluetoothGattCharacteristic with the given service and
+   * characteristic UUIDs.
+   */
+  private BluetoothGattCharacteristic findMGattChar(UUID ser_uuid, UUID char_uuid) {
+    Log.i(LOG_TAG, "isServiceRead: " + isServiceRead);
+    Log.i(LOG_TAG, "mGattService.isEmpty(): " + mGattService.isEmpty());
+
     if (isServiceRead && !mGattService.isEmpty()) {
       for (BluetoothGattService aMGattService : mGattService) {
         if (aMGattService.getUuid().equals(ser_uuid)) {
-
-          BluetoothGattDescriptor desc = aMGattService.getCharacteristic(char_uuid)
-              .getDescriptor(BluetoothLEGattAttributes.CLIENT_CHARACTERISTIC_CONFIGURATION);
-
-          mGattChar = aMGattService.getCharacteristic(char_uuid);
-
-          if (desc != null) {
-            if ((aMGattService.getCharacteristic(char_uuid).getProperties() &
-                BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0) {
-              desc.setValue(BluetoothGattDescriptor.ENABLE_INDICATION_VALUE);
-            } else {
-              desc.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-            }
-            currentBluetoothGatt.writeDescriptor(desc);
-          }
-          if (mGattChar != null) {
-            currentBluetoothGatt.setCharacteristicNotification(mGattChar, true);
-            isCharRead = currentBluetoothGatt.readCharacteristic(mGattChar);
-          }
-          break;
+          return aMGattService.getCharacteristic(char_uuid);
         }
       }
+    }
+
+    return null;
+  }
+
+  // Read the characteristic with the corresponding UUID
+  private void readChar(UUID ser_uuid, UUID char_uuid) {
+    mGattChar = findMGattChar(ser_uuid, char_uuid);
+
+    if (mGattChar != null) {
+      Log.i(LOG_TAG, "mGattChar initialized to " + mGattChar.getUuid().toString());
+      BluetoothGattDescriptor desc = mGattChar
+          .getDescriptor(BluetoothLEGattAttributes.CLIENT_CHARACTERISTIC_CONFIGURATION);
+
+      if (desc != null) {
+        if ((mGattChar.getProperties() &
+            BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0) {
+          desc.setValue(BluetoothGattDescriptor.ENABLE_INDICATION_VALUE);
+        } else {
+          desc.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+        }
+        mBluetoothGatt.writeDescriptor(desc);
+      }
+
+      mBluetoothGatt.setCharacteristicNotification(mGattChar, true);
+      isCharRead = mBluetoothGatt.readCharacteristic(mGattChar);
+    } else {
+      Log.i(LOG_TAG, "mGattChar is null!");
     }
 
     if (isCharRead) {
-      LogMessage("Read Character Successfully.", "i");
+      Log.i(LOG_TAG, "Read Character Successfully.");
     } else {
-      LogMessage("Read Character Fail.", "i");
+      Log.e(LOG_TAG, "Read Character Fail.");
     }
   }
 
-  // Write characteristic based on uuid
-  private void writeChar(UUID ser_uuid, UUID char_uuid, int value, int format, int offset) {
-    if (isServiceRead && !mGattService.isEmpty()) {
-      for (BluetoothGattService aMGattService : mGattService) {
-        if (aMGattService.getUuid().equals(ser_uuid)) {
-          mGattChar = aMGattService.getCharacteristic(char_uuid);
-          if (mGattChar != null) {
-            mGattChar.setValue(value, format, offset);
-            isCharWrite = currentBluetoothGatt.writeCharacteristic(mGattChar);
-          }
-          break;
-        }
+  // Write the payload to the characteristic with the corresponding UUID
+  private void writeChar(UUID ser_uuid, UUID char_uuid, Object payload) {
+    mGattChar = findMGattChar(ser_uuid, char_uuid);
+    if (mGattChar != null && payload != null) {
+      Log.i(LOG_TAG, "mGattChar initialized to " + mGattChar.getUuid().toString());
+      // use the appropriate BluetoothGattCharacteristic#setValue() depending on the payload type
+      if (payload instanceof int[]) {
+        int[] args = (int[]) payload;
+        mGattChar.setValue(args[0], args[1], args[2]);
+      } else if (payload instanceof byte[]) {
+        mGattChar.setValue((byte[]) payload);
+      } else if (payload instanceof String) {
+        mGattChar.setValue((String) payload);
+      } else {
+        throw new IllegalArgumentError("Attempted to write to characteristic with unsupported data type.");
       }
-    }
 
-    if (isCharWrite) {
-      LogMessage("Write Gatt Characteristic Successfully", "i");
+      isCharWritten = mBluetoothGatt.writeCharacteristic(mGattChar);
     } else {
-      LogMessage("Write Gatt Characteristic Fail", "e");
-    }
-  }
-
-  private void writeChar(UUID ser_uuid, UUID char_uuid, byte[] value) {
-    if (isServiceRead && !mGattService.isEmpty()) {
-      for (int i = 0; i < mGattService.size(); i++) {
-        if (mGattService.get(i).getUuid().equals(ser_uuid)) {
-          mGattChar = mGattService.get(i).getCharacteristic(char_uuid);
-          if (mGattChar != null) {
-            mGattChar.setValue(value);
-            isCharWrite = currentBluetoothGatt.writeCharacteristic(mGattChar);
-          }
-          break;
-        }
-      }
+      Log.i(LOG_TAG, "mGattChar is null!");
     }
 
-    if (isCharWrite) {
-      LogMessage("Write Gatt Characteristic Successfully", "i");
+    if (isCharWritten) {
+      Log.i(LOG_TAG, "Write Gatt Characteristic Successfully");
     } else {
-      LogMessage("Write Gatt Characteristic Fail", "e");
+      Log.e(LOG_TAG, "Write Gatt Characteristic Fail");
     }
   }
-
-  private void writeChar(UUID ser_uuid, UUID char_uuid, String value) {
-    if (isServiceRead && !mGattService.isEmpty()) {
-      for (int i = 0; i < mGattService.size(); i++) {
-        if (mGattService.get(i).getUuid().equals(ser_uuid)) {
-          mGattChar = mGattService.get(i).getCharacteristic(char_uuid);
-          if (mGattChar != null) {
-            mGattChar.setValue(value);
-            isCharWrite = currentBluetoothGatt.writeCharacteristic(mGattChar);
-          }
-          break;
-        }
-      }
-    }
-
-    if (isCharWrite) {
-      LogMessage("Write Gatt Characteristic Successfully", "i");
-    } else {
-      LogMessage("Write Gatt Characteristic Fail", "e");
-    }
-  }
-
-  private BluetoothAdapter.LeScanCallback mLeScanCallback;
-
-    {
-      mLeScanCallback = new BluetoothAdapter.LeScanCallback() {
-          @Override
-          public void onLeScan(final BluetoothDevice device, final int rssi, final byte[] scanRecord) {
-            activity.runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                  isScanning = true;
-                  addDevice(device, rssi, scanRecord);
-                }
-              });
-          }
-        };
-    }
-
-  private BluetoothGattCallback initCallBack(BluetoothGattCallback newGattCallback) {
-    return this.mGattCallback;
-  }
-
-  private BluetoothGattCallback mGattCallback = new BluetoothGattCallback() {
-    @Override
-    public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
-      if (newState == BluetoothProfile.STATE_CONNECTED) {
-        isConnected = true;
-        gatt.discoverServices();
-        gatt.readRemoteRssi();
-        Connected();
-      }
-
-      if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-        isConnected = false;
-      }
-    }
-
-    @Override
-    // New services discovered
-    public void onServicesDiscovered(BluetoothGatt gatt, int status) {
-      if (status == BluetoothGatt.GATT_SUCCESS) {
-        mGattService = gatt.getServices();
-        isServiceRead = true;
-      }
-    }
-
-    @Override
-    // Result of a characteristic read operation
-    public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-      if (status == BluetoothGatt.GATT_SUCCESS) {
-        data = characteristic.getValue();
-        intValue = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT32, intOffset);
-        stringValue = characteristic.getStringValue(strOffset);
-        floatValue = characteristic.getFloatValue(BluetoothGattCharacteristic.FORMAT_FLOAT, floatOffset);
-        byteValue = "";
-        for (byte i : data) {
-          byteValue += i;
-        }
-        isCharRead = true;
-        ByteValueRead(byteValue);
-        IntValueRead(intValue);
-        StringValueRead(stringValue);
-        FloatValueRead(floatValue);
-      }
-    }
-
-    @Override
-    // Result of a characteristic read operation is changed
-    public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
-      data = characteristic.getValue();
-      LogMessage("dataLength: " + data.length, "i");
-      switch (charType) {
-        case 0:
-          byteValue = "";
-          for (byte i : data) {
-            byteValue += i;
-          }
-          LogMessage("byteValue: " + byteValue, "i");
-          ByteValueChanged(byteValue);
-          break;
-        case 1:
-          intValue = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, intOffset);
-          LogMessage("intValue: " + intValue, "i");
-          IntValueChanged(intValue);
-          break;
-        case 2:
-          stringValue = characteristic.getStringValue(strOffset);
-          LogMessage("stringValue: " + stringValue, "i");
-          StringValueChanged(stringValue);
-          break;
-        case 3:
-          if (data.length == 1) {
-            floatValue = (float) (data[0] * Math.pow(10, 0));
-          } else if (data.length == 2 || data.length == 3) {
-            floatValue = characteristic.getFloatValue(BluetoothGattCharacteristic.FORMAT_SFLOAT, floatOffset);
-          } else {
-            floatValue = characteristic.getFloatValue(BluetoothGattCharacteristic.FORMAT_FLOAT, floatOffset);
-          }
-          LogMessage("floatValue: " + floatValue, "i");
-          FloatValueChanged(floatValue);
-        default:
-          byteValue = "";
-          for (byte i : data) {
-            byteValue += i;
-          }
-          LogMessage("byteValue: " + byteValue, "i");
-          ByteValueChanged(byteValue);
-          break;
-      }
-      isCharRead = true;
-    }
-
-    @Override
-    // set value of characteristic
-    public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-      LogMessage("Write Characteristic Successfully.", "i");
-      ValueWrite();
-    }
-
-    @Override
-    public void onDescriptorRead(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
-      descriptorValue = descriptor.getValue();
-    }
-
-    @Override
-    public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
-      LogMessage("Write Descriptor Successfully.", "i");
-    }
-
-    @Override
-    public void onReadRemoteRssi(BluetoothGatt gatt, int rssi, int status) {
-      device_rssi = rssi;
-      RssiChanged(device_rssi);
-    }
-  };
-
-  /**
-   * Function that stops the Bluetooth LE from scanning for advertisements
-   */
-  private void stopAdvertisementScanning() {
-    LogMessage("Stopping advertisement scanning.", "i");
-    mBluetoothLeScanner.stopScan(mScanCallback);
-  }
-
-  /**
-   * Function that takes in a list of Uuid's and converts them to Strings
-   * Input: List serviceUuids - a List containing ParcelUuid types
-   * Return: List containing String types representing the Uuid's
-   */
-  private List<String> stringifyServiceList(List<ParcelUuid> serviceUuids) {
-    List<String> deviceServices = new ArrayList<String>();
-    for (ParcelUuid serviceUuid : serviceUuids) {
-      deviceServices.add(serviceUuid.toString());
-    }
-    return deviceServices;
-  }
-
-  /**
-   * Callback function called when a Bluetooth LE Advertisement is found
-   */
-  private ScanCallback mScanCallback = new ScanCallback() {
-    @Override
-    public void onScanResult(int callbackType, ScanResult result) {
-      super.onScanResult(callbackType, result);
-
-      if (result == null || result.getDevice() == null || TextUtils.isEmpty(result.getDevice().getName())) {
-        return;
-      }
-
-      StringBuilder builder = new StringBuilder(result.getDevice().getName());
-
-      String advertiserAddress = result.getDevice().getAddress();
-      advertiserAddresses.add(advertiserAddress);
-      scannedAdvertisers.put(advertiserAddress, result);
-      scannedAdvertiserNames.add(result.getDevice().getName());
-      nameToAddress.put(result.getDevice().getName(), advertiserAddress);
-    }
-
-    @Override
-    public void onBatchScanResults(List<ScanResult> results) {
-      super.onBatchScanResults(results);
-    }
-
-    @Override
-    public void onScanFailed(int errorCode) {
-      LogMessage("Discovery onScanFailed: " + errorCode, "e");
-      super.onScanFailed(errorCode);
-    }
-  };
 }
