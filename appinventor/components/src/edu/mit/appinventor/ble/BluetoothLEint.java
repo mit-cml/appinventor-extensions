@@ -796,125 +796,148 @@ final class BluetoothLEint {
     }
   }
 
-  void StartAdvertising(String inData, String serviceUuid) {
-    // Ensure that the current Bluetooth Adapter supports Advertising.
-    if (!mBluetoothAdapter.isMultipleAdvertisementSupported()) {
-      Log.i(LOG_TAG, "Adapter does not support Bluetooth Advertisements.");
-      signalError("StartAdvertising", ERROR_ADVERTISEMENTS_NOT_SUPPORTED);
-      return;
-    }
-
-    if (!validateUUID(serviceUuid, "Service", "StartAdvertising"))
-      return;
-
-    // Create a scan callback if it does not already exist. If it does, you're already advertising.
-    mBluetoothLeAdvertiser = mBluetoothAdapter.getBluetoothLeAdvertiser();
-
-    AdvertiseCallback advertisingCallback = new AdvertiseCallback() {
+  void StartAdvertising(final String inData, final String serviceUuid) {
+    new BLEAction<Void>("StartAdvertising"){
       @Override
-      public void onStartSuccess(AdvertiseSettings settingsInEffect) {
-        isAdvertising = true;
-        super.onStartSuccess(settingsInEffect);
+      public Void action() {
+        // Ensure that the current Bluetooth Adapter supports Advertising.
+        if (!mBluetoothAdapter.isMultipleAdvertisementSupported()) {
+          Log.i(LOG_TAG, "Adapter does not support Bluetooth Advertisements.");
+          signalError("StartAdvertising", ERROR_ADVERTISEMENTS_NOT_SUPPORTED);
+          return null;
+        }
+
+        if (!validateUUID(serviceUuid, "Service", "StartAdvertising"))
+          return null;
+
+        // Create a scan callback if it does not already exist. If it does, you're already advertising.
+        mBluetoothLeAdvertiser = mBluetoothAdapter.getBluetoothLeAdvertiser();
+
+        AdvertiseCallback advertisingCallback = new AdvertiseCallback() {
+          @Override
+          public void onStartSuccess(AdvertiseSettings settingsInEffect) {
+            isAdvertising = true;
+            super.onStartSuccess(settingsInEffect);
+          }
+
+          @Override
+          public void onStartFailure(int errorCode) {
+            Log.e(LOG_TAG, "Advertising onStartFailure: " + errorCode);
+            super.onStartFailure(errorCode);
+          }
+        };
+
+        AdvertiseSettings advSettings = new AdvertiseSettings.Builder()
+                .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
+                .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_HIGH)
+                .setConnectable(false)
+                .build();
+
+        ParcelUuid pUuid = new ParcelUuid(UUID.fromString(serviceUuid));
+
+        AdvertiseData advData = new AdvertiseData.Builder()
+                .setIncludeDeviceName(true)
+                .addServiceUuid(pUuid)
+                .addServiceData(pUuid, inData.getBytes(Charset.forName("UTF-8")))
+                .build();
+
+        if (mAdvertiseCallback == null) {
+          mAdvertiseCallback = advertisingCallback;
+
+          if (mBluetoothLeAdvertiser != null) {
+            mBluetoothLeAdvertiser.startAdvertising(advSettings, advData, mAdvertiseCallback);
+          }
+        }
+
+        Log.i(LOG_TAG, "StartScanningAdvertisements Successfully.");
       }
-
-      @Override
-      public void onStartFailure(int errorCode) {
-        Log.e(LOG_TAG, "Advertising onStartFailure: " + errorCode);
-        super.onStartFailure(errorCode);
-      }
-    };
-
-    AdvertiseSettings advSettings = new AdvertiseSettings.Builder()
-        .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
-        .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_HIGH)
-        .setConnectable(false)
-        .build();
-
-    ParcelUuid pUuid = new ParcelUuid(UUID.fromString(serviceUuid));
-
-    AdvertiseData advData = new AdvertiseData.Builder()
-        .setIncludeDeviceName(true)
-        .addServiceUuid(pUuid)
-        .addServiceData(pUuid, inData.getBytes(Charset.forName("UTF-8")))
-        .build();
-
-    if (mAdvertiseCallback == null) {
-      mAdvertiseCallback = advertisingCallback;
-
-      if (mBluetoothLeAdvertiser != null) {
-        mBluetoothLeAdvertiser.startAdvertising(advSettings, advData, mAdvertiseCallback);
-      }
-    }
-
-    Log.i(LOG_TAG, "StartScanningAdvertisements Successfully.");
+    }.run();
   }
 
   void StopAdvertising() {
-    Log.i(LOG_TAG, "Stopping BLE Advertising");
-    if (mBluetoothLeAdvertiser != null) {
-      mBluetoothLeAdvertiser.stopAdvertising(mAdvertiseCallback);
-      isAdvertising = false;
-      mAdvertiseCallback = null;
-    }
+    new BLEAction<Void>("StopAdvertising"){
+      @Override
+      public Void action() {
+        Log.i(LOG_TAG, "Stopping BLE Advertising");
+        if (mBluetoothLeAdvertiser != null) {
+          mBluetoothLeAdvertiser.stopAdvertising(mAdvertiseCallback);
+          isAdvertising = false;
+          mAdvertiseCallback = null;
+        }
+        return null;
+      }
+    }.run();
   }
 
   // TODO(Will): Merge this timed scanning functionality with the StartScan/StopScan methods above.
-  void ScanAdvertisements(long scanPeriod) {
-    SCAN_PERIOD = scanPeriod;
-
-    // clear the information that was saved during previous scan
-    advertiserAddresses = new ArrayList<String>();
-    scannedAdvertisers = new HashMap<String, ScanResult>();
-    scannedAdvertiserNames = new ArrayList<String>();
-    nameToAddress = new HashMap<String, String>();
-
-
-    // Will stop the scanning after a set time.
-    uiThread.postDelayed(new Runnable() {
+  void ScanAdvertisements(final long scanPeriod) {
+    new BLEAction<Void>("ScanAdvertisements") {
       @Override
-      public void run() {
-        StopScanningAdvertisements();
-      }
-    }, scanPeriod);
+      public Void action() {
+        SCAN_PERIOD = scanPeriod;
 
-    if (mBluetoothAdapter != null) {
-      mBluetoothLeAdvertisementScanner = mBluetoothAdapter.getBluetoothLeScanner();
+        // clear the information that was saved during previous scan
+        advertiserAddresses = new ArrayList<String>();
+        scannedAdvertisers = new HashMap<String, ScanResult>();
+        scannedAdvertiserNames = new ArrayList<String>();
+        nameToAddress = new HashMap<String, String>();
 
-      if (mAdvertisementScanCallback != null) {
 
-        if (mBluetoothLeAdvertisementScanner != null) {
-          ScanSettings settings = new ScanSettings.Builder()
-              .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
-              .build();
+        // Will stop the scanning after a set time.
+        uiThread.postDelayed(new Runnable() {
+          @Override
+          public void run() {
+            StopScanningAdvertisements();
+          }
+        }, scanPeriod);
 
-          List<ScanFilter> filters = new ArrayList<ScanFilter>();
-          ScanFilter filter = new ScanFilter.Builder()
-              .build();
-          // NOTE: removed service uuid from filter:
-          // ".setServiceUuid( new ParcelUuid(UUID.fromString( "0000b81d-0000-1000-8000-00805f9b34fb" ) ) )""
+        if (mBluetoothAdapter != null) {
+          mBluetoothLeAdvertisementScanner = mBluetoothAdapter.getBluetoothLeScanner();
 
-          filters.add(filter);
+          if (mAdvertisementScanCallback != null) {
 
-          if (settings != null) {
-            mBluetoothLeAdvertisementScanner.startScan(filters, settings, mAdvertisementScanCallback);
+            if (mBluetoothLeAdvertisementScanner != null) {
+              ScanSettings settings = new ScanSettings.Builder()
+                      .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+                      .build();
+
+              List<ScanFilter> filters = new ArrayList<ScanFilter>();
+              ScanFilter filter = new ScanFilter.Builder()
+                      .build();
+              // NOTE: removed service uuid from filter:
+              // ".setServiceUuid( new ParcelUuid(UUID.fromString( "0000b81d-0000-1000-8000-00805f9b34fb" ) ) )""
+
+              filters.add(filter);
+
+              if (settings != null) {
+                mBluetoothLeAdvertisementScanner.startScan(filters, settings, mAdvertisementScanCallback);
+              } else {
+                Log.i(LOG_TAG, "settings or filters are null.");
+              }
+            } else {
+              Log.i(LOG_TAG, "Bluetooth LE scanner is null.");
+            }
           } else {
-            Log.i(LOG_TAG, "settings or filters are null.");
+            Log.i(LOG_TAG, "mAdvertisementScanCallback is null.");
           }
         } else {
-          Log.i(LOG_TAG, "Bluetooth LE scanner is null.");
+          Log.i(LOG_TAG, "No bluetooth adapter found.");
         }
-      } else {
-        Log.i(LOG_TAG, "mAdvertisementScanCallback is null.");
+        return null;
       }
-    } else {
-      Log.i(LOG_TAG, "No bluetooth adapter found.");
-    }
+    }.run();
   }
 
   // TODO(Will): Delete this.
   void StopScanningAdvertisements() {
-    Log.i(LOG_TAG, "Stopping BLE Advertisement Scan.");
-    mBluetoothLeAdvertisementScanner.stopScan(mAdvertisementScanCallback);
+    new BLEAction<Void>("StopScanningAdvertisements"){
+      @Override
+      public Void action() {
+        Log.i(LOG_TAG, "Stopping BLE Advertisement Scan.");
+        mBluetoothLeAdvertisementScanner.stopScan(mAdvertisementScanCallback);
+        return null;
+      }
+    }.run();
   }
 
   // TODO(Will): Delete this.
