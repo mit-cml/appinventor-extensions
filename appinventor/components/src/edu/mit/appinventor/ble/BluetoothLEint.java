@@ -800,8 +800,11 @@ final class BluetoothLEint {
     new BLEAction<Void>("StartAdvertising"){
       @Override
       public Void action() {
+        // Obtain an instance of the Bluetooth Adapter
+        BluetoothAdapter btAdapter = obtainBluetoothAdapter();
+
         // Ensure that the current Bluetooth Adapter supports Advertising.
-        if (!mBluetoothAdapter.isMultipleAdvertisementSupported()) {
+        if (!btAdapter.isMultipleAdvertisementSupported()) {
           Log.i(LOG_TAG, "Adapter does not support Bluetooth Advertisements.");
           signalError("StartAdvertising", ERROR_ADVERTISEMENTS_NOT_SUPPORTED);
           return null;
@@ -811,7 +814,7 @@ final class BluetoothLEint {
           return null;
 
         // Create a scan callback if it does not already exist. If it does, you're already advertising.
-        mBluetoothLeAdvertiser = mBluetoothAdapter.getBluetoothLeAdvertiser();
+        mBluetoothLeAdvertiser = btAdapter.getBluetoothLeAdvertiser();
 
         AdvertiseCallback advertisingCallback = new AdvertiseCallback() {
           @Override
@@ -850,6 +853,7 @@ final class BluetoothLEint {
         }
 
         Log.i(LOG_TAG, "StartScanningAdvertisements Successfully.");
+        return null;
       }
     }.run();
   }
@@ -891,8 +895,11 @@ final class BluetoothLEint {
           }
         }, scanPeriod);
 
-        if (mBluetoothAdapter != null) {
-          mBluetoothLeAdvertisementScanner = mBluetoothAdapter.getBluetoothLeScanner();
+        // Obtain an instance of the Bluetooth Adapter
+        BluetoothAdapter btAdapter = obtainBluetoothAdapter();
+
+        if (btAdapter != null) {
+          mBluetoothLeAdvertisementScanner = btAdapter.getBluetoothLeScanner();
 
           if (mAdvertisementScanCallback != null) {
 
@@ -1198,67 +1205,6 @@ final class BluetoothLEint {
     });
   }
 
-  /*
-   * Obtain a new Bluetooth adapter instance. This method will return null
-   * if Bluetooth LE is unsupported.
-   */
-  private BluetoothAdapter getBluetoothAdapter(String functionName, OnBluetoothEnabledListener listener) {
-    // Determine whether we are usable on this device
-    if (!container.$form().getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
-      signalError(functionName, ERROR_BLUETOOTH_LE_NOT_SUPPORTED);
-      return null;
-    }
-
-    if (SdkLevel.getLevel() < SdkLevel.LEVEL_LOLLIPOP) {
-      signalError(functionName, ERROR_API_LEVEL_TOO_LOW);
-      return null;
-    }
-
-    final BluetoothManager bluetoothManager = (BluetoothManager) activity
-        .getSystemService(Context.BLUETOOTH_SERVICE);
-    BluetoothAdapter bluetoothAdapter = bluetoothManager.getAdapter();
-
-    if (bluetoothAdapter != null) {
-      if (!bluetoothAdapter.isEnabled()) {
-        Log.i(LOG_TAG, "Bluetooth is not enabled, attempting to enable now...");
-        // Technically, we have the BLUETOOTH_ADMIN permission and could simply
-        // call bluetoothAdapter.enable(), but doing so is intrusive to and
-        // possibly unwanted by the user. Instead, we start an activity to enable
-        // Bluetooth and listen for the result.
-        this.setOnBluetoothEnabledListener(listener);
-        activity.startActivityForResult(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE), requestEnableBT);
-      }
-    } else {
-      signalError(functionName, ERROR_BLUETOOTH_LE_NOT_SUPPORTED);
-    }
-    return bluetoothAdapter;
-  }
-
-  /*
-   * Ask the user to enable this device's Bluetooth adapter.
-   */
-  private void enableBluetoothAdapter(String caller, OnBluetoothEnabledListener callback) {
-    Log.i(LOG_TAG, "Bluetooth is not enabled, attempting to enable now...");
-    // Technically, we have the BLUETOOTH_ADMIN permission and could simply
-    // call BluetoothAdapter#enable(), but doing so is intrusive to and
-    // possibly unwanted by the user. Instead, we start an activity to enable it.
-    activity.startActivityForResult(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE), requestEnableBT);
-  }
-
-  /*
-   * Verify that the BluetoothLE extension is supported on this device.
-   */
-  private boolean isBLESupported(String caller) {
-    if (!container.$form().getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
-      signalError(caller, ERROR_BLUETOOTH_LE_NOT_SUPPORTED);
-      return false;
-    } else if (SdkLevel.getLevel() < SdkLevel.LEVEL_LOLLIPOP) {
-      signalError(caller, ERROR_API_LEVEL_TOO_LOW);
-      return false;
-    }
-    return true;
-  }
-
   // Validates the given UUID and signals the relevant error when it is invalid.
   private boolean validateUUID(String UUID, String type, String callerBlock) {
     if (BLEUtil.hasValidUUIDFormat(UUID)) {
@@ -1270,11 +1216,6 @@ final class BluetoothLEint {
       signalError(callerBlock, ERROR_INVALID_UUID_FORMAT, type, callerBlock);
       return false;
     }
-  }
-
-  // Set the OnBluetoothEnabledListener.
-  private void setOnBluetoothEnabledListener(OnBluetoothEnabledListener listener) {
-    this.mBTEnabledListener = listener;
   }
 
   // Sort the device list by RSSI from highest to lowest
