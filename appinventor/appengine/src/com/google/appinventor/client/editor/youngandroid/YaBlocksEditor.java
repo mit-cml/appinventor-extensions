@@ -29,6 +29,7 @@ import com.google.appinventor.shared.rpc.project.FileDescriptorWithContent;
 import com.google.appinventor.shared.rpc.project.youngandroid.YoungAndroidBlocksNode;
 import com.google.appinventor.shared.youngandroid.YoungAndroidSourceAnalyzer;
 import com.google.common.collect.Maps;
+import com.google.gwt.core.client.Callback;
 import com.google.gwt.event.logical.shared.ResizeEvent;
 import com.google.gwt.event.logical.shared.ResizeHandler;
 import com.google.gwt.user.client.Command;
@@ -320,6 +321,11 @@ public final class YaBlocksEditor extends FileEditor
     }
   }
 
+  @Override
+  public void getBlocksImage(Callback callback) {
+    blocksArea.getBlocksImage(callback);
+  }
+
   public synchronized void sendComponentData() {
     try {
       blocksArea.sendComponentData(myFormEditor.encodeFormAsJsonString(true),
@@ -381,8 +387,8 @@ public final class YaBlocksEditor extends FileEditor
     return SimpleComponentDatabase.getInstance().getTypeDescription(typeName);
   }
 
-  public static String getComponentsJSONString() {
-    return SimpleComponentDatabase.getInstance().getComponentsJSONString();
+  public static String getComponentsJSONString(long projectId) {
+    return SimpleComponentDatabase.getInstance(projectId).getComponentsJSONString();
   }
 
   public static String getComponentInstanceTypeName(String formName, String instanceName) {

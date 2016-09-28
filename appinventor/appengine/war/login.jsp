@@ -1,13 +1,18 @@
 <%@page import="javax.servlet.http.HttpServletRequest"%>
+<%@page import="com.google.appinventor.server.util.UriBuilder"%>
 <%@page contentType="text/html" pageEncoding="UTF-8"%>
 <!doctype html>
 <%
    String error = request.getParameter("error");
    String useGoogleLabel = (String) request.getAttribute("useGoogleLabel");
    String locale = request.getParameter("locale");
+   String redirect = request.getParameter("redirect");
+   String repo = (String) request.getAttribute("repo");
+   String galleryId = (String) request.getAttribute("galleryId");
    if (locale == null) {
        locale = "en";
    }
+
 %>
 <html>
   <head>
@@ -30,17 +35,45 @@ out.println("<center><font color=red><b>" + error + "</b></font></center><br/>")
 <tr><td></td></td>
 <tr><td>${passwordLabel}</td><td><input type=password name=password value="" size="35"></td></tr>
 </table></center>
+<% if (locale != null && !locale.equals("")) {
+   %>
+<input type=hidden name=locale value="<%= locale %>">
+<% }
+   if (repo != null && !repo.equals("")) {
+   %>
+<input type=hidden name=repo value="<%= repo %>">
+<% }
+   if (galleryId != null && !galleryId.equals("")) {
+   %>
+<input type=hidden name=galleryId value="<%= galleryId %>">
+<% } %>
+<% if (redirect != null && !redirect.equals("")) {
+   %>
+<input type=hidden name=redirect value="<%= redirect %>">
+<% } %>
 <p></p>
 <center><input type=Submit value="${login}" style="font-size: 300%;"></center>
 </form>
 <p></p>
 <center><p><a href="/login/sendlink"  style="text-decoration:none;">${passwordclickhereLabel}</a></p></center>
 <%    if (useGoogleLabel != null && useGoogleLabel.equals("true")) { %>
-<center><p><a href="/login/google" style="text-decoration:none;">Click Here to use your Google Account to login</a></p></center>
+<center><p><a href="<%= new UriBuilder("/login/google")
+                              .add("locale", locale)
+                              .add("repo", repo)
+                              .add("galleryId", galleryId)
+                              .add("redirect", redirect).build() %>" style="text-decoration:none;">Click Here to use your Google Account to login</a></p></center>
 <%    } %>
 <footer>
-<center><a href="/login?locale=zh_CN"  style="text-decoration:none;" >中文</a>&nbsp;
-<a href="/login?locale=en"  style="text-decoration:none;" >English</a></center>
+<center><a href="<%= new UriBuilder("/login")
+                           .add("locale", "zh_CN")
+                           .add("repo", repo)
+                           .add("galleryId", galleryId)
+                           .add("redirect", redirect).build() %>"  style="text-decoration:none;" >中文</a>&nbsp;
+<a href="<%= new UriBuilder("/login")
+                   .add("locale", "en")
+                   .add("repo", repo)
+                   .add("galleryId", galleryId)
+                   .add("redirect", redirect).build() %>"  style="text-decoration:none;" >English</a></center>
 <p></p>
 <center>
 <%    if (locale != null && locale.equals("zh_CN")) { %>

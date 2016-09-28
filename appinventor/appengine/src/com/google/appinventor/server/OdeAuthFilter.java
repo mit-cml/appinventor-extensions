@@ -64,6 +64,8 @@ public class OdeAuthFilter implements Filter {
   @VisibleForTesting
   static final Flag<Boolean> useWhitelist = Flag.createFlag("use.whitelist", false);
   static final Flag<String> sessionKeyFile = Flag.createFlag("session.keyfile", "WEB-INF/authkey");
+  static final Flag<Integer> idleTimeout = Flag.createFlag("session.idletimeout", 120);
+  static final Flag<Integer> renewTime = Flag.createFlag("session.renew", 30);
 
   private final LocalUser localUser = LocalUser.getInstance();
 
@@ -99,7 +101,18 @@ public class OdeAuthFilter implements Filter {
     UserInfo userInfo = getUserInfo(httpRequest);
     if (userInfo == null) {        // Invalid Login
       LOG.info("uinfo is null on login.");
-      httpResponse.setStatus(HttpServletResponse.SC_PRECONDITION_FAILED);
+      // If the URI starts with /ode, then we are being invoked through
+      // the App Inventor client. In that case we are in an XMLHttpRequest
+      // (aka ajax) so we cannot send a redirect to the login page
+      // instead we return SC_PRECONDITION_FAILED which tips off the
+      // client that it needs to reload itself to the login page.
+      String uri = httpRequest.getRequestURI();
+      LOG.info("Not Logged In: uri = " + uri);
+      if (uri.startsWith("/ode")) {
+        httpResponse.setStatus(HttpServletResponse.SC_PRECONDITION_FAILED);
+      } else {
+        httpResponse.sendRedirect("/login?redirect=" + uri);
+      }
       return;
     }
 
@@ -227,7 +240,6 @@ public class OdeAuthFilter implements Filter {
     String userId = "";
     boolean isAdmin = false;
     boolean isReadOnly = false;
-    String locale = "en";
     long ts;
 
     transient boolean modified = false;
@@ -240,16 +252,10 @@ public class OdeAuthFilter implements Filter {
       return this.isReadOnly;
     }
 
-    public UserInfo(String userId, boolean isAdmin, String locale) {
+    public UserInfo(String userId, boolean isAdmin) {
       this.userId = userId;
       this.isAdmin = isAdmin;
-      this.locale = locale;
       this.ts = System.currentTimeMillis();
-    }
-
-    public void setLocale(String locale) {
-      this.locale = locale;
-      modified = true;
     }
 
     public void setUserId(String userId) {
@@ -266,10 +272,6 @@ public class OdeAuthFilter implements Filter {
       return userId;
     }
 
-    public String getLocale() {
-      return locale;
-    }
-
     public boolean getIsAdmin() {
       return isAdmin;
     }
@@ -283,7 +285,7 @@ public class OdeAuthFilter implements Filter {
       try {
         long offset = System.currentTimeMillis() - this.ts;
         offset /= 1000;
-        if (offset > 4*3600) {    // Renew if more then 4 hours old
+        if (offset > (60*renewTime.get())) {    // Renew if it is time
           modified = true;
           ts = System.currentTimeMillis();
         }
@@ -293,7 +295,6 @@ public class OdeAuthFilter implements Filter {
             .setUuid(this.userId)
             .setTs(this.ts)
             .setIsAdmin(this.isAdmin)
-            .setLocale(this.locale)
             .setIsReadOnly(this.isReadOnly).build();
           return Base64Coder.encode(crypter.encrypt(cookie.toByteArray()));
         } else {
@@ -308,10 +309,13 @@ public class OdeAuthFilter implements Filter {
     boolean isValid() {
       long offset = System.currentTimeMillis() - this.ts;
       offset /= 1000;
-      // Reject if older then 5 hours or if greater then 60 seconds
-      // in the future. We allow for 60 seconds in the future to deal
-      // with potential clock skew between app inventor servers
-      if (offset < -60 || offset > 3600*5) {
+
+      // Reject if older then idleTimeout (minutes) or if greater then
+      // 60 seconds in the future. We allow for 60 seconds in the
+      // future to deal with potential clock skew between app inventor
+      // servers
+
+      if (offset < -60 || offset > (60*idleTimeout.get())) {
         return false;
       } else {
         return true;
@@ -334,7 +338,6 @@ public class OdeAuthFilter implements Filter {
             uInfo.userId = cookieToken.getUuid();
             uInfo.ts = cookieToken.getTs();
             uInfo.isAdmin = cookieToken.getIsAdmin();
-            uInfo.locale = cookieToken.getLocale();
             uInfo.isReadOnly = cookieToken.getIsReadOnly();
             if (uInfo.isValid()) {
               return uInfo;
