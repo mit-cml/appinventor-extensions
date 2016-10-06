@@ -495,10 +495,8 @@ final class BluetoothLEint {
         BluetoothAdapter btAdapter = obtainBluetoothAdapter();
 
         if (btAdapter != null) {
-          if (mBluetoothLeDeviceScanner == null) {
-            mBluetoothLeDeviceScanner = btAdapter.getBluetoothLeScanner();
-          }
-
+          mBluetoothLeDeviceScanner = btAdapter.getBluetoothLeScanner();
+          
           ScanSettings settings = new ScanSettings.Builder()
               .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
               .build();
