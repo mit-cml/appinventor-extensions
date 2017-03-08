@@ -24,7 +24,9 @@ import com.google.appinventor.components.common.ComponentCategory;
 import com.google.appinventor.components.runtime.AndroidNonvisibleComponent;
 import com.google.appinventor.components.runtime.Component;
 import com.google.appinventor.components.runtime.ComponentContainer;
+import com.google.appinventor.components.runtime.EventDispatcher;
 import com.google.appinventor.components.runtime.util.SdkLevel;
+import com.google.appinventor.components.runtime.util.YailList;
 
 import java.util.List;
 
@@ -190,6 +192,95 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
   public void ReadByteValue(String service_uuid, String characteristic_uuid) {
     if (inner != null) {
       inner.ReadByteValue(service_uuid, characteristic_uuid);
+    }
+  }
+
+  @SimpleFunction(description = "Read one or more 8-bit integer values from a connected " +
+      "BluetoothLE device. Service Unique ID and Characteristic Unique ID are required.")
+  public void ReadByteValues(String serviceUuid, String characteristicUuid, boolean signed) {
+    if (inner != null) {
+      inner.ReadByteValues(serviceUuid, characteristicUuid, signed);
+    }
+  }
+
+  @SimpleFunction(description = "Register to receive updates when one or more 16-bit integer " +
+      "values from a connected BluetoothLE change. Service Unique ID and Characteristic Unique " +
+      "ID are required.")
+  public void RegisterForByteValues(String serviceUuid, String characteristicUuid, boolean signed) {
+    if (inner != null) {
+      inner.RegisterForByteValues(serviceUuid, characteristicUuid, signed);
+    }
+  }
+
+  @SimpleFunction(description = "Read one or more 16-bit integer values from a connected " +
+      "BluetoothLE device. Service Unique ID and Characteristic Unique ID are required.")
+  public void ReadShortValues(String service_uuid, String characteristic_uuid, boolean signed) {
+    if (inner != null) {
+      inner.ReadShortValues(service_uuid, characteristic_uuid, signed);
+    }
+  }
+
+  @SimpleFunction(description = "Register to receive updates when one or more 16-bit integer " +
+      "values from a connected BluetoothLE change. Service Unique ID and Characteristic Unique ID" +
+      "are required.")
+  public void RegisterForShortValues(String service_uuid, String characteristic_uuid,
+                                     boolean signed) {
+    if (inner != null) {
+      inner.RegisterForShortValues(service_uuid, characteristic_uuid, signed);
+    }
+  }
+
+  @SimpleFunction(description = "Read one or more 32-bit integer values from a connected " +
+      "BluetoothLE device.")
+  public void ReadIntegerValues(String serviceUuid, String characteristicUuid, boolean signed) {
+    if (inner != null) {
+      inner.ReadIntegerValues(serviceUuid, characteristicUuid, signed);
+    }
+  }
+
+  @SimpleFunction(description = "Register to receive updates when one or more 32-bit integer " +
+      "values from a connected Bluetooth device change.")
+  public void RegisterForIntegerValues(String serviceUuid, String characteristicUuid, boolean signed) {
+    if (inner != null) {
+      inner.RegisterForIntegerValues(serviceUuid, characteristicUuid, signed);
+    }
+  }
+
+  @SimpleFunction(description = "Read one or more floating point values from a connected " +
+      "Bluetooth device.")
+  public void ReadFloatValues(String serviceUuid, String characteristicUuid, boolean shortFloat) {
+    if (inner != null) {
+      inner.ReadFloatValues(serviceUuid, characteristicUuid, shortFloat);
+    }
+  }
+
+  @SimpleFunction(description = "Register to receive updates when one or more floating point " +
+      "values from a connected Bluetooth device change.")
+  public void RegisterForFloatValues(String serviceUuid, String characteristicUuid, boolean shortFloat) {
+    if (inner != null) {
+      inner.RegisterForFloatValues(serviceUuid, characteristicUuid, shortFloat);
+    }
+  }
+
+  @SimpleFunction(description = "Read one or more strings from a connected Bluetooth device.")
+  public void ReadStringValues(String serviceUuid, String characteristicUuid, boolean utf16) {
+    if (inner != null) {
+      inner.ReadStringValues(serviceUuid, characteristicUuid, utf16);
+    }
+  }
+
+  @SimpleFunction(description = "Register to receive updates when one or more string values from" +
+      "a connected Bluetooth device change.")
+  public void RegisterForStringValues(String serviceUuid, String characteristicUuid, boolean utf16) {
+    if (inner != null) {
+      inner.RegisterForStringValues(serviceUuid, characteristicUuid, utf16);
+    }
+  }
+
+  @SimpleFunction(description = "Unregister for updates for the given service and characteristic.")
+  public void UnregisterForValues(String service_uuid, String characteristic_uuid) {
+    if (inner != null) {
+      inner.UnregisterForValues(service_uuid, characteristic_uuid);
     }
   }
 
@@ -381,6 +472,46 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
 
   @SimpleEvent(description = "Trigger event when a float value from connected BluetoothLE device is read.")
   public void FloatValueRead(final float floatValue) {
+  }
+
+  @SimpleEvent(description = "Trigger event when one or more byte values from a connected " +
+      "BluetoothLE device are received.")
+  public void ByteValuesReceived(final String serviceUuid, final String characteristicUuid,
+                                 final YailList byteValues) {
+    EventDispatcher.dispatchEvent(this, "ByteValuesReceived", serviceUuid, characteristicUuid,
+        byteValues);
+  }
+
+  @SimpleEvent(description = "Trigger event when one or more short values from a connected " +
+      "BluetoothLE device are received.")
+  public void ShortValuesReceived(final String serviceUuid, final String characteristicUuid,
+                                  final YailList shortValues) {
+    EventDispatcher.dispatchEvent(this, "ShortValuesReceived", serviceUuid, characteristicUuid,
+        shortValues);
+  }
+
+  @SimpleEvent(description = "Trigger event when one or more integer values from a connected " +
+      "BluetoothLE device are received.")
+  public void IntegerValuesReceived(final String serviceUuid, final String characteristicUuid,
+                                    final YailList intValues) {
+    EventDispatcher.dispatchEvent(this, "IntegerValuesReceived", serviceUuid, characteristicUuid,
+        intValues);
+  }
+
+  @SimpleEvent(description = "Trigger event when one or more floating point values from a " +
+      "BluetoothLE device are received.")
+  public void FloatValuesReceived(final String serviceUuid, final String characteristicUuid,
+                                  final YailList floatValues) {
+    EventDispatcher.dispatchEvent(this, "FloatValuesReceived", serviceUuid, characteristicUuid,
+        floatValues);
+  }
+
+  @SimpleEvent(description = "Trigger event when one or more string values from a connected " +
+      "BluetoothLE device a received.")
+  public void StringValuesReceived(final String serviceUuid, final String characteristicUuid,
+                                   final YailList stringValues) {
+    EventDispatcher.dispatchEvent(this, "StringValuesReceived", serviceUuid, characteristicUuid,
+        stringValues);
   }
 
   @SimpleEvent(description = "Trigger event when byte value from connected BluetoothLE device is changed.")
