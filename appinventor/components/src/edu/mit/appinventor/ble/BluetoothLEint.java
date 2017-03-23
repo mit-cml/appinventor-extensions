@@ -50,14 +50,7 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.Charset;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * The internal implementation of the BluetoothLE component.
@@ -150,7 +143,40 @@ final class BluetoothLEint {
    * Inventor.
    * @author Evan W. Patton (ewpatton@mit.edu)
    */
-  public abstract class BLEOperation extends BluetoothGattCallback {
+  public abstract class BLEOperation extends BluetoothGattCallback implements Runnable {
+    /**
+     * Constant for identifying Bluetooth utf8s data type.
+     * @see BluetoothGattCharacteristic
+     */
+    static final int FORMAT_UTF8S = 1;
+
+    /**
+     * Constant for identifying Bluetooth utf16s data type.
+     */
+    static final int FORMAT_UTF16S = 2;
+
+    /**
+     * The characteristic that will be read or provide notifications as part of the operation.
+     */
+    protected final BluetoothGattCharacteristic characteristic;
+
+    /**
+     * The type of the characteristic. See the FORMAT_* constants on
+     * {@link BluetoothGattCharacteristic}.
+     */
+    protected final int type;
+
+    /**
+     * Size of the data type within the Bluetooth packet. For example, a byte will have size 1.
+     */
+    protected final int size;
+
+    BLEOperation(BluetoothGattCharacteristic characteristic, int type) {
+      this.characteristic = characteristic;
+      this.type = type;
+      this.size = sizeofT(type);
+    }
+
     /**
      * @return true if the operation is a read (or notify) operation, otherwise false.
      */
@@ -170,20 +196,53 @@ final class BluetoothLEint {
      * Read the attribute encapsulated by the BLEOperation using the specified GATT object.
      * @param gatt Bluetooth General Attribute (GATT) profile target
      */
-    public abstract void read(BluetoothGatt gatt);
-
-    /**
-     * Subscribe to the attribute encapsulated by the BLEOperation using the specified GATT object.
-     * @param gatt Bluetooth General Attribute (GATT) profile target
-     */
-    public abstract void subscribe(BluetoothGatt gatt);
+    public void read(BluetoothGatt gatt) {}
 
     /**
      * Unsubscribe from the attribute encapsulated by the BLEOperation previously subscribed to
      * using the specified GATT object.
      * @param gatt Bluetooth General Attribute (GATT) profile target
      */
-    public abstract void unsubscribe(BluetoothGatt gatt);
+    public void unsubscribe(BluetoothGatt gatt) {}
+
+    /**
+     * Determine the size of the value based on the specified Bluetooth format.
+     * @return the size, in bytes, of the format. If the format is a string, then -1 will be
+     *   returned.
+     */
+    protected final int sizeofT(int type) {
+      switch (type) {
+        case BluetoothGattCharacteristic.FORMAT_UINT8:
+        case BluetoothGattCharacteristic.FORMAT_SINT8:
+          return 1;
+        case BluetoothGattCharacteristic.FORMAT_SINT16:
+        case BluetoothGattCharacteristic.FORMAT_UINT16:
+        case BluetoothGattCharacteristic.FORMAT_SFLOAT:
+          return 2;
+        case BluetoothGattCharacteristic.FORMAT_SINT32:
+        case BluetoothGattCharacteristic.FORMAT_UINT32:
+        case BluetoothGattCharacteristic.FORMAT_FLOAT:
+          return 4;
+        default:
+          return -1;  // uitf8s or utf16s
+      }
+    }
+
+    /**
+     * Register the operation on the queue of pending operations.
+     */
+    protected final void registerPendingOperation() {
+      synchronized (pendingOperationsByUuid) {
+        final UUID uuid = characteristic.getUuid();
+        if (!pendingOperationsByUuid.containsKey(uuid)) {
+          pendingOperationsByUuid.put(uuid, new ArrayList<BLEOperation>());
+        }
+        if (!pendingOperationsByUuid.get(uuid).contains(this)) {
+          pendingOperationsByUuid.get(uuid).add(this);
+        }
+      }
+    }
+
   }
 
   /**
@@ -194,48 +253,33 @@ final class BluetoothLEint {
   private abstract class BLEReadOperation<T> extends BLEOperation {
 
     /**
-     * Constant for identifying Bluetooth utf8s data type.
-     * @see BluetoothGattCharacteristic
-     */
-    static final int FORMAT_UTF8S = 1;
-
-    /**
-     * Constant for identifying Bluetooth utf16s data type.
-     */
-    static final int FORMAT_UTF16S = 2;
-
-    /**
      * Class of the return value's data type. Note that this may not be the same as the data type.
      * For example, byte and short values will be returned as int.
      */
     private final Class<T> mClass;
 
     /**
-     * The characteristic that will be read or provide notifications as part of the operation.
-     */
-    protected final BluetoothGattCharacteristic characteristic;
-
-    /**
-     * The type of the characteristic. See the FORMAT_* constants on
-     * {@link BluetoothGattCharacteristic}.
-     */
-    private final int type;
-
-    /**
-     * Size of the data type within the Bluetooth packet. For example, a byte will have size 1.
-     */
-    private final int size;
-
-    /**
      * Flag to indicate that the operation is a notify.
      */
     private boolean notify = false;
 
-    BLEReadOperation(Class<T> aClass, BluetoothGattCharacteristic characteristic, int type) {
+    /**
+     * Handler to call after reading values.
+     */
+    private final BluetoothLE.BLEResponseHandler<T> handler;
+
+    /**
+     * Delay in milliseconds in the event the operation fails. The delay is backed off as a power
+     * of 2 until 10 attempts have failed.
+     */
+    private int delay = 1;
+
+    BLEReadOperation(Class<T> aClass, BluetoothGattCharacteristic characteristic, int type,
+                     BluetoothLE.BLEResponseHandler<T> handler, boolean notify) {
+      super(characteristic, type);
       this.mClass = aClass;
-      this.characteristic = characteristic;
-      this.type = type;
-      this.size = sizeofT();
+      this.handler = handler;
+      this.notify = notify;
     }
 
     @Override
@@ -254,59 +298,145 @@ final class BluetoothLEint {
     }
 
     @Override
-    public void read(BluetoothGatt gatt) {
-      registerPendingOperation();
-      gatt.readCharacteristic(this.characteristic);
+    public void run() {
+      if (isNotify()) {
+        subscribe(mBluetoothGatt);
+      } else {
+        read(mBluetoothGatt);
+      }
     }
 
     @Override
-    public void subscribe(BluetoothGatt gatt) {
-      registerPendingOperation();
+    public void read(final BluetoothGatt gatt) {
+      if (gatt.readCharacteristic(this.characteristic)) {
+        registerPendingOperation();
+      } else if (delay > 2000) {
+        Log.i(LOG_TAG, "Took too long to schedule read. Treating this as failure.");
+      } else {
+        Log.d(LOG_TAG, "Unable to read characteristic " + characteristic.getUuid() +
+            ". Deferring operation by " + delay + "ms.");
+        mHandler.postDelayed(new Runnable() {
+          @Override
+          public void run() {
+            read(gatt);
+          }
+        }, delay);
+        delay *= 2;
+      }
+    }
+
+    /**
+     * Subscribe to the attribute encapsulated by the BLEOperation using the specified GATT object.
+     * @param gatt Bluetooth General Attribute (GATT) profile target
+     */
+    public void subscribe(final BluetoothGatt gatt) {
       notify = true;
+      registerPendingOperation();
       BluetoothGattDescriptor desc = characteristic
           .getDescriptor(BluetoothLEGattAttributes.CLIENT_CHARACTERISTIC_CONFIGURATION);
+      boolean wroteDescriptor = false;
 
       if (desc != null) {
+        // Prefer notification to indication for characteristics that support both
         if ((characteristic.getProperties() &
-            BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0) {
-          desc.setValue(BluetoothGattDescriptor.ENABLE_INDICATION_VALUE);
-        } else {
+            BluetoothGattCharacteristic.PROPERTY_NOTIFY) != 0) {
           desc.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+        } else {
+          desc.setValue(BluetoothGattDescriptor.ENABLE_INDICATION_VALUE);
         }
         gatt.writeDescriptor(desc);
+        wroteDescriptor = true;
       }
 
-      gatt.setCharacteristicNotification(characteristic, true);
-      Log.d(LOG_TAG, "Subscribed for UUID: " + characteristic.getUuid());
+      if (!gatt.setCharacteristicNotification(characteristic, true)) {
+        if (delay > 2000) {
+          Log.i(LOG_TAG, "Took too long to subscribe. Treating this as failure.");
+          return;
+        }
+        Log.d(LOG_TAG, "Unable to set characteristic notification for " + characteristic.getUuid()
+            + ". Deferring operation by " + delay + "ms.");
+        mHandler.postDelayed(new Runnable() {
+          @Override
+          public void run() {
+            subscribe(gatt);
+          }
+        }, delay);
+        delay *= 2;
+      } else {
+        if (!wroteDescriptor) {
+          runPendingOperation(this);  // no change will happen due to lack of descriptor change
+                                      // so force the next operation.
+        }
+        Log.d(LOG_TAG, "Subscribed for UUID: " + characteristic.getUuid());
+      }
     }
 
     @Override
-    public void unsubscribe(BluetoothGatt gatt) {
-      synchronized (pendingOperations) {
-        gatt.setCharacteristicNotification(characteristic, false);
-        pendingOperations.get(characteristic.getUuid()).remove(this);
-        notify = false;
+    public void unsubscribe(final BluetoothGatt gatt) {
+      synchronized (pendingOperationsByUuid) {
+        if (gatt.setCharacteristicNotification(characteristic, false)) {
+          pendingOperationsByUuid.get(characteristic.getUuid()).remove(this);
+          notify = false;
+        } else if (delay > 2000) {
+          Log.i(LOG_TAG, "Took too long to unsubscribe. Treating this as failure.");
+        } else {
+          Log.d(LOG_TAG, "setCharacteristicNotification returned false. Deferring operation by " +
+              delay + "ms.");
+          mHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+              unsubscribe(gatt);
+            }
+          }, delay);
+          delay *= 2;
+        }
       }
     }
 
     @Override
     public void onCharacteristicChanged(BluetoothGatt gatt,
-                                        BluetoothGattCharacteristic characteristic) {
+                                        final BluetoothGattCharacteristic characteristic) {
       if (this.characteristic == characteristic) {
-        onReceive(readCharacteristic());
+        final List<T> data = readCharacteristic();
+        onReceive(data);
+        Log.d(LOG_TAG, "handler = " + handler);
+        if (handler != null) {
+          Log.d(LOG_TAG, "Posting handler's onReceive to UI thread");
+          mHandler.post(new Runnable() {
+            @Override
+            public void run() {
+              handler.onReceive(characteristic.getService().getUuid().toString(),
+                  characteristic.getUuid().toString(), data);
+            }
+          });
+        }
+        runPendingOperation(this);
       } else {
         Log.d(LOG_TAG, "Characteristic did not match");
       }
     }
 
     @Override
-    public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic,
+    public void onCharacteristicRead(BluetoothGatt gatt,
+                                     final BluetoothGattCharacteristic characteristic,
                                      int status) {
       if (this.characteristic == characteristic) {
         try {
           switch (status) {
             case BluetoothGatt.GATT_SUCCESS:
-              onReceive(readCharacteristic());
+              final List<T> data = readCharacteristic();
+              onReceive(data);
+              Log.d(LOG_TAG, "handler = " + handler);
+              if (handler != null) {
+                Log.d(LOG_TAG, "Posting handler's onReceive to UI thread");
+                mHandler.post(new Runnable() {
+                  @Override
+                  public void run() {
+                    handler.onReceive(characteristic.getService().getUuid().toString(),
+                        characteristic.getUuid().toString(), data);
+                  }
+                });
+              }
               break;
             default:
               // TODO(ewpatton): handle error conditions
@@ -314,10 +444,25 @@ final class BluetoothLEint {
                   characteristic.getUuid());
           }
         } finally {
-          pendingOperations.get(characteristic.getUuid()).remove(this);
-          Log.d(LOG_TAG, "pendingOperations.size() = " + pendingOperations.size());
+          pendingOperationsByUuid.get(characteristic.getUuid()).remove(this);
+          runPendingOperation(this);
+          Log.d(LOG_TAG, "pendingOperationsByUuid.size() = " + pendingOperationsByUuid.size());
         }
       }
+    }
+
+    @Override
+    public void onDescriptorRead(BluetoothGatt gatt, final BluetoothGattDescriptor descriptor,
+                                 int status) {
+      Log.d(LOG_TAG, "onDescriptorRead: " + descriptor.getCharacteristic().getUuid());
+      runPendingOperation(this);
+    }
+
+    @Override
+    public void onDescriptorWrite(BluetoothGatt gatt, final BluetoothGattDescriptor descriptor,
+                                    int status) {
+      Log.d(LOG_TAG, "onDescriptorWrite: " + descriptor.getCharacteristic().getUuid());
+      runPendingOperation(this);
     }
 
     /**
@@ -329,7 +474,8 @@ final class BluetoothLEint {
         Reader reader = null;
         List<T> result = new ArrayList<T>();
         try {
-          reader = new InputStreamReader(new ByteArrayInputStream(characteristic.getValue()), type == FORMAT_UTF8S ? "UTF-8" : "UTF-16LE");
+          reader = new InputStreamReader(new ByteArrayInputStream(characteristic.getValue()),
+                                         type == FORMAT_UTF8S ? "UTF-8" : "UTF-16LE");
           StringBuilder sb = new StringBuilder();
           int c;
           while ((c = reader.read()) >= 0) {
@@ -384,49 +530,166 @@ final class BluetoothLEint {
     }
 
     /**
-     * Determine the size of the value based on the specified Bluetooth format.
-     * @return the size, in bytes, of the format. If the format is a string, then -1 will be
-     *   returned.
-     */
-    private int sizeofT() {
-      switch (type) {
-        case BluetoothGattCharacteristic.FORMAT_UINT8:
-        case BluetoothGattCharacteristic.FORMAT_SINT8:
-          return 1;
-        case BluetoothGattCharacteristic.FORMAT_SINT16:
-        case BluetoothGattCharacteristic.FORMAT_UINT16:
-        case BluetoothGattCharacteristic.FORMAT_SFLOAT:
-          return 2;
-        case BluetoothGattCharacteristic.FORMAT_SINT32:
-        case BluetoothGattCharacteristic.FORMAT_UINT32:
-        case BluetoothGattCharacteristic.FORMAT_FLOAT:
-          return 4;
-        default:
-          return -1;  // uitf8s or utf16s
-      }
-    }
-
-    /**
-     * Register the operation on the queue of pending operations.
-     */
-    private void registerPendingOperation() {
-      synchronized (pendingOperations) {
-        final UUID uuid = characteristic.getUuid();
-        if (!pendingOperations.containsKey(uuid)) {
-          pendingOperations.put(uuid, new ArrayList<BLEOperation>());
-        }
-        if (!pendingOperations.get(uuid).contains(this)) {
-          pendingOperations.get(uuid).add(this);
-        }
-      }
-    }
-
-    /**
      * Callback for subclasses to implement that is called when the Bluetooth characteristic
      * is read or changes.
      * @param values The list of values extracted from the Bluetooth message.
      */
     protected abstract void onReceive(List<T> values);
+  }
+
+  /**
+   * Bluetooth write operations extend BLEWriteOperation to specify the value type of an
+   * operation. For operations that write primitive values, boxed types must be used.
+   * @param <T> The value type of a write operation. Typically this is Integer, Float, or String.
+   */
+  private abstract class BLEWriteOperation<T> extends BLEOperation {
+    /**
+     * The class of the value type.
+     */
+    private final Class<T> mClass;
+
+    /**
+     * The data to be written for pending operations.
+     */
+    private List<T> data;
+
+    /**
+     * Handler, if any, that will be called after the write operation completes.
+     */
+    private BluetoothLE.BLEResponseHandler<T> handler;
+
+    /**
+     * The write tyoe of the characteristic. See {@link BluetoothGattCharacteristic}.
+     */
+    private final int writeType;
+
+    BLEWriteOperation(Class<T> aClass, BluetoothGattCharacteristic characteristic, int type, List<T> data, int writeType) {
+      super(characteristic, type);
+      this.mClass = aClass;
+      this.data = data;
+      this.writeType = writeType;
+    }
+
+    @Override
+    public boolean isRead() {
+      return false;
+    }
+
+    @Override
+    public boolean isNotify() {
+      return false;
+    }
+
+    @Override
+    public boolean isWrite() {
+      return true;
+    }
+
+    @Override
+    public void run() {
+      write(mBluetoothGatt, writeType);
+    }
+
+    @Override
+    public void onCharacteristicWrite(BluetoothGatt gatt,
+                                      final BluetoothGattCharacteristic characteristic,
+                                      int status) {
+      if (this.characteristic == characteristic) {
+        try {
+          switch (status) {
+            case BluetoothGatt.GATT_SUCCESS:
+              onWrite(data);
+              if (handler != null) {
+                mHandler.post(new Runnable() {
+                  @Override
+                  public void run() {
+                    handler.onWrite(characteristic.getService().getUuid().toString(),
+                        characteristic.getUuid().toString(), data);
+                  }
+                });
+              }
+              break;
+            default:
+              // TODO(ewpatton): Handle error condition
+              Log.e(LOG_TAG, "Error code " + status + " from characteristic " +
+                  characteristic.getUuid());
+          }
+        } finally {
+          pendingOperationsByUuid.get(characteristic.getUuid()).remove(this);
+          runPendingOperation(this);
+          Log.d(LOG_TAG, "pendingOperationsByUuid.size() = " + pendingOperationsByUuid.size());
+        }
+      }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void write(BluetoothGatt gatt, int writeType) {
+      registerPendingOperation();
+      characteristic.setWriteType(writeType);
+      // TODO(ewpatton): Refactor this so that each write type knows only its own serialization
+      if (mClass == String.class) {
+        characteristic.setValue((String) data.get(0));
+      } else if (mClass == Float.class) {
+        byte[] contents = new byte[size * data.size()];
+        int value, i = 0;
+        if (size == 4) {
+          for (Float f : (List<Float>) data) {
+            value = Float.floatToIntBits(f);
+            // values are sent LSB first
+            contents[i++] = (byte)(value & 0xFF);
+            contents[i++] = (byte)((value >> 8) & 0xFF);
+            contents[i++] = (byte)((value >> 16) & 0xFF);
+            contents[i++] = (byte)((value >> 24) & 0xFF);
+          }
+        } else {
+          for (Float f : (List<Float>) data) {
+            value = Float.floatToIntBits(f);
+            // convert the 32-bit float into 16-bit half-float
+            value = ((value & 0x80000000) >> 16)  // sign bit
+                | (((((value & 0x7F800000) >> 23) + 127 - 15) & 0x1F) << 11)  // exponent
+                | ((value & 0x007FF000) >> 13);   // mantissa
+            contents[i++] = (byte)(value & 0xFF);
+            contents[i++] = (byte)((value >> 8) & 0xFF);
+          }
+        }
+        characteristic.setValue(contents);
+      } else {
+        byte[] contents = new byte[size * data.size()];
+        long value;
+        int i = 0;
+        for (Number n : (List<? extends Number>) data) {
+          value = n.longValue();
+          for (int j = 0; j < size; j++) {
+            contents[i++] = (byte)(value & 0xFF);
+            value >>= 8;
+          }
+        }
+        characteristic.setValue(contents);
+      }
+      gatt.writeCharacteristic(characteristic);
+    }
+
+    /**
+     * Write the data encapsulated by the operation to the characteristic using the supplied GATT
+     * connection.
+     * @param gatt Connection to the peripheral device.
+     */
+    public void write(BluetoothGatt gatt) {
+      write(gatt, BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE);
+    }
+
+    /**
+     * Write the data encapsulated by the operation to the characteristic using the supplied GATT
+     * connection. The handler will be called on the UI thread once the operation completes.
+     * @param gatt Connection to the peripheral device.
+     * @param handler Callback for when the operation completes.
+     */
+    public void writeWithResponse(BluetoothGatt gatt, BluetoothLE.BLEResponseHandler<T> handler) {
+      this.handler = handler;
+      write(gatt, BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE);
+    }
+
+    protected abstract void onWrite(List<T> values);
   }
 
   /**
@@ -440,10 +703,27 @@ final class BluetoothLEint {
      * interpreted as unsigned 8-bit values.
      * @param characteristic The Bluetooth GATT characteristic to read or register for values.
      * @param signed true if the values are signed.
+     * @param handler A callback object to handle the received data.
      */
-    BLEReadByteOperation(BluetoothGattCharacteristic characteristic, boolean signed) {
+    BLEReadByteOperation(BluetoothGattCharacteristic characteristic, boolean signed,
+                         BluetoothLE.BLEResponseHandler<Integer> handler) {
+      this(characteristic, signed, handler, false);
+    }
+
+    /**
+     * Construct a new Bluetooth read operation for the given characteristic. If signed is true,
+     * the values are interpreted as signed 8-bit values. If signed is false, the values are
+     * interpreted as unsigned 8-bit values.
+     * @param characteristic The Bluetooth GATT characteristic to read or register for values.
+     * @param signed true if the values are signed.
+     * @param handler A callback object to handle the received data.
+     * @param notify true if the operation is a subscription for notifications/indications,
+     *               otherwise false.
+     */
+    BLEReadByteOperation(BluetoothGattCharacteristic characteristic, boolean signed,
+                         BluetoothLE.BLEResponseHandler<Integer> handler, boolean notify) {
       super(Integer.class, characteristic, signed? BluetoothGattCharacteristic.FORMAT_SINT8 :
-          BluetoothGattCharacteristic.FORMAT_UINT8);
+          BluetoothGattCharacteristic.FORMAT_UINT8, handler, notify);
     }
 
     @Override
@@ -470,10 +750,27 @@ final class BluetoothLEint {
      * interpreted as unsigned 16-bit values.
      * @param characteristic The Bluetooth GATT characteristic to read or register for values.
      * @param signed true if the values are signed.
+     * @param handler A callback object to handle the received data.
      */
-    BLEReadShortOperation(BluetoothGattCharacteristic characteristic, boolean signed) {
+    BLEReadShortOperation(BluetoothGattCharacteristic characteristic, boolean signed,
+                          BluetoothLE.BLEResponseHandler<Integer> handler) {
+      this(characteristic, signed, handler, false);
+    }
+
+    /**
+     * Construct a new Bluetooth read operation for the given characteristic. If signed is true,
+     * the values are interpreted as signed 16-bit values. If signed is false, the values are
+     * interpreted as unsigned 16-bit values.
+     * @param characteristic The Bluetooth GATT characteristic to read or register for values.
+     * @param signed true if the values are signed.
+     * @param handler A callback object to handle the received data.
+     * @param notify true if the operation is a subscription for notifications/indications,
+     *               otherwise false.
+     */
+    BLEReadShortOperation(BluetoothGattCharacteristic characteristic, boolean signed,
+                          BluetoothLE.BLEResponseHandler<Integer> handler, boolean notify) {
       super(Integer.class, characteristic, signed? BluetoothGattCharacteristic.FORMAT_SINT16 :
-          BluetoothGattCharacteristic.FORMAT_UINT16);
+          BluetoothGattCharacteristic.FORMAT_UINT16, handler, notify);
     }
 
     @Override
@@ -502,10 +799,27 @@ final class BluetoothLEint {
      * interpreted as unsigned 32-bit values.
      * @param characteristic The Bluetooth GATT characteristic to read or register for values.
      * @param signed true if the values are signed.
+     * @param handler A callback object to handle the received data.
      */
-    BLEReadIntegerOperation(BluetoothGattCharacteristic characteristic, boolean signed) {
+    BLEReadIntegerOperation(BluetoothGattCharacteristic characteristic, boolean signed,
+                            BluetoothLE.BLEResponseHandler<Long> handler) {
+      this(characteristic, signed, handler, false);
+    }
+
+    /**
+     * Construct a new Bluetooth read operation for the given characteristic. If signed is true,
+     * the values are interpreted as signed 32-bit values. If signed is false, the values are
+     * interpreted as unsigned 32-bit values.
+     * @param characteristic The Bluetooth GATT characteristic to read or register for values.
+     * @param signed true if the values are signed.
+     * @param handler A callback object to handle the received data.
+     * @param notify true if the operation is a subscription for notifications/indications,
+     *               otherwise false.
+     */
+    BLEReadIntegerOperation(BluetoothGattCharacteristic characteristic, boolean signed,
+                            BluetoothLE.BLEResponseHandler<Long> handler, boolean notify) {
       super(Long.class, characteristic, signed? BluetoothGattCharacteristic.FORMAT_SINT32 :
-          BluetoothGattCharacteristic.FORMAT_UINT32);
+          BluetoothGattCharacteristic.FORMAT_UINT32, handler, notify);
     }
 
     @Override
@@ -532,10 +846,27 @@ final class BluetoothLEint {
      * specification). Otherwise, the values are interpreted as 32-bit IEEE floating point values.
      * @param characteristic The Bluetooth GATT characteristic to read or register for values.
      * @param shortFloat true if the values are short floats.
+     * @param handler A callback object to handle the received data.
      */
-    BLEReadFloatOperation(BluetoothGattCharacteristic characteristic, boolean shortFloat) {
+    BLEReadFloatOperation(BluetoothGattCharacteristic characteristic, boolean shortFloat,
+                          BluetoothLE.BLEResponseHandler<Float> handler) {
+      this(characteristic, shortFloat, handler, false);
+    }
+
+    /**
+     * Construct a new Bluetooth read operation for the given characteristic. If shortFloat is true,
+     * the values are interpreted as 16-bit floating point values (sfloat type in the Bluetooth
+     * specification). Otherwise, the values are interpreted as 32-bit IEEE floating point values.
+     * @param characteristic The Bluetooth GATT characteristic to read or register for values.
+     * @param shortFloat true if the values are short floats.
+     * @param handler A callback object to handle the received data.
+     * @param notify true if the operation is a subscription for notifications/indications,
+     *               otherwise false.
+     */
+    BLEReadFloatOperation(BluetoothGattCharacteristic characteristic, boolean shortFloat,
+                          BluetoothLE.BLEResponseHandler<Float> handler, boolean notify) {
       super(Float.class, characteristic, shortFloat? BluetoothGattCharacteristic.FORMAT_SFLOAT :
-          BluetoothGattCharacteristic.FORMAT_FLOAT);
+          BluetoothGattCharacteristic.FORMAT_FLOAT, handler, notify);
     }
 
     @Override
@@ -561,9 +892,25 @@ final class BluetoothLEint {
      * the values are interpreted as UTF-16 strings. Otherwise, UTF-8 is used as the encoding.
      * @param characteristic The Bluetooth GATT characteristic to read or register for values.
      * @param utf16 true if the values should be decoded using UTF-16.
+     * @param handler A callback object to handle the received data.
      */
-    BLEReadStringOperation(BluetoothGattCharacteristic characteristic, boolean utf16) {
-      super(String.class, characteristic, utf16? FORMAT_UTF16S : FORMAT_UTF8S);
+    BLEReadStringOperation(BluetoothGattCharacteristic characteristic, boolean utf16,
+                           BluetoothLE.BLEResponseHandler<String> handler) {
+      this(characteristic, utf16, handler, false);
+    }
+
+    /**
+     * Construct a new Bluetooth read operation for the given characteristic. If utf16 is true,
+     * the values are interpreted as UTF-16 strings. Otherwise, UTF-8 is used as the encoding.
+     * @param characteristic The Bluetooth GATT characteristic to read or register for values.
+     * @param utf16 true if the values should be decoded using UTF-16.
+     * @param handler A callback object to handle the received data.
+     * @param notify true if the operation is a subscription for notifications/indications,
+     *               otherwise false.
+     */
+    BLEReadStringOperation(BluetoothGattCharacteristic characteristic, boolean utf16,
+                           BluetoothLE.BLEResponseHandler<String> handler, boolean notify) {
+      super(String.class, characteristic, utf16? FORMAT_UTF16S : FORMAT_UTF8S, handler, notify);
     }
 
     @Override
@@ -573,6 +920,171 @@ final class BluetoothLEint {
         @Override
         public void run() {
           outer.StringValuesReceived(characteristic.getService().getUuid().toString(),
+              characteristic.getUuid().toString(), yailList);
+        }
+      });
+    }
+  }
+
+  /**
+   * A Bluetooth operation to write one or more bytes to a characteristic.
+   */
+  class BLEWriteBytesOperation extends BLEWriteOperation<Integer> {
+    /**
+     * Construct a new Blueooth write operation for the given characteristic. If signed is true,
+     * the values are interpreted as signed bytes. Otherwise, unsigned bytes are sent. The
+     * writeType should indicate whether or not a response from the Bluetooth client is required.
+     * @param characteristic The Bluetooth GATT characteristic to write values to.
+     * @param signed true if the values should be signed bytes, otherwise false.
+     * @param values The list of integer values (will be truncated) to send to the client.
+     * @param writeType Either {@link BluetoothGattCharacteristic#WRITE_TYPE_DEFAULT} or
+     *                  {@link BluetoothGattCharacteristic#WRITE_TYPE_NO_RESPONSE}.
+     */
+    BLEWriteBytesOperation(BluetoothGattCharacteristic characteristic, boolean signed,
+                           List<Integer> values, int writeType) {
+      super(Integer.class, characteristic, signed? BluetoothGattCharacteristic.FORMAT_SINT8 :
+          BluetoothGattCharacteristic.FORMAT_UINT8, values, writeType);
+    }
+
+    @Override
+    public void onWrite(List<Integer> values) {
+      final YailList yailList = YailList.makeList(values);
+      mHandler.post(new Runnable() {
+        @Override
+        public void run() {
+          outer.ByteValuesWritten(characteristic.getService().getUuid().toString(),
+              characteristic.getUuid().toString(), yailList);
+        }
+      });
+    }
+  }
+
+  /**
+   * A Bluetooth operation to write one or more shorts to a characteristic.
+   */
+  class BLEWriteShortsOperation extends BLEWriteOperation<Integer> {
+    /**
+     * Construct a new Bluetooth write operation for the given characteristic. If signed is true,
+     * the values are interpreted as signed shorts. Otherwise, unsigned shorts are sent. The
+     * writeType should indicate whether or not a response from the Bluetooth client is required.
+     * @param characteristic The Bluetooth GATT characteristic to write values to.
+     * @param signed true if the values should be signed shorts, otherwise false.
+     * @param values The list of integer values (will be truncated) to send to the client.
+     * @param writeType Either {@link BluetoothGattCharacteristic#WRITE_TYPE_DEFAULT} or
+     *                  {@link BluetoothGattCharacteristic#WRITE_TYPE_NO_RESPONSE}.
+     */
+    BLEWriteShortsOperation(BluetoothGattCharacteristic characteristic, boolean signed,
+                            List<Integer> values, int writeType) {
+      super(Integer.class, characteristic, signed? BluetoothGattCharacteristic.FORMAT_SINT16 :
+          BluetoothGattCharacteristic.FORMAT_UINT16, values, writeType);
+    }
+
+    @Override
+    public void onWrite(List<Integer> values) {
+      final YailList yailList = YailList.makeList(values);
+      mHandler.post(new Runnable() {
+        @Override
+        public void run() {
+          outer.ShortValuesWritten(characteristic.getService().getUuid().toString(),
+              characteristic.getUuid().toString(), yailList);
+        }
+      });
+    }
+  }
+
+  /**
+   * A Bluetooth operation to write one or more integers to a characteristic.
+   */
+  class BLEWriteIntegersOperation extends BLEWriteOperation<Long> {
+    /**
+     * Construct a new Bluetooth write operation for the given characteristic. If signed is true,
+     * the values are interpreted as signed ints. Otherwise, unsigned ints are sent. The
+     * writeType should indicate whether or not a response from the Bluetooth client is required.
+     * @param characteristic The Bluetooth GATT characteristic to write values to.
+     * @param signed true if the values should be signed ints, otherwise false.
+     * @param values The list of long values (will be truncated) to send to the client.
+     * @param writeType Either {@link BluetoothGattCharacteristic#WRITE_TYPE_DEFAULT} or
+     *                  {@link BluetoothGattCharacteristic#WRITE_TYPE_NO_RESPONSE}.
+     */
+    BLEWriteIntegersOperation(BluetoothGattCharacteristic characteristic, boolean signed,
+                              List<Long> values, int writeType) {
+      super(Long.class, characteristic, signed? BluetoothGattCharacteristic.FORMAT_SINT32 :
+          BluetoothGattCharacteristic.FORMAT_UINT32, values, writeType);
+    }
+
+    @Override
+    public void onWrite(List<Long> values) {
+      final YailList yailList = YailList.makeList(values);
+      mHandler.post(new Runnable() {
+        @Override
+        public void run() {
+          outer.IntegerValuesWritten(characteristic.getService().getUuid().toString(),
+              characteristic.getUuid().toString(), yailList);
+        }
+      });
+    }
+  }
+
+  /**
+   * A Bluetooth operation to write one or more floats to a characteristic.
+   */
+  class BLEWriteFloatsOperation extends BLEWriteOperation<Float> {
+    /**
+     * Construct a new Bluetooth write operation for the given characteristic. If shortFloats is
+     * true, the values are interpreted as half-precision (!6-bit) floats. Otherwise, single-
+     * precision (32-bit) floats are sent. The writeType should indicate whether or not a
+     * response from the Bluetooth client is required.
+     * @param characteristic The Bluetooth GATT characteristic to write values to.
+     * @param shortFloats true if the values should be written as 16-bit floats, otherwise false.
+     * @param values The list of float values (may be truncated) to send to the client.
+     * @param writeType Either {@link BluetoothGattCharacteristic#WRITE_TYPE_DEFAULT} or
+     *                  {@link BluetoothGattCharacteristic#WRITE_TYPE_NO_RESPONSE}.
+     */
+    BLEWriteFloatsOperation(BluetoothGattCharacteristic characteristic, boolean shortFloats,
+                            List<Float> values, int writeType) {
+      super(Float.class, characteristic, shortFloats? BluetoothGattCharacteristic.FORMAT_SFLOAT :
+          BluetoothGattCharacteristic.FORMAT_FLOAT, values, writeType);
+    }
+
+    @Override
+    public void onWrite(List<Float> values) {
+      final YailList yailList = YailList.makeList(values);
+      mHandler.post(new Runnable() {
+        @Override
+        public void run() {
+          outer.ShortValuesWritten(characteristic.getService().getUuid().toString(),
+              characteristic.getUuid().toString(), yailList);
+        }
+      });
+    }
+  }
+
+  /**
+   * A Bluetooth operation to write one or more strings to a characteristic.
+   */
+  class BLEWriteStringsOperation extends BLEWriteOperation<String> {
+    /**
+     * Construct a new Bluetooth write operation for the given characteristic. If utf16 is true,
+     * the values are sent as UTF-16 in little endian format. Otherwise, UTF-8 is used. The
+     * writeType should indicate whether or not a response from the Bluetooth client is required.
+     * @param characteristic The Bluetooth GATT characteristic to write values to.
+     * @param utf16 true if the values should be written as UTF-16 strings, otherwise false.
+     * @param values The list of strings to send to the client.
+     * @param writeType Either {@link BluetoothGattCharacteristic#WRITE_TYPE_DEFAULT} or
+     *                  {@link BluetoothGattCharacteristic#WRITE_TYPE_NO_RESPONSE}.
+     */
+    BLEWriteStringsOperation(BluetoothGattCharacteristic characteristic, boolean utf16,
+                             List<String> values, int writeType) {
+      super(String.class, characteristic, utf16? FORMAT_UTF16S : FORMAT_UTF8S, values, writeType);
+    }
+
+    @Override
+    public void onWrite(List<String> values) {
+      final YailList yailList = YailList.makeList(values);
+      mHandler.post(new Runnable() {
+        @Override
+        public void run() {
+          outer.StringValuesWritten(characteristic.getService().getUuid().toString(),
               characteristic.getUuid().toString(), yailList);
         }
       });
@@ -637,10 +1149,11 @@ final class BluetoothLEint {
   private int device_rssi = 0;
   private final Handler uiThread;
   /**
-   * pendingOperations stores a list of pending BLE operations per characteristic.
+   * pendingOperationsByUuid stores a list of pending BLE operations per characteristic.
    */
-  private final Map<UUID, List<BLEOperation>> pendingOperations =
+  private final Map<UUID, List<BLEOperation>> pendingOperationsByUuid =
       new HashMap<UUID, List<BLEOperation>>();
+  private final Queue<BLEOperation> pendingOperations = new LinkedList<BLEOperation>();
 
   /**
    * BluetoothLE Device Scanning and Connection Callbacks
@@ -795,6 +1308,7 @@ final class BluetoothLEint {
           isConnected = true;
           // Now that we've connected to a device, clear any pending operations for the previous
           // connection and fire the Connected event.
+          pendingOperationsByUuid.clear();
           pendingOperations.clear();
           Connected();
         }
@@ -804,9 +1318,10 @@ final class BluetoothLEint {
       @Override
       // Result of a characteristic read operation
       public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-        if (pendingOperations.containsKey(characteristic.getUuid())) {
+        if (pendingOperationsByUuid.containsKey(characteristic.getUuid())) {
           // We have a pending operation for the characteristic that should fire.
-          List<BLEOperation> operations = new ArrayList<BLEOperation>(pendingOperations.get(characteristic.getUuid()));
+          Log.d(LOG_TAG, "onCharacteristicRead: " + characteristic.getUuid());
+          List<BLEOperation> operations = new ArrayList<BLEOperation>(pendingOperationsByUuid.get(characteristic.getUuid()));
           for (BLEOperation operation : operations) {
             operation.onCharacteristicRead(gatt, characteristic, status);
           }
@@ -847,9 +1362,10 @@ final class BluetoothLEint {
       @Override
       // Result of a characteristic read operation is changed
       public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
-        if (pendingOperations.containsKey(characteristic.getUuid())) {
+        if (pendingOperationsByUuid.containsKey(characteristic.getUuid())) {
           // We have a pending operation for the characteristic that should fire.
-          List<BLEOperation> operations = new ArrayList<BLEOperation>(pendingOperations.get(characteristic.getUuid()));
+          Log.d(LOG_TAG, "onCharacteristicRead");
+          List<BLEOperation> operations = new ArrayList<BLEOperation>(pendingOperationsByUuid.get(characteristic.getUuid()));
           for (BLEOperation operation : operations) {
             operation.onCharacteristicChanged(gatt, characteristic);
           }
@@ -901,11 +1417,31 @@ final class BluetoothLEint {
       @Override
       public void onDescriptorRead(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
         descriptorValue = descriptor.getValue();
+        final BluetoothGattCharacteristic characteristic = descriptor.getCharacteristic();
+        if (pendingOperationsByUuid.containsKey(characteristic.getUuid())) {
+          // We have a pending operation for the characteristic that should fire.
+          Log.d(LOG_TAG, "onDescriptorRead");
+          List<BLEOperation> operations = new ArrayList<BLEOperation>(pendingOperationsByUuid.get(characteristic.getUuid()));
+          for (BLEOperation operation : operations) {
+            operation.onDescriptorRead(gatt, descriptor, status);
+          }
+          return;
+        }
       }
 
       @Override
       public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
         Log.i(LOG_TAG, "Write Descriptor Successfully.");
+        final BluetoothGattCharacteristic characteristic = descriptor.getCharacteristic();
+        if (pendingOperationsByUuid.containsKey(characteristic.getUuid())) {
+          // We have a pending operation for the characteristic that should fire.
+          Log.d(LOG_TAG, "onDescriptorWrite");
+          List<BLEOperation> operations = new ArrayList<BLEOperation>(pendingOperationsByUuid.get(characteristic.getUuid()));
+          for (BLEOperation operation : operations) {
+            operation.onDescriptorWrite(gatt, descriptor, status);
+          }
+          return;
+        }
       }
 
       @Override
@@ -1228,18 +1764,24 @@ final class BluetoothLEint {
    */
   void ReadByteValues(final String serviceUuid, final String characteristicUuid,
                       final boolean signed) {
+    ReadByteValues(serviceUuid, characteristicUuid, signed, null);
+  }
+
+  void ReadByteValues(final String serviceUuid, final String characteristicUuid,
+                      final boolean signed,
+                      final BluetoothLE.BLEResponseHandler<Integer> callback) {
     final String METHOD = "ReadByteValues";
     new BLEAction<Void>(METHOD) {
       @Override
       public Void action() {
         if (!validateUUID(serviceUuid, "Service", METHOD)
-          || !validateUUID(characteristicUuid, "Characteristic", METHOD)) {
+            || !validateUUID(characteristicUuid, "Characteristic", METHOD)) {
           return null;
         }
 
         BluetoothGattCharacteristic characteristic = findMGattChar(UUID.fromString(serviceUuid),
             UUID.fromString(characteristicUuid));
-        new BLEReadByteOperation(characteristic, signed).read(mBluetoothGatt);
+        schedulePendingOperation(new BLEReadByteOperation(characteristic, signed, callback));
         return null;
       }
     }.run();
@@ -1258,7 +1800,37 @@ final class BluetoothLEint {
    */
   void RegisterForByteValues(final String serviceUuid, final String characteristicUuid,
                              final boolean signed) {
+    RegisterForByteValues(serviceUuid, characteristicUuid, signed, null);
+  }
+
+  void RegisterForByteValues(final String serviceUuid, final String characteristicUuid,
+                             final boolean signed,
+                             final BluetoothLE.BLEResponseHandler<Integer> callback) {
     final String METHOD = "RegisterForByteValues";
+    mHandler.postDelayed(new Runnable() {
+      @Override
+      public void run() {
+        new BLEAction<Void>(METHOD) {
+          @Override
+          public Void action() {
+            if (!validateUUID(serviceUuid, "Service", METHOD)
+                || !validateUUID(characteristicUuid, "Characteristic", METHOD)) {
+              return null;
+            }
+
+            BluetoothGattCharacteristic characteristic = findMGattChar(UUID.fromString(serviceUuid),
+                UUID.fromString(characteristicUuid));
+            schedulePendingOperation(new BLEReadByteOperation(characteristic, signed, callback, true));
+            return null;
+          }
+        }.run();
+      }
+    }, 1);
+  }
+
+  void WriteByteValues(final String serviceUuid, final String characteristicUuid,
+                       final boolean signed, final List<Integer> values) {
+    final String METHOD = "WriteByteValues";
     new BLEAction<Void>(METHOD) {
       @Override
       public Void action() {
@@ -1269,7 +1841,34 @@ final class BluetoothLEint {
 
         BluetoothGattCharacteristic characteristic = findMGattChar(UUID.fromString(serviceUuid),
             UUID.fromString(characteristicUuid));
-        new BLEReadByteOperation(characteristic, signed).subscribe(mBluetoothGatt);
+        schedulePendingOperation(new BLEWriteBytesOperation(characteristic, signed, values,
+            BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE));
+        return null;
+      }
+    }.run();
+  }
+
+  void WriteByteValuesWithResponse(final String serviceUuid, final String characteristicUuid,
+                                   final boolean signed, final List<Integer> values) {
+    WriteByteValuesWithResponse(serviceUuid, characteristicUuid, signed, values, null);
+  }
+
+  void WriteByteValuesWithResponse(final String serviceUuid, final String characteristicUuid,
+                                   final boolean signed, final List<Integer> values,
+                                   final BluetoothLE.BLEResponseHandler<Integer> callback) {
+    final String METHOD = "WriteByteValuesWithResponse";
+    Log.d(LOG_TAG, "WriteByteValuesWithResponse: " + values);
+    new BLEAction<Void>(METHOD) {
+      @Override
+      public Void action() {
+        if (!validateUUID(serviceUuid, "Service", METHOD)
+            || !validateUUID(characteristicUuid, "Characteristic", METHOD)) {
+          return null;
+        }
+
+        BluetoothGattCharacteristic characteristic = findMGattChar(UUID.fromString(serviceUuid),
+            UUID.fromString(characteristicUuid));
+        schedulePendingOperation(new BLEWriteBytesOperation(characteristic, signed, values, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT));
         return null;
       }
     }.run();
@@ -1287,18 +1886,24 @@ final class BluetoothLEint {
    * @param signed true if the shorts should be read as signed.
    */
   void ReadShortValues(final String serviceUuid, final String characteristicUuid, final boolean signed) {
+    ReadShortValues(serviceUuid, characteristicUuid, signed, null);
+  }
+
+  void ReadShortValues(final String serviceUuid, final String characteristicUuid,
+                       final boolean signed,
+                       final BluetoothLE.BLEResponseHandler<Integer> callback) {
     final String METHOD = "ReadShortValues";
     new BLEAction<Void>(METHOD) {
       @Override
       public Void action() {
         if (!validateUUID(serviceUuid, "Service", METHOD)
-          || !validateUUID(characteristicUuid, "Characteristic", METHOD)) {
+            || !validateUUID(characteristicUuid, "Characteristic", METHOD)) {
           return null;
         }
 
         BluetoothGattCharacteristic characteristic = findMGattChar(UUID.fromString(serviceUuid),
             UUID.fromString(characteristicUuid));
-        new BLEReadShortOperation(characteristic, signed).read(mBluetoothGatt);
+        schedulePendingOperation(new BLEReadShortOperation(characteristic, signed, callback));
         return null;
       }
     }.run();
@@ -1317,6 +1922,12 @@ final class BluetoothLEint {
    */
   void RegisterForShortValues(final String serviceUuid, final String characteristicUuid,
                               final boolean signed) {
+    RegisterForShortValues(serviceUuid, characteristicUuid, signed, null);
+  }
+
+  void RegisterForShortValues(final String serviceUuid, final String characteristicUuid,
+                              final boolean signed,
+                              final BluetoothLE.BLEResponseHandler<Integer> callback) {
     final String METHOD = "RegisterForShortValues";
     new BLEAction<Void>(METHOD) {
       @Override
@@ -1328,7 +1939,53 @@ final class BluetoothLEint {
 
         BluetoothGattCharacteristic characteristic = findMGattChar(UUID.fromString(serviceUuid),
             UUID.fromString(characteristicUuid));
-        new BLEReadShortOperation(characteristic, signed).subscribe(mBluetoothGatt);
+        schedulePendingOperation(new BLEReadShortOperation(characteristic, signed, callback, true));
+        return null;
+      }
+    }.run();
+  }
+
+  void WriteShortValues(final String serviceUuid, final String characteristicUuid,
+                        final boolean signed, final List<Integer> values) {
+    final String METHOD = "WriteShortValues";
+    new BLEAction<Void>(METHOD) {
+      @Override
+      public Void action() {
+        if (!validateUUID(serviceUuid, "Service", METHOD)
+            || !validateUUID(characteristicUuid, "Characteristic", METHOD)) {
+          return null;
+        }
+
+        BluetoothGattCharacteristic characteristic = findMGattChar(UUID.fromString(serviceUuid),
+            UUID.fromString(characteristicUuid));
+        schedulePendingOperation(new BLEWriteShortsOperation(characteristic, signed, values,
+            BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE));
+        return null;
+      }
+    }.run();
+  }
+
+  void WriteShortValuesWithResponse(final String serviceUuid, final String characteristicUuid,
+                                    final boolean signed, final List<Integer> values) {
+    WriteShortValuesWithResponse(serviceUuid, characteristicUuid, signed, values, null);
+  }
+
+  void WriteShortValuesWithResponse(final String serviceUuid, final String characteristicUuid,
+                                    final boolean signed, final List<Integer> values,
+                                    final BluetoothLE.BLEResponseHandler<Integer> handler) {
+    final String METHOD = "WriteShortValuesWithResponse";
+    new BLEAction<Void>(METHOD) {
+      @Override
+      public Void action() {
+        if (!validateUUID(serviceUuid, "Service", METHOD)
+            || !validateUUID(characteristicUuid, "Characteristic", METHOD)) {
+          return null;
+        }
+
+        BluetoothGattCharacteristic characteristic = findMGattChar(UUID.fromString(serviceUuid),
+            UUID.fromString(characteristicUuid));
+        schedulePendingOperation(new BLEWriteShortsOperation(characteristic, signed, values,
+            BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT));
         return null;
       }
     }.run();
@@ -1345,7 +2002,13 @@ final class BluetoothLEint {
    * @param characteristicUuid UUID for the Bluetooth characteristic.
    * @param signed true if the integers should be read as signed.
    */
-  void ReadIntegerValues(final String serviceUuid, final String characteristicUuid, final boolean signed) {
+  void ReadIntegerValues(final String serviceUuid, final String characteristicUuid,
+                         final boolean signed) {
+    ReadIntegerValues(serviceUuid, characteristicUuid, signed, null);
+  }
+
+  void ReadIntegerValues(final String serviceUuid, final String characteristicUuid,
+                         final boolean signed, final BluetoothLE.BLEResponseHandler<Long> handler) {
     final String METHOD = "ReadIntegerValues";
     new BLEAction<Void>(METHOD) {
       @Override
@@ -1357,7 +2020,7 @@ final class BluetoothLEint {
 
         BluetoothGattCharacteristic characteristic = findMGattChar(UUID.fromString(serviceUuid),
             UUID.fromString(characteristicUuid));
-        new BLEReadIntegerOperation(characteristic, signed).read(mBluetoothGatt);
+        schedulePendingOperation(new BLEReadIntegerOperation(characteristic, signed, handler));
         return null;
       }
     }.run();
@@ -1375,6 +2038,12 @@ final class BluetoothLEint {
    * @param signed true if the integers should be read as signed.
    */
   void RegisterForIntegerValues(final String serviceUuid, final String characteristicUuid, final boolean signed) {
+    RegisterForIntegerValues(serviceUuid, characteristicUuid, signed, null);
+  }
+
+  void RegisterForIntegerValues(final String serviceUuid, final String characteristicUuid,
+                                final boolean signed,
+                                final BluetoothLE.BLEResponseHandler<Long> handler) {
     final String METHOD = "RegisterForIntegerValues";
     new BLEAction<Void>(METHOD) {
       @Override
@@ -1386,7 +2055,53 @@ final class BluetoothLEint {
 
         BluetoothGattCharacteristic characteristic = findMGattChar(UUID.fromString(serviceUuid),
             UUID.fromString(characteristicUuid));
-        new BLEReadIntegerOperation(characteristic, signed).subscribe(mBluetoothGatt);
+        schedulePendingOperation(new BLEReadIntegerOperation(characteristic, signed, handler, true));
+        return null;
+      }
+    }.run();
+  }
+
+  void WriteIntegerValues(final String serviceUuid, final String characteristicUuid,
+                          final boolean signed, final List<Long> values) {
+    final String METHOD = "WriteIntegerValuesWithResponse";
+    new BLEAction<Void>(METHOD) {
+      @Override
+      public Void action() {
+        if (!validateUUID(serviceUuid, "Service", METHOD)
+            || !validateUUID(characteristicUuid, "Characteristic", METHOD)) {
+          return null;
+        }
+
+        BluetoothGattCharacteristic characteristic = findMGattChar(UUID.fromString(serviceUuid),
+            UUID.fromString(characteristicUuid));
+        schedulePendingOperation(new BLEWriteIntegersOperation(characteristic, signed, values,
+            BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE));
+        return null;
+      }
+    }.run();
+  }
+
+  void WriteIntegerValuesWithResponse(final String serviceUuid, final String characteristicUuid,
+                                      final boolean signed, final List<Long> values) {
+    WriteIntegerValuesWithResponse(serviceUuid, characteristicUuid, signed, values, null);
+  }
+
+  void WriteIntegerValuesWithResponse(final String serviceUuid, final String characteristicUuid,
+                                      final boolean signed, final List<Long> values,
+                                      final BluetoothLE.BLEResponseHandler<Long> handler) {
+    final String METHOD = "WriteIntegerValuesWithResponse";
+    new BLEAction<Void>(METHOD) {
+      @Override
+      public Void action() {
+        if (!validateUUID(serviceUuid, "Service", METHOD)
+            || !validateUUID(characteristicUuid, "Characteristic", METHOD)) {
+          return null;
+        }
+
+        BluetoothGattCharacteristic characteristic = findMGattChar(UUID.fromString(serviceUuid),
+            UUID.fromString(characteristicUuid));
+        schedulePendingOperation(new BLEWriteIntegersOperation(characteristic, signed, values,
+            BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT));
         return null;
       }
     }.run();
@@ -1405,6 +2120,12 @@ final class BluetoothLEint {
    * @param shortFloat true if the values are 16-bit floats instead of 32-bit floats.
    */
   void ReadFloatValues(final String serviceUuid, final String characteristicUuid, final boolean shortFloat) {
+    ReadFloatValues(serviceUuid, characteristicUuid, shortFloat, null);
+  }
+
+  void ReadFloatValues(final String serviceUuid, final String characteristicUuid,
+                       final boolean shortFloat,
+                       final BluetoothLE.BLEResponseHandler<Float> callback) {
     final String METHOD = "ReadFloatValues";
     new BLEAction<Void>(METHOD) {
       @Override
@@ -1416,7 +2137,7 @@ final class BluetoothLEint {
 
         BluetoothGattCharacteristic characteristic = findMGattChar(UUID.fromString(serviceUuid),
             UUID.fromString(characteristicUuid));
-        new BLEReadFloatOperation(characteristic, shortFloat).read(mBluetoothGatt);
+        schedulePendingOperation(new BLEReadFloatOperation(characteristic, shortFloat, callback));
         return null;
       }
     }.run();
@@ -1434,7 +2155,14 @@ final class BluetoothLEint {
    * @param characteristicUuid UUID for the Bluetooth characteristic.
    * @param shortFloat true if the values are 16-bit floats instead of 32-bit floats.
    */
-  void RegisterForFloatValues(final String serviceUuid, final String characteristicUuid, final boolean shortFloat) {
+  void RegisterForFloatValues(final String serviceUuid, final String characteristicUuid,
+                              final boolean shortFloat) {
+    RegisterForFloatValues(serviceUuid, characteristicUuid, shortFloat, null);
+  }
+
+  void RegisterForFloatValues(final String serviceUuid, final String characteristicUuid,
+                              final boolean shortFloat,
+                              final BluetoothLE.BLEResponseHandler<Float> callback) {
     final String METHOD = "RegisterForFloatValues";
     new BLEAction<Void>(METHOD) {
       @Override
@@ -1446,7 +2174,53 @@ final class BluetoothLEint {
 
         BluetoothGattCharacteristic characteristic = findMGattChar(UUID.fromString(serviceUuid),
             UUID.fromString(characteristicUuid));
-        new BLEReadFloatOperation(characteristic, shortFloat).subscribe(mBluetoothGatt);
+        schedulePendingOperation(new BLEReadFloatOperation(characteristic, shortFloat, callback, true));
+        return null;
+      }
+    }.run();
+  }
+
+  void WriteFloatValues(final String serviceUuid, final String characteristicUuid,
+                        final boolean shortFloat, final List<Float> values) {
+    final String METHOD = "WriteFloatValues";
+    new BLEAction<Void>(METHOD) {
+      @Override
+      public Void action() {
+        if (!validateUUID(serviceUuid, "Service", METHOD)
+            || !validateUUID(characteristicUuid, "Characteristic", METHOD)) {
+          return null;
+        }
+
+        BluetoothGattCharacteristic characteristic = findMGattChar(UUID.fromString(serviceUuid),
+            UUID.fromString(characteristicUuid));
+        schedulePendingOperation(new BLEWriteFloatsOperation(characteristic, shortFloat, values,
+            BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE));
+        return null;
+      }
+    }.run();
+  }
+
+  void WriteFloatValuesWithResponse(final String serviceUuid, final String characteristicUuid,
+                                    final boolean shortFloat, final List<Float> values) {
+    WriteFloatValuesWithResponse(serviceUuid, characteristicUuid, shortFloat, values, null);
+  }
+
+  void WriteFloatValuesWithResponse(final String serviceUuid, final String characteristicUuid,
+                                    final boolean shortFloat, final List<Float> values,
+                                    final BluetoothLE.BLEResponseHandler<Float> callback) {
+    final String METHOD = "WriteFloatValuesWithResponse";
+    new BLEAction<Void>(METHOD) {
+      @Override
+      public Void action() {
+        if (!validateUUID(serviceUuid, "Service", METHOD)
+            || !validateUUID(characteristicUuid, "Characteristic", METHOD)) {
+          return null;
+        }
+
+        BluetoothGattCharacteristic characteristic = findMGattChar(UUID.fromString(serviceUuid),
+            UUID.fromString(characteristicUuid));
+        schedulePendingOperation(new BLEWriteFloatsOperation(characteristic, shortFloat, values,
+            BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT));
         return null;
       }
     }.run();
@@ -1464,19 +2238,25 @@ final class BluetoothLEint {
    * @param characteristicUuid UUID for the Bluetooth characteristic.
    * @param utf16 true if the values are 16-bit UTF code points.
    */
-  void ReadStringValues(final String serviceUuid, final String characteristicUuid, final boolean utf16) {
+  void ReadStringValues(final String serviceUuid, final String characteristicUuid,
+                        final boolean utf16) {
+    ReadStringValues(serviceUuid, characteristicUuid, utf16, null);
+  }
+
+  void ReadStringValues(final String serviceUuid, final String characteristicUuid,
+                        final boolean utf16, final BluetoothLE.BLEResponseHandler<String> handler) {
     final String METHOD = "ReadStringValues";
     new BLEAction<Void>(METHOD) {
       @Override
       public Void action() {
         if (!validateUUID(serviceUuid, "Service", METHOD)
-          || !validateUUID(characteristicUuid, "Characteristic", METHOD)) {
+            || !validateUUID(characteristicUuid, "Characteristic", METHOD)) {
           return null;
         }
 
         BluetoothGattCharacteristic characteristic = findMGattChar(UUID.fromString(serviceUuid),
             UUID.fromString(characteristicUuid));
-        new BLEReadStringOperation(characteristic, utf16).read(mBluetoothGatt);
+        schedulePendingOperation(new BLEReadStringOperation(characteristic, utf16, handler));
         return null;
       }
     }.run();
@@ -1496,6 +2276,12 @@ final class BluetoothLEint {
    */
   void RegisterForStringValues(final String serviceUuid, final String characteristicUuid,
                                final boolean utf16) {
+    RegisterForStringValues(serviceUuid, characteristicUuid, utf16, null);
+  }
+
+  void RegisterForStringValues(final String serviceUuid, final String characteristicUuid,
+                               final boolean utf16,
+                               final BluetoothLE.BLEResponseHandler<String> handler) {
     final String METHOD = "RegisterForStringValues";
     new BLEAction<Void>(METHOD) {
       @Override
@@ -1507,7 +2293,53 @@ final class BluetoothLEint {
 
         BluetoothGattCharacteristic characteristic = findMGattChar(UUID.fromString(serviceUuid),
             UUID.fromString(characteristicUuid));
-        new BLEReadStringOperation(characteristic, utf16).subscribe(mBluetoothGatt);
+        schedulePendingOperation(new BLEReadStringOperation(characteristic, utf16, handler, true));
+        return null;
+      }
+    }.run();
+  }
+
+  void WriteStringValues(final String serviceUuid, final String characteristicUuid,
+                         final boolean utf16, final List<String> values) {
+    final String METHOD = "WriteStringValues";
+    new BLEAction<Void>(METHOD) {
+      @Override
+      public Void action() {
+        if (!validateUUID(serviceUuid, "Service", METHOD)
+            || !validateUUID(characteristicUuid, "Characteristic", METHOD)) {
+          return null;
+        }
+
+        BluetoothGattCharacteristic characteristic = findMGattChar(UUID.fromString(serviceUuid),
+            UUID.fromString(characteristicUuid));
+        schedulePendingOperation(new BLEWriteStringsOperation(characteristic, utf16, values,
+            BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE));
+        return null;
+      }
+    }.run();
+  }
+
+  void WriteStringValuesWithResponse(final String serviceUuid, final String characteristicUuid,
+                                     final boolean utf16, final List<String> values) {
+    WriteStringValuesWithResponse(serviceUuid, characteristicUuid, utf16, values, null);
+  }
+
+  void WriteStringValuesWithResponse(final String serviceUuid, final String characteristicUuid,
+                                     final boolean utf16, final List<String> values,
+                                     final BluetoothLE.BLEResponseHandler<String> handler) {
+    final String METHOD = "WriteStringValuesWithResponse";
+    new BLEAction<Void>(METHOD) {
+      @Override
+      public Void action() {
+        if (!validateUUID(serviceUuid, "Service", METHOD)
+            || !validateUUID(characteristicUuid, "Characteristic", METHOD)) {
+          return null;
+        }
+
+        BluetoothGattCharacteristic characteristic = findMGattChar(UUID.fromString(serviceUuid),
+            UUID.fromString(characteristicUuid));
+        schedulePendingOperation(new BLEWriteStringsOperation(characteristic, utf16, values,
+            BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT));
         return null;
       }
     }.run();
@@ -1520,6 +2352,11 @@ final class BluetoothLEint {
    * @param characteristicUuid UUID of the Bluetooth characteristic.
    */
   void UnregisterForValues(final String serviceUuid, final String characteristicUuid) {
+    UnregisterForValues(serviceUuid, characteristicUuid, null);
+  }
+
+  void UnregisterForValues(final String serviceUuid, final String characteristicUuid,
+                           final BluetoothLE.BLEResponseHandler<?> handler) {
     final String METHOD = "UnsubscribeForValues";
     new BLEAction<Void>(METHOD) {
       @Override
@@ -1530,7 +2367,7 @@ final class BluetoothLEint {
         }
 
         UUID characteristic = UUID.fromString(characteristicUuid);
-        List<BLEOperation> operations = pendingOperations.get(characteristic);
+        List<BLEOperation> operations = pendingOperationsByUuid.get(characteristic);
         if (operations != null) {
           // Copy the list to prevent ConcurrentModificationException
           List<BLEOperation> readOnlyList = new ArrayList<BLEOperation>(operations);
@@ -1967,15 +2804,33 @@ final class BluetoothLEint {
     return charUUIDList;
   }
 
+  YailList GetCharacteristicsForService(String serviceUuid) {
+    if (mGattService == null) {
+      return YailList.makeEmptyList();
+    }
+    List<YailList> result = new ArrayList<YailList>();
+    final String unknownCharString = "Unknown Characteristic";
+    try {
+      BluetoothGattService service = mBluetoothGatt.getService(UUID.fromString(serviceUuid));
+      for (BluetoothGattCharacteristic c : service.getCharacteristics()) {
+        result.add(YailList.makeList(new Object[] {c.getUuid().toString().toUpperCase(),
+            BluetoothLEGattAttributes.lookup(c.getUuid(), unknownCharString)}));
+      }
+    } catch(Exception e) {
+      Log.e(LOG_TAG, "Exception while looking up BluetoothLE service", e);
+    }
+    return YailList.makeList(result);
+  }
+
   String GetCharacteristicByIndex(int index) {
     return gattChars.get(index - 1).getUuid().toString();
   }
 
-  /**
+  /*
    * Non-static helper functions. For static helpers, see {@link edu.mit.appinventor.ble.BLEUtil}.
    */
 
-  /*
+  /**
    * Signal that an error has occurred. Since we are an extension, we don't have access to the normal
    * error handling used by built-in App Inventor components. BluetoothLE errors are shown in a dialog
    * rather than an alert for added clarity.
@@ -2109,6 +2964,29 @@ final class BluetoothLEint {
       Log.i(LOG_TAG, "Write Gatt Characteristic Successfully");
     } else {
       Log.e(LOG_TAG, "Write Gatt Characteristic Fail");
+    }
+  }
+
+  private void schedulePendingOperation(BLEOperation operation) {
+    synchronized (pendingOperations) {
+      pendingOperations.add(operation);
+      if (pendingOperations.size() == 1) {
+        operation.run();
+      }
+    }
+  }
+
+  private void runPendingOperation(BLEOperation after) {
+    synchronized (pendingOperations) {
+      BLEOperation operation = pendingOperations.peek();
+      if (operation == after) {
+        operation = pendingOperations.poll();
+      }
+      if (operation != null) {
+        Log.d(LOG_TAG, "Running pending operation " + operation);
+        operation.run();
+      }
+      Log.d(LOG_TAG, "Pending operations: " + pendingOperations.size());
     }
   }
 }

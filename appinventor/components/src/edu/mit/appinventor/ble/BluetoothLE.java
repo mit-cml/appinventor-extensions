@@ -27,7 +27,14 @@ import com.google.appinventor.components.runtime.ComponentContainer;
 import com.google.appinventor.components.runtime.EventDispatcher;
 import com.google.appinventor.components.runtime.util.SdkLevel;
 import com.google.appinventor.components.runtime.util.YailList;
+import com.google.common.collect.Lists;
+import gnu.lists.FString;
 
+import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 
@@ -61,6 +68,13 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
   private static final String LOG_TAG = "BluetoothLE";
   private final Activity activity;
   private BluetoothLEint inner;
+
+  public static abstract class BLEResponseHandler<T> {
+    public void onReceive(String serviceUuid, String characteristicUuid, List<T> values) {
+    }
+    public void onWrite(String serviceUuid, String characteristicUuid, List<T> values) {
+    }
+  }
 
   public BluetoothLE(ComponentContainer container) {
     super(container.$form());
@@ -482,11 +496,25 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
         byteValues);
   }
 
+  @SimpleEvent
+  public void ByteValuesWritten(final String serviceUuid, final String characteristicUuid,
+                                final YailList byteValues) {
+    EventDispatcher.dispatchEvent(this, "ByteValuesWritten", serviceUuid, characteristicUuid,
+        byteValues);
+  }
+
   @SimpleEvent(description = "Trigger event when one or more short values from a connected " +
       "BluetoothLE device are received.")
   public void ShortValuesReceived(final String serviceUuid, final String characteristicUuid,
                                   final YailList shortValues) {
     EventDispatcher.dispatchEvent(this, "ShortValuesReceived", serviceUuid, characteristicUuid,
+        shortValues);
+  }
+
+  @SimpleEvent
+  public void ShortValuesWritten(final String serviceUuid, final String characteristicUuid,
+                                 final YailList shortValues) {
+    EventDispatcher.dispatchEvent(this, "ShortValuesWritten", serviceUuid, characteristicUuid,
         shortValues);
   }
 
@@ -498,11 +526,25 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
         intValues);
   }
 
+  @SimpleEvent
+  public void IntegerValuesWritten(final String serviceUuid, final String characteristicUuid,
+                                   final YailList intValues) {
+    EventDispatcher.dispatchEvent(this, "IntegerValuesWritten", serviceUuid, characteristicUuid,
+        intValues);
+  }
+
   @SimpleEvent(description = "Trigger event when one or more floating point values from a " +
       "BluetoothLE device are received.")
   public void FloatValuesReceived(final String serviceUuid, final String characteristicUuid,
                                   final YailList floatValues) {
     EventDispatcher.dispatchEvent(this, "FloatValuesReceived", serviceUuid, characteristicUuid,
+        floatValues);
+  }
+
+  @SimpleEvent
+  public void FloatValuesWritten(final String serviceUuid, final String characteristicUuid,
+                                 final YailList floatValues) {
+    EventDispatcher.dispatchEvent(this, "FloatValuesWritten", serviceUuid, characteristicUuid,
         floatValues);
   }
 
@@ -512,6 +554,12 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
                                    final YailList stringValues) {
     EventDispatcher.dispatchEvent(this, "StringValuesReceived", serviceUuid, characteristicUuid,
         stringValues);
+  }
+
+  @SimpleEvent
+  public void StringValuesWritten(final String serviceUuid, final String characteristicUuid,
+                                  final YailList stringValues) {
+    EventDispatcher.dispatchEvent(this, "StringValuesWritten", serviceUuid, characteristicUuid, stringValues);
   }
 
   @SimpleEvent(description = "Trigger event when byte value from connected BluetoothLE device is changed.")
@@ -559,6 +607,16 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
     return null;
   }
 
+  @SimpleFunction(description = "Return list of supported characteristics for the given service. " +
+      "The list will contain (UUID, name) pairs for each characteristic provided by the given " +
+      "service UUID.")
+  public YailList GetCharacteristicsForService(String serviceUuid) {
+    if (inner != null) {
+      return inner.GetCharacteristicsForService(serviceUuid);
+    }
+    return YailList.makeEmptyList();
+  }
+
   @SimpleFunction(description = "Return Unique ID of selected characteristic with index. Index specified by list" +
       " of supported characteristics for a connected device, starting from 1.")
   public String CharacteristicByIndex(int index) {
@@ -566,6 +624,760 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
       return inner.GetCharacteristicByIndex(index);
     }
     return null;
+  }
+
+  // Helper methods for profile extensions for BLE
+  /**
+   * Read bytes from the given characteristic. Bytes on the wire are
+   * interpreted as unsigned integers if signed is false. The {@link
+   * BLEResponseHandler#onReceive(String, String, List)} of
+   * <code>callback</code> will be called when the operation completes.
+   *
+   * @param serviceUuid UUID of the Bluetooth service
+   * @param characteristicUuid UUID of the Bluetooth characteristic
+   * @param signed Interpret the bytes as signed (true) or unsigned (false)
+   * @param callback Callback that will receive the bytes read
+   */
+  public void ExReadByteValues(String serviceUuid, String characteristicUuid, boolean signed,
+                               BLEResponseHandler<Integer> callback) {
+    if (inner != null) {
+      inner.ReadByteValues(serviceUuid, characteristicUuid, signed, callback);
+    }
+  }
+
+  /**
+   * Register for notifications/indications of byte values for the
+   * given characteristic. Bytes on the wire are interpreted as
+   * unsigned integers if signed is false. The
+   * {@link BLEResponseHandler#onReceive(String, String, List)} of
+   * <code>callback</code> will be called when the operation
+   * completes.
+   *
+   * @param serviceUuid UUID of the Bluetooth service
+   * @param characteristicUuid UUID of the Bluetooth characteristic
+   * @param signed Interpret the bytes as signed (true) or unsigned (false)
+   * @param callback Callback that will receive the bytes read
+   */
+  public void ExRegisterForByteValues(String serviceUuid, String characteristicUuid, boolean signed,
+                                      BLEResponseHandler<Integer> callback) {
+    if (inner != null) {
+      inner.RegisterForByteValues(serviceUuid, characteristicUuid, signed, callback);
+    }
+  }
+
+  /**
+   * Write the byte values to the given characteristic without waiting
+   * for a response.
+   *
+   * @param serviceUuid UUID of the Bluetooth service
+   * @param characteristicUuid UUID of the Bluetooth characteristic
+   * @param signed Interpret the bytes as signed or unsigned
+   */
+  public void ExWriteByteValues(String serviceUuid, String characteristicUuid, boolean signed,
+                                List<Integer> values) {
+    if (inner != null) {
+      inner.WriteByteValues(serviceUuid, characteristicUuid, signed, values);
+    }
+  }
+
+  /**
+   * Write the value to the given characteristic without waiting for a
+   * response. The type of value will control how it is
+   * interpreted. For example, a {@link java.lang.String} value will
+   * be converted into UTF-8 and sent as a series of bytes. A {@link
+   * java.util.Collection} will be sent to the device as an array of
+   * bytes. A single value that extends {@link java.lang.Number} will
+   * be cast to a byte.
+   *
+   * @param serviceUuid UUID of the Bluetooth service
+   * @param characteristicUuid UUID of the Bluetooth characteristic
+   * @param signed Interpret the bytes as signed or unsigned
+   * @param value Value to write
+   */
+  public void ExWriteByteValues(String serviceUuid, String characteristicUuid, boolean signed,
+                                Object value) {
+    if (inner != null) {
+      inner.WriteByteValues(serviceUuid, characteristicUuid, signed,
+          toList(Integer.class, value, 1));
+    }
+  }
+
+  /**
+   * Write the value to the given characteristic without waiting for a response.
+   *
+   * @param serviceUuid UUID of the Bluetooth service
+   * @param characteristicUuid UUID of the Bluetooth characteristic
+   * @param signed Interpret the bytes as signed or unsigned
+   * @param value Integer value to write
+   */
+  public void ExWriteByteValues(String serviceUuid, String characteristicUuid, boolean signed,
+                                int value) {
+    ExWriteByteValues(serviceUuid, characteristicUuid, signed, Collections.singletonList(value));
+  }
+
+  /**
+   * Write the values to the given characteristic waiting for a
+   * response. The {@link BLEResponseHandler#onWrite(String, String, List)}
+   * method of <code>callback</code> will be called on completion
+   * of the write.
+   *
+   * @param serviceUuid UUID of the Bluetooth service
+   * @param characteristicUuid UUID of the Bluetooth characteristic
+   * @param signed Interpret the bytes as signed or unsigned
+   * @param values List of integer values to write
+   * @param callback Callback that will be notified when the write completes
+   */
+  public void ExWriteByteValuesWithResponse(String serviceUuid, String characteristicUuid,
+                                            boolean signed, List<Integer> values,
+                                            BLEResponseHandler<Integer> callback) {
+    if (inner != null) {
+      inner.WriteByteValuesWithResponse(serviceUuid, characteristicUuid, signed, values, callback);
+    }
+  }
+
+  /**
+   * Write the values to the given characteristic waiting for a
+   * response. The {@link BLEResponseHandler#onWrite(String, String, List)}
+   * method of <code>callback</code> will be called on completion
+   * of the write. See {@link #ExWriteByteValues(String,String,boolean,Object)}
+   * for how <code>value</code> is converted into a byte array.
+   *
+   * @param serviceUuid UUID of the Bluetooth service
+   * @param characteristicUuid UUID of the Bluetooth characteristic
+   * @param signed Interpret the bytes as signed or unsigned
+   * @param value Object to be cast to an array of bytes
+   * @param callback Callback that will be notified when the write completes
+   */
+  public void ExWriteByteValuesWithResponse(String serviceUuid, String characteristicUuid,
+                                            boolean signed, Object value,
+                                            BLEResponseHandler<Integer> callback) {
+    if (inner != null) {
+      inner.WriteByteValuesWithResponse(serviceUuid, characteristicUuid, signed,
+          toList(Integer.class, value, 1), callback);
+    }
+  }
+
+  /**
+   * Write the integer value to the given characteristic waiting for a
+   * response. The {@link BLEResponseHandler#onWrite(String, String, List)}
+   * method of the <code>callback</cod> will be called on completion of
+   * the write. The integer will be interpreted as signed or unsigned
+   * based on the truth value of the <code>signed</code> parameter.
+   *
+   * @param serviceUuid UUID of the Bluetooth service
+   * @param characteristicUuid UUID of the Bluetooth characteristic
+   * @param signed Interpret the bytes as signed (true) or unsigned (false)
+   * @param value The integer value (either -128 to 127 or 0 to 255)
+   * @param callback Callback that will be notified when the write completes
+   */
+  public void ExWriteByteValuesWithResponse(String serviceUuid, String characteristicUuid,
+                                            boolean signed, int value,
+                                            BLEResponseHandler<Integer> callback) {
+    ExWriteByteValuesWithResponse(serviceUuid, characteristicUuid, signed,
+        Collections.singletonList(value), callback);
+  }
+
+  /**
+   * Read short values from the given characteristic, least
+   * significant byte first, interpreting the shorts as signed or
+   * unsigned based on the truth value of <code>signed</code>. The
+   * {@link BLEResponseHandler#onReceive(String, String, List)}
+   * method of <code>callback</code> will be called with a
+   * {@link java.util.List} containing the read shorts.
+   *
+   * @param serviceUuid UUID of the Bluetooth service
+   * @param characteristicUuid UUID of the Bluetooth characteristic
+   * @param signed Interpret the shorts as signed (true) or unsigned (false)
+   * @param callback Callback that will be notified when the read completes
+   */
+  public void ExReadShortValues(String serviceUuid, String characteristicUuid, boolean signed,
+                                BLEResponseHandler<Integer> callback) {
+    if (inner != null) {
+      inner.ReadShortValues(serviceUuid, characteristicUuid, signed, callback);
+    }
+  }
+
+  /**
+   * Register for short value updates from the given characteristic,
+   * least significant byte first, interpreting the shorts as signed
+   * or unsigned based on the truth value of <code>signed</code>. The
+   * {@link BLEResponseHandler#onReceive(String, String, List)} method
+   * of <code>callback</code> will be called with a
+   * {@link java.util.List} containing the received shorts.
+   *
+   * @param serviceUuid UUID of the Bluetooth service
+   * @param characteristicUuid UUID of the Bluetooth characteristic
+   * @param signed Interpret the shorts as signed (true) or unsigned (false)
+   * @param callback Callback that will be notified when the characteristic's value changes
+   */
+  public void ExRegisterForShortValues(String serviceUuid, String characteristicUuid,
+                                       boolean signed, BLEResponseHandler<Integer> callback) {
+    if (inner != null) {
+      inner.RegisterForShortValues(serviceUuid, characteristicUuid, signed, callback);
+    }
+  }
+
+  /**
+   * Write short values to the characteristic, not waiting for a
+   * response. The shorts are interpreted as signed or unsigned based
+   * on the truth value of <code>signed</code>.
+   *
+   * @param serviceUuid UUID of the Bluetooth service
+   * @param characteristicUuid UUID of the Bluetooth characteristic
+   * @param signed Interpret the shorts as signed (true) or unsigned (false)
+   * @param values The integer values (either -32768 to 32767 or 0 to 65535)
+   */
+  public void ExWriteShortValues(String serviceUuid, String characteristicUuid, boolean signed,
+                                 List<Integer> values) {
+    if (inner != null) {
+      inner.WriteShortValues(serviceUuid, characteristicUuid, signed, values);
+    }
+  }
+
+  /**
+   * Write the short value to the characteristic, not waiting for a
+   * response. The shorts are interpreted as signed or unsigned based
+   * on the truth value of <code>signed</code>.
+   *
+   * @param serviceUuid UUID of the Bluetooth service
+   * @param characteristicUuid UUID of the Bluetooth characteristic
+   * @param signed Interpret the shorts as signed (true) or unsigned (false)
+   * @param value The integer value (either -32768 to 32767 or 0 to 65536)
+   */
+  public void ExWriteShortValues(String serviceUuid, String characteristicUuid, boolean signed,
+                                 int value) {
+    ExWriteShortValues(serviceUuid, characteristicUuid, signed, Collections.singletonList(value));
+  }
+
+  /**
+   * Write short values to the characteristic, least significant byte
+   * first, waiting for a response. The shorts will be interpreted as
+   * signed or unsigned based on the truth value of
+   * <code>signed</code>. The
+   * {@link BLEResponseHandler#onReceive(String, String, List)} method
+   * of <code>callback</code> will be called once the write completes.
+   *
+   * @param serviceUuid UUID of the Bluetooth service
+   * @param characteristicUuid UUID of the Bluetooth characteristic
+   * @param signed Interpret the shorts as signed (true) or unsigned (false)
+   * @param values The integer values (either -32768 to 32767 or 0 to 65535)
+   * @param callback Callback that will be notified when the characteristic is written
+   */
+  public void ExWriteShortValuesWithResponse(String serviceUuid, String characteristicUuid,
+                                             boolean signed, List<Integer> values,
+                                             BLEResponseHandler<Integer> callback) {
+    if (inner != null) {
+      inner.WriteShortValuesWithResponse(serviceUuid, characteristicUuid, signed, values, callback);
+    }
+  }
+
+  /**
+   * Write the short value to the characteristic, least significant
+   * byte first, waiting for a response. The shorts will be
+   * interpreted as signed or unsigned based on the truth value of
+   * <code>signed</code>. The
+   * {@link BLEResponseHandler#onWrite(String, String, List)} method
+   * of <code>callback</code> ill be called once the write completes.
+   *
+   * @param serviceUuid UUID of the Bluetooth service
+   * @param characteristicUuid UUID of the Bluetooth characteristic
+   * @param signed Interpret the shorts as signed (true) or unsigned (false)
+   * @param value The integer value (either -32768 to 32767 or 0 to 65536)
+   * @param callback Callback that will be notified when the characteristic is written
+   */
+  public void ExWriteShortValuesWithResponse(String serviceUuid, String characteristicUuid,
+                                             boolean signed, int value,
+                                             BLEResponseHandler<Integer> callback) {
+    ExWriteShortValuesWithResponse(serviceUuid, characteristicUuid, signed,
+        Collections.singletonList(value), callback);
+  }
+
+  /**
+   * Read integer values from the characteristic, least significant
+   * byte first. The ints will be interpreted as signed or unsigned
+   * based on the truth value of <code>signed</code>. The {@link
+   * BLEResponseHandler#onReceive(String, String, List)} method of
+   * <code>callback</code> will be called once the read completes.
+   *
+   * @param serviceUuid UUID of the Bluetooth service
+   * @param characteristicUuid UUID of the Bluetooth characteristic
+   * @param signed Interpret the integers as signed (true) or unsigned (false)
+   * @param callback Callback that will be notified when the characteristic is read
+   */
+  public void ExReadIntegerValues(String serviceUuid, String characteristicUuid, boolean signed,
+                                  BLEResponseHandler<Long> callback) {
+    if (inner != null) {
+      inner.ReadIntegerValues(serviceUuid, characteristicUuid, signed, callback);
+    }
+  }
+
+  /**
+   * Register for integer value updates from the characteristic, least
+   * significant byte first. The ints will be interpreted as signed or
+   * unsigned based on the truth value of <code>signed</code>. The
+   * {@link BLEResponseHandler#onReceive(String, String, List)} method
+   * of <code>callback</code> will be called once the read completes.
+   *
+   * @param serviceUuid UUID of the Bluetooth service
+   * @param characteristicUuid UUID of the Bluetooth characteristic
+   * @param signed Interpret the integers as signed (true) or unsigned (false)
+   * @param callback Callback that will be called when notifications are received
+   */
+  public void ExRegisterForIntegerValues(String serviceUuid, String characteristicUuid,
+                                         boolean signed, BLEResponseHandler<Long> callback) {
+    if (inner != null) {
+      inner.ReadIntegerValues(serviceUuid, characteristicUuid, signed, callback);
+    }
+  }
+
+  /**
+   * Write integer values to the characteristic, least significant
+   * byte first, without waiting for a response. The ints will be
+   * interpreted as signed or unsigned based on the truth value of
+   * <code>signed</code>.
+   *
+   * @param serviceUuid UUID of the Bluetooth service
+   * @param characteristicUuid UUID of the Bluetooth characteristic
+   * @param signed Interpret the integers as signed (true) or unsigned (false)
+   * @param values Integer values to send (-2147483648 to 2147483647 or 0 to 4294967295)
+   */
+  public void ExWriteIntegerValues(String serviceUuid, String characteristicUuid, boolean signed,
+                                   List<Long> values) {
+    if (inner != null) {
+      inner.WriteIntegerValues(serviceUuid, characteristicUuid, signed, values);
+    }
+  }
+
+  /**
+   * Write an integer value to the characteristic, least significant
+   * byte first, without waiting for a response. The ints will be
+   * interpreted as signed or unsigned based on the truth value of
+   * <code>signed</code>.
+   *
+   * @param serviceUuid UUID of the Bluetooth service
+   * @param characteristicUuid UUID of the Bluetooth characteristic
+   * @param signed Interpret the integers as signed (true) or unsigned (false)
+   * @param value Integer value to send (-2147483648 to 2147483647 or 0 to 4294967295)
+   */
+  public void ExWriteIntegerValues(String serviceUuid, String characteristicUuid, boolean signed,
+                                   long value) {
+    ExWriteIntegerValues(serviceUuid, characteristicUuid, signed, Collections.singletonList(value));
+  }
+
+  /**
+   * Write integer values to the characteristic, least significant
+   * byte first, waiting for a response. The ints will be interpreted
+   * as signed or unsigned based on the truth value of
+   * <code>signed</code>. The {@link
+   * BLEResponseHandler#onWrite(String, String, List)} method of
+   * <code>callback</code> will be called when the write is completed.
+   *
+   * @param serviceUuid UUID of the Bluetooth service
+   * @param characteristicUuid UUID of the Bluetooth characteristic
+   * @param signed Interpret the integers as signed (true) or unsigned (false)
+   * @param values Integer value to send (-2147483648 to 2147483647 or 0 to 4294967295)
+   * @param callback Callback that will be called on completion of the write
+   */
+  public void ExWriteIntegerValuesWithResponse(String serviceUuid, String characteristicUuid,
+                                               boolean signed, List<Long> values,
+                                               BLEResponseHandler<Long> callback) {
+    if (inner != null) {
+      inner.WriteIntegerValuesWithResponse(serviceUuid, characteristicUuid, signed, values, callback);
+    }
+  }
+
+  /**
+   * Write the integer value to the characteristic, least significant
+   * byte first, waiting for a response. The ints will be interpreted
+   * as signed or unsigned based on the truth value of
+   * <code>signed</code>. The {@link
+   * BLEResponseHandler#onWrite(String, String, List)} method of
+   * <code>callback</code> will be called when the write is completed.
+   *
+   * @param serviceUuid UUID of the Bluetooth service
+   * @param characteristicUuid UUID of the Bluetooth characteristic
+   * @param signed Interpret the integers as signed (true) or unsigned (false)
+   * @param value Integer value to send (-2147483648 to 2147483647 or 0 to 4294967295)
+   * @param callback Callback that will be called on completion of the write
+   */
+  public void ExWriteIntegerValuesWithResponse(String serviceUuid, String characteristicUuid,
+                                               boolean signed, long value,
+                                               BLEResponseHandler<Long> callback) {
+    ExWriteIntegerValuesWithResponse(serviceUuid, characteristicUuid, signed,
+        Collections.singletonList(value), callback);
+  }
+
+  /**
+   * Read float values from the characteristic. If the characteristic
+   * uses short floats (sfloat) then <code>shortFloats</code> should
+   * be passed as true. A {@link java.util.List} of floats will be
+   * passed to the <code>callback</code>'s {@link
+   * BLEResponseHandler#onReceive(String, String, List)} method upon
+   * completion.
+   *
+   * @param serviceUuid UUID of the Bluetooth service
+   * @param characteristicUuid UUID of the Bluetooth characteristic
+   * @param shortFloats Interpret the floats as half-precision (true) or single precision (false)
+   * @param callback Callback that will be notified when the characteristic is read
+   */
+  public void ExReadFloatValues(String serviceUuid, String characteristicUuid, boolean shortFloats,
+                                BLEResponseHandler<Float> callback) {
+    if (inner != null) {
+      inner.ReadFloatValues(serviceUuid, characteristicUuid, shortFloats, callback);
+    }
+  }
+
+  /**
+   * Register to receive updates of floating point values from the
+   * characteristic. If the characteristic uses short floats (sfloat)
+   * then <code>shortFloats</code> should be passed as true. A {@link
+   * java.util.List} of floats will be passed to the
+   * <code>callback</code>'s {@link
+   * BLEResponseHandler#onReceive(String, String, List)} method upon
+   * completion.
+   *
+   * @param serviceUuid UUID of the Bluetooth service
+   * @param characteristicUuid UUID of the Bluetooth characteristic
+   * @param shortFloats Interpret the floats as half-precision (true) or single precision (false)
+   * @param callback Callback that will be notified when the characteristic receives updates
+   */
+  public void ExRegisterForFloatValues(String serviceUuid, String characteristicUuid,
+                                       boolean shortFloats, BLEResponseHandler<Float> callback) {
+    if (inner != null) {
+      inner.RegisterForFloatValues(serviceUuid, characteristicUuid, shortFloats, callback);
+    }
+  }
+
+  /**
+   * Write floating point values to the characteristic without waiting
+   * for a response. If the characteristic uses short floats (sfloat)
+   * then <code>shortFloats</code> should be passed as true.
+   *
+   * @param serviceUuid UUID of the Bluetooth service
+   * @param characteristicUuid UUID of the Bluetooth characteristic
+   * @param shortFloats Interpret the floats as half-precision (true) or single precision (false)
+   * @param values Float values to write to the characteristic
+   */
+  public void ExWriteFloatValues(String serviceUuid, String characteristicUuid, boolean shortFloats,
+                                 List<Float> values) {
+    if (inner != null) {
+      inner.WriteFloatValues(serviceUuid, characteristicUuid, shortFloats, values);
+    }
+  }
+
+  /**
+   * Write a floating point value to the characteristic without
+   * waiting for a response. If the characteristic uses short floats
+   * (sfloat) then <code>shortFloats</code> should be passed as true.
+   *
+   * @param serviceUuid UUID of the Bluetooth service
+   * @param characteristicUuid UUID of the Bluetooth characteristic
+   * @param shortFloats Interpret the floats as half-precision (true) or single precision (false)
+   * @param value Float value to write to the characteristic
+   */
+  public void ExWriteFloatValues(String serviceUuid, String characteristicUuid, boolean shortFloats,
+                                 float value) {
+    ExWriteFloatValues(serviceUuid, characteristicUuid, shortFloats, Collections.singletonList(value));
+  }
+
+  /**
+   * Write floating point values to the characteristic and wait for an
+   * acknowledgement. If the characteristic uses short floats (sfloat)
+   * then <code>shortFloats</code> should be passed as true. The
+   * {@link BLEResponseHandler#onWrite(String, String, List)} method
+   * of <code>callback</code> will be called when the write operation
+   * is complete.
+   *
+   * @param serviceUuid UUID of the Bluetooth service
+   * @param characteristicUuid UUID of the Bluetooth characteristic
+   * @param shortFloats Interpret the floats as half-precision (true) or single precision (false)
+   * @param values Float values to write to the characteristic
+   * @param callback Callback to be called after the write operation completes
+   */
+  public void ExWriteFloatValuesWithResponse(String serviceUuid, String characteristicUuid,
+                                             boolean shortFloats, List<Float> values,
+                                             BLEResponseHandler<Float> callback) {
+    if (inner != null) {
+      inner.WriteFloatValuesWithResponse(serviceUuid, characteristicUuid, shortFloats, values, callback);
+    }
+  }
+
+  /**
+   * Write a floating point value to the characteristic and wait for
+   * an acknowledgement. If the characteristic uses short floats
+   * (sfloat) then <code>shortFloats</code> should be passed as
+   * true. The {@link BLEResponseHandler#onWrite(String, String, List)}
+   * method of <code>callback</code> will be called when the write
+   * operation is completed.
+   *
+   * @param serviceUuid UUID of the Bluetooth service
+   * @param characteristicUuid UUID of the Bluetooth characteristic
+   * @param shortFloats Interpret the floats as half-precision (true) or single precision (false)
+   * @param value Float value to write to the characteristic
+   * @param callback Callback to be called after the write operation completes
+   */
+  public void ExWriteFloatValuesWithResponse(String serviceUuid, String characteristicUuid,
+                                             boolean shortFloats, float value,
+                                             BLEResponseHandler<Float> callback) {
+    ExWriteFloatValuesWithResponse(serviceUuid, characteristicUuid, shortFloats,
+        Collections.singletonList(value), callback);
+  }
+
+  /**
+   * Read null-terminated strings from the characteristic and wait for
+   * an acknowledgement. If the characteristic uses UTF-16 strings,
+   * the <code>utf16</code> parameter should be true. The {@link
+   * BLEResponseHandler#onReceive(String, String, List)} method of
+   * <code>callback</code> will be called when the characteristic is read.
+   *
+   * @param serviceUuid UUID of the Bluetooth service
+   * @param characteristicUuid UUID of the Bluetooth characteristic
+   * @param utf16 Interpret strings as UTF-8 (false) or UTF-16 (true)
+   * @param callback Callback to be called when the string value is read
+   */
+  public void ExReadStringValues(String serviceUuid, String characteristicUuid, boolean utf16,
+                                 BLEResponseHandler<String> callback) {
+    if (inner != null) {
+      inner.ReadStringValues(serviceUuid, characteristicUuid, utf16, callback);
+    }
+  }
+
+  /**
+   * Register for null-terminated string updates from the
+   * characteristic and wait for an acknowledgement. If the
+   * characteristic uses UTf-16 strings, the <code>utf16</code>
+   * parameter should be true. The {@link
+   * BLEResponseHandler#onReceive(String, String, List)} method of
+   * <code>callback</code> will be called when the characteristic is
+   * read.
+   *
+   * @param serviceUuid UUID of the Bluetooth service
+   * @param characteristicUuid UUID of the Bluetooth characteristic
+   * @param utf16 Interpret strings as UTF-8 (false) or UTF-16 (true)
+   * @param callback Callback to be called when the string value is updated
+   */
+  public void ExRegisterForStringValues(String serviceUuid, String characteristicUuid,
+                                        boolean utf16, BLEResponseHandler<String> callback) {
+    if (inner != null) {
+      inner.RegisterForStringValues(serviceUuid, characteristicUuid, utf16, callback);
+    }
+  }
+
+  /**
+   * Write one or more null-terminated strings to the characteristic
+   * without waiting for an acknowledgement. If the characteristic
+   * uses UTF-16 strings, the <code>utf16</code> parameter should be
+   * true.
+   *
+   * @param serviceUuid UUID of the Bluetooth service
+   * @param characteristicUuid UUID of the Bluetooth characteristic
+   * @param utf16 Interpret strings as UTF-8 (false) or UTF-16 (true)
+   * @param values One or more strings to write to the characteristic. If more than one string is
+   *               provided they will be sent null-terminated.
+   */
+  public void ExWriteStringValues(String serviceUuid, String characteristicUuid, boolean utf16,
+                                  List<String> values) {
+    if (inner != null) {
+      inner.WriteStringValues(serviceUuid, characteristicUuid, utf16, values);
+    }
+  }
+
+  /**
+   * Write a null-terminated string to the characteristic without
+   * waiting for an acknowledgement. If the characteristic uses UTF-16
+   * strings, the <code>utf16</code> parameter should be true.
+   *
+   * @param serviceUuid UUID of the Bluetooth service
+   * @param characteristicUuid UUID of the Bluetooth characteristic
+   * @param utf16 Interpret strings as UTF-8 (false) or UTF-16 (true)
+   * @param value String to write to the characteristic
+   */
+  public void ExWriteStringValues(String serviceUuid, String characteristicUuid, boolean utf16,
+                                  String value) {
+    ExWriteStringValues(serviceUuid, characteristicUuid, utf16, Collections.singletonList(value));
+  }
+
+  /**
+   * Write one or more null-terminated strings to the characteristic
+   * and wait for an acknowledgement. If the characteristic uses
+   * UTF-16 strings, the <code>utf16</code> parameter should be
+   * true. The {@link BLEResponseHandler#onWrite(String, String, List)}
+   * method of <code>callback</code> will be called when the write
+   * completes.
+   *
+   * @param serviceUuid UUID of the Bluetooth service
+   * @param characteristicUuid UUID of the Bluetooth characteristic
+   * @param utf16 Interpret strings as UTF-8 (false) or UTF-16 (true)
+   * @param values One or more strings to write to the characteristic. If more than one string is
+   *               provided they will be sent null-terminated.
+   * @param callback Callback to be called when the write operation completes
+   */
+  public void ExWriteStringValuesWithResponse(String serviceUuid, String characteristicUuid,
+                                              boolean utf16, List<String> values,
+                                              BLEResponseHandler<String> callback) {
+    if (inner != null) {
+      inner.WriteStringValuesWithResponse(serviceUuid, characteristicUuid, utf16, values, callback);
+    }
+  }
+
+  /**
+   * Write one null-terminated strings to the characteristic and wait
+   * for an acknowledgement. If the characteristic uses UTF-16, the
+   * <code>utf16</code> parameter should be true. The {@link
+   * BLEResponseHandler#onWrite(String, String, List)} method of
+   * <code>callback</code> will be called when the write completes.
+   *
+   * @param serviceUuid UUID of the Bluetooth service
+   * @param characteristicUuid UUID of the Bluetooth characteristic
+   * @param utf16 Interpret strings as UTF-8 (false) or UTF-16 (true)
+   * @param value String to write to the characteristic
+   * @param callback Callback to be called when the write operation completes
+   */
+  public void ExWriteStringValuesWithResponse(String serviceUuid, String characteristicUuid,
+                                              boolean utf16, String value,
+                                              BLEResponseHandler<String> callback) {
+    ExWriteStringValuesWithResponse(serviceUuid, characteristicUuid, utf16,
+        Collections.singletonList(value), callback);
+  }
+
+  /**
+   * Unregister the <code>callback</code> for the given characteristic.
+   *
+   * @param serviceUuid UUID of the Bluetooth service
+   * @param characteristicUuid UUID of the Bluetooth characteristic
+   * @param callback The callback to be removed for the characteristic
+   */
+  public void ExUnregisterForValues(String serviceUuid, String characteristicUuid,
+                                    BLEResponseHandler<?> callback) {
+    if (inner != null) {
+      inner.UnregisterForValues(serviceUuid, characteristicUuid, callback);
+    }
+  }
+
+  /**
+   * Convert an unknown object type to a list of a certain type,
+   * casting when available/appropriate.
+   *
+   * The general flow is as follows:
+   *
+   * 1. If value is of type T, return a list containing the value
+   * 2. If value is a YailList:
+   *    a. Skip the *list* header and proceed as a list
+   * 3. If value is a collection or list:
+   *    a. Create a new list checking the type of each entry against T
+   * 4. If value is a CharSequence (String or FString)
+   *    a. Convert the string to bytes and cast up to T
+   * 5. Throw an exception because we don't know how to process the value
+   *
+   * @param <T> The target type
+   * @param tClass Class of the target type, for casting
+   * @param value Original value to be converted to a List
+   * @param size The size of the type (not necessarily the size of T)
+   * @throws ClassCastException if an entity cannot be converted to a list or
+   * an element cannot be converted to type T.
+   */
+  private static <T> List<T> toList(Class<T> tClass, Object value, int size) {
+    if (tClass.isAssignableFrom(value.getClass())) {
+      return Collections.singletonList(tClass.cast(value));
+    } else if (value instanceof YailList) {  // must come before List and Collection due to *list* header
+      Iterator<?> i = ((YailList) value).iterator();
+      i.next();  // skip *list* symbol
+      return listFromIterator(tClass, i);
+    } else if (value instanceof List) {
+      return listFromIterator(tClass, ((List<?>) value).iterator());
+    } else if (value instanceof Collection) {
+      return listFromIterator(tClass, ((Collection<?>) value).iterator());
+    } else if (value instanceof String) {
+      // this assumes that the string is being cast to a list of UTF-8 bytes or UTF-16LE chars
+      try {
+        byte[] content = ((String) value).getBytes(size == 1 ? "UTF-8" : "UTF-16LE");
+        if (tClass.equals(Integer.class)) {
+          return checkedCast(tClass, toIntList(content));
+        }
+        return Collections.emptyList();
+      } catch (UnsupportedEncodingException e) {
+        // Both UTF-8 and UTF-16LE are required by JVM. This should never happen
+        Log.wtf(LOG_TAG, "No support for UTF-8 or UTF-16", e);
+        return Collections.emptyList();
+      }
+    } else if (value instanceof FString) {
+      // this assumes that the string is being cast to a list of UTF-8 bytes
+      return toList(tClass, value.toString(), size);
+    } else {
+      throw new ClassCastException("Unable to convert " + value + " to list");
+    }
+  }
+
+  /**
+   * Create a checked list from an iterator.
+   *
+   * @param <T> The target type
+   * @param tClass The class of T, for casting
+   * @param i Iterator yielding elements for the new list
+   * @throws ClassCastException if an entity cannot be converted to a list or
+   * an element cannot be converted to type T.
+   */
+  @SuppressWarnings("unchecked")
+  private static <T> List<T> listFromIterator(Class<T> tClass, Iterator<?> i) {
+    // Primitive types cannot be cast to one another using boxed values...
+    if (tClass.equals(Integer.class)) {
+      return (List<T>) toIntList((List<? extends Number>)(List) Lists.newArrayList(i));
+    } else if (tClass.equals(Long.class)) {
+      return (List<T>) toLongList((List<? extends Number>)(List) Lists.newArrayList(i));
+    } else if (tClass.equals(Float.class)) {
+      return (List<T>) toFloatList((List<? extends Number>)(List) Lists.newArrayList(i));
+    }
+    List<T> result = new ArrayList<T>();
+    while (i.hasNext()) {
+      Object o = i.next();
+      if (!tClass.isInstance(o) && !tClass.isAssignableFrom(o.getClass())) {
+        throw new ClassCastException("Unable to convert " + o + " of type " + o.getClass().getName() + " to type " + tClass.getName());
+      }
+      result.add(tClass.cast(o));
+    }
+    return result;
+  }
+
+  @SuppressWarnings("unchecked")
+  private static <T> List<T> checkedCast(Class<T> tClass, List<?> list) {
+    for (Object o : list) {
+      if (!tClass.isInstance(o) && !tClass.isAssignableFrom(o.getClass())) {
+        throw new ClassCastException("Unable to convert " + o + " to type " + tClass.getName());
+      }
+    }
+    return (List<T>) list;
+  }
+
+  private static <T extends Number> List<Float> toFloatList(List<T> value) {
+    List<Float> result = new ArrayList<Float>(value.size());
+    for (T o : value) {
+      result.add(o.floatValue());
+    }
+    return result;
+  }
+
+  private static <T extends Number> List<Long> toLongList(List<T> value) {
+    List<Long> result = new ArrayList<Long>(value.size());
+    for (T o : value) {
+      result.add(o.longValue());
+    }
+    return result;
+  }
+
+  private static <T extends Number> List<Integer> toIntList(List<T> value) {
+    List<Integer> result = new ArrayList<Integer>(value.size());
+    for (T o : value) {
+      result.add(o.intValue());
+    }
+    return result;
+  }
+
+  private static List<Integer> toIntList(byte[] values) {
+    List<Integer> result = new ArrayList<Integer>(values.length);
+    for(byte b : values) {
+      result.add((int) b);
+    }
+    return result;
   }
 }
 
