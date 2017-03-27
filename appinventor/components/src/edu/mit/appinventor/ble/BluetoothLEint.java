@@ -171,6 +171,12 @@ final class BluetoothLEint {
      */
     protected final int size;
 
+    /**
+     * Flag indicating that the operation still needs to be removed from the
+     * {@link #pendingOperations} queue.
+     */
+    protected boolean needsRemoval = false;
+
     BLEOperation(BluetoothGattCharacteristic characteristic, int type) {
       this.characteristic = characteristic;
       this.type = type;
@@ -239,6 +245,7 @@ final class BluetoothLEint {
         }
         if (!pendingOperationsByUuid.get(uuid).contains(this)) {
           pendingOperationsByUuid.get(uuid).add(this);
+          needsRemoval = true;
         }
       }
     }
@@ -364,8 +371,11 @@ final class BluetoothLEint {
         delay *= 2;
       } else {
         if (!wroteDescriptor) {
-          runPendingOperation(this);  // no change will happen due to lack of descriptor change
-                                      // so force the next operation.
+          // no change will happen due to lack of descriptor change
+          // so force the next operation.
+          if (runPendingOperation(this)) {
+            needsRemoval = false;
+          }
         }
         Log.d(LOG_TAG, "Subscribed for UUID: " + characteristic.getUuid());
       }
@@ -410,7 +420,9 @@ final class BluetoothLEint {
             }
           });
         }
-        runPendingOperation(this);
+        if (needsRemoval && runPendingOperation(this)) {
+          needsRemoval = false;
+        }
       } else {
         Log.d(LOG_TAG, "Characteristic did not match");
       }
@@ -445,7 +457,9 @@ final class BluetoothLEint {
           }
         } finally {
           pendingOperationsByUuid.get(characteristic.getUuid()).remove(this);
-          runPendingOperation(this);
+          if (needsRemoval && runPendingOperation(this)) {
+            needsRemoval = false;
+          }
           Log.d(LOG_TAG, "pendingOperationsByUuid.size() = " + pendingOperationsByUuid.size());
         }
       }
@@ -455,14 +469,18 @@ final class BluetoothLEint {
     public void onDescriptorRead(BluetoothGatt gatt, final BluetoothGattDescriptor descriptor,
                                  int status) {
       Log.d(LOG_TAG, "onDescriptorRead: " + descriptor.getCharacteristic().getUuid());
-      runPendingOperation(this);
+      if (needsRemoval && runPendingOperation(this)) {
+        needsRemoval = false;
+      }
     }
 
     @Override
     public void onDescriptorWrite(BluetoothGatt gatt, final BluetoothGattDescriptor descriptor,
                                     int status) {
       Log.d(LOG_TAG, "onDescriptorWrite: " + descriptor.getCharacteristic().getUuid());
-      runPendingOperation(this);
+      if (needsRemoval && runPendingOperation(this)) {
+        needsRemoval = false;
+      }
     }
 
     /**
@@ -616,7 +634,9 @@ final class BluetoothLEint {
           }
         } finally {
           pendingOperationsByUuid.get(characteristic.getUuid()).remove(this);
-          runPendingOperation(this);
+          if (needsRemoval && runPendingOperation(this)) {
+            needsRemoval = false;
+          }
           Log.d(LOG_TAG, "pendingOperationsByUuid.size() = " + pendingOperationsByUuid.size());
         }
       }
@@ -1410,6 +1430,13 @@ final class BluetoothLEint {
       @Override
       // set value of characteristic
       public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+        if (pendingOperationsByUuid.containsKey(characteristic.getUuid())) {
+          List<BLEOperation> operations = new ArrayList<BLEOperation>(pendingOperationsByUuid.get(characteristic.getUuid()));
+          for (BLEOperation operation : operations) {
+            operation.onCharacteristicWrite(gatt, characteristic, status);
+          }
+          return;
+        }
         Log.i(LOG_TAG, "Write Characteristic Successfully.");
         ValueWrite();
       }
@@ -2971,22 +2998,24 @@ final class BluetoothLEint {
     synchronized (pendingOperations) {
       pendingOperations.add(operation);
       if (pendingOperations.size() == 1) {
-        operation.run();
+        mHandler.post(operation);
       }
     }
   }
 
-  private void runPendingOperation(BLEOperation after) {
+  private boolean runPendingOperation(BLEOperation after) {
     synchronized (pendingOperations) {
+      boolean removed = false;
       BLEOperation operation = pendingOperations.peek();
       if (operation == after) {
-        operation = pendingOperations.poll();
+        pendingOperations.poll();
+        removed = true;
+        operation = pendingOperations.peek();
+        if (operation != null) {
+          mHandler.post(operation);
+        }
       }
-      if (operation != null) {
-        Log.d(LOG_TAG, "Running pending operation " + operation);
-        operation.run();
-      }
-      Log.d(LOG_TAG, "Pending operations: " + pendingOperations.size());
+      return removed;
     }
   }
 }
