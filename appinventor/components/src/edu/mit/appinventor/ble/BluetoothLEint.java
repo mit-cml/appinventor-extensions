@@ -31,6 +31,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 
 import android.os.Handler;
+import android.os.Looper;
 import android.os.ParcelUuid;
 
 import android.text.TextUtils;
@@ -41,13 +42,17 @@ import com.google.appinventor.components.runtime.ActivityResultListener;
 import com.google.appinventor.components.runtime.ComponentContainer;
 import com.google.appinventor.components.runtime.EventDispatcher;
 import com.google.appinventor.components.runtime.errors.IllegalArgumentError;
+import com.google.appinventor.components.runtime.util.ErrorMessages;
 import com.google.appinventor.components.runtime.util.SdkLevel;
 import com.google.appinventor.components.runtime.util.YailList;
+import edu.mit.appinventor.ble.BluetoothLE.BluetoothConnectionListener;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.Charset;
 
 import java.util.*;
@@ -460,6 +465,7 @@ final class BluetoothLEint {
           if (needsRemoval && runPendingOperation(this)) {
             needsRemoval = false;
           }
+          Log.d(LOG_TAG, "pendingOperations.size() = " + pendingOperations.size());
           Log.d(LOG_TAG, "pendingOperationsByUuid.size() = " + pendingOperationsByUuid.size());
         }
       }
@@ -488,6 +494,7 @@ final class BluetoothLEint {
      * @return A list of values read from the characteristic
      */
     private List<T> readCharacteristic() {
+      Log.d(LOG_TAG, "Received bytes = " + Arrays.toString(characteristic.getValue()));
       if (type == FORMAT_UTF8S || type == FORMAT_UTF16S) {
         Reader reader = null;
         List<T> result = new ArrayList<T>();
@@ -500,7 +507,9 @@ final class BluetoothLEint {
             if (c != 0) {
               sb.append(Character.toChars(c));
             } else {
-              result.add(mClass.cast(sb.toString()));
+              if (sb.length() > 0) {
+                result.add(mClass.cast(sb.toString()));
+              }
               sb.setLength(0);
             }
           }
@@ -523,17 +532,27 @@ final class BluetoothLEint {
           type == BluetoothGattCharacteristic.FORMAT_SFLOAT) {
         int elements = characteristic.getValue().length / size;
         List<T> values = new ArrayList<T>(elements);
-        for (int i = 0; i < elements; i++) {
-          Float value = characteristic.getFloatValue(type, i * size);
-          if (value != null) {
-            values.add(mClass.cast(value));
-          } else {
-            values.add(mClass.cast(Float.NaN));
+        if (size == 4) {
+          // workaround for the fact that Android BLE API doesn't use IEEE 754 floating points
+          ByteBuffer buffer = ByteBuffer.wrap(characteristic.getValue())
+              .order(ByteOrder.LITTLE_ENDIAN);
+          for (int i = 0; i < elements; i++) {
+            values.add(mClass.cast(buffer.getFloat(size * i)));
+          }
+        } else {
+          for (int i = 0; i < elements; i++) {
+            Float value = characteristic.getFloatValue(type, i * size);
+            if (value != null) {
+              values.add(mClass.cast(value));
+            } else {
+              values.add(mClass.cast(Float.NaN));
+            }
           }
         }
         return values;
       } else {
         int elements = characteristic.getValue().length / size;
+        Log.d(LOG_TAG, "Reading " + elements + " elements of size " + size);
         List<T> values = new ArrayList<T>(elements);
         for (int i = 0; i < elements; i++) {
           Integer value = characteristic.getIntValue(type, i * size);
@@ -637,6 +656,7 @@ final class BluetoothLEint {
           if (needsRemoval && runPendingOperation(this)) {
             needsRemoval = false;
           }
+          Log.d(LOG_TAG, "pendingOperations.size() = " + pendingOperations.size());
           Log.d(LOG_TAG, "pendingOperationsByUuid.size() = " + pendingOperationsByUuid.size());
         }
       }
@@ -648,7 +668,14 @@ final class BluetoothLEint {
       characteristic.setWriteType(writeType);
       // TODO(ewpatton): Refactor this so that each write type knows only its own serialization
       if (mClass == String.class) {
-        characteristic.setValue((String) data.get(0));
+        byte[] str = ((String) data.get(0)).getBytes();
+        final int len = str.length > 22 ? 23 : str.length + 1;
+        byte[] buffer = new byte[len];
+        for (int i = 0; i < len - 1; i++) {
+          buffer[i] = str[i];
+        }
+        buffer[len - 1] = 0;
+        characteristic.setValue(buffer);
       } else if (mClass == Float.class) {
         byte[] contents = new byte[size * data.size()];
         int value, i = 0;
@@ -752,7 +779,7 @@ final class BluetoothLEint {
       mHandler.post(new Runnable() {
         @Override
         public void run() {
-          outer.ByteValuesReceived(characteristic.getService().getUuid().toString(),
+          outer.BytesReceived(characteristic.getService().getUuid().toString(),
               characteristic.getUuid().toString(), yailList);
         }
       });
@@ -799,7 +826,7 @@ final class BluetoothLEint {
       mHandler.post(new Runnable() {
         @Override
         public void run() {
-          outer.ShortValuesReceived(characteristic.getService().getUuid().toString(),
+          outer.ShortsReceived(characteristic.getService().getUuid().toString(),
               characteristic.getUuid().toString(), yailList);
         }
       });
@@ -848,7 +875,7 @@ final class BluetoothLEint {
       mHandler.post(new Runnable() {
         @Override
         public void run() {
-          outer.IntegerValuesReceived(characteristic.getService().getUuid().toString(),
+          outer.IntegersReceived(characteristic.getService().getUuid().toString(),
               characteristic.getUuid().toString(), yailList);
         }
       });
@@ -895,7 +922,7 @@ final class BluetoothLEint {
       mHandler.post(new Runnable() {
         @Override
         public void run() {
-          outer.FloatValuesReceived(characteristic.getService().getUuid().toString(),
+          outer.FloatsReceived(characteristic.getService().getUuid().toString(),
               characteristic.getUuid().toString(), yailList);
         }
       });
@@ -939,7 +966,7 @@ final class BluetoothLEint {
       mHandler.post(new Runnable() {
         @Override
         public void run() {
-          outer.StringValuesReceived(characteristic.getService().getUuid().toString(),
+          outer.StringsReceived(characteristic.getService().getUuid().toString(),
               characteristic.getUuid().toString(), yailList);
         }
       });
@@ -972,7 +999,7 @@ final class BluetoothLEint {
       mHandler.post(new Runnable() {
         @Override
         public void run() {
-          outer.ByteValuesWritten(characteristic.getService().getUuid().toString(),
+          outer.BytesWritten(characteristic.getService().getUuid().toString(),
               characteristic.getUuid().toString(), yailList);
         }
       });
@@ -1005,7 +1032,7 @@ final class BluetoothLEint {
       mHandler.post(new Runnable() {
         @Override
         public void run() {
-          outer.ShortValuesWritten(characteristic.getService().getUuid().toString(),
+          outer.ShortsWritten(characteristic.getService().getUuid().toString(),
               characteristic.getUuid().toString(), yailList);
         }
       });
@@ -1038,7 +1065,7 @@ final class BluetoothLEint {
       mHandler.post(new Runnable() {
         @Override
         public void run() {
-          outer.IntegerValuesWritten(characteristic.getService().getUuid().toString(),
+          outer.IntegersWritten(characteristic.getService().getUuid().toString(),
               characteristic.getUuid().toString(), yailList);
         }
       });
@@ -1072,7 +1099,7 @@ final class BluetoothLEint {
       mHandler.post(new Runnable() {
         @Override
         public void run() {
-          outer.ShortValuesWritten(characteristic.getService().getUuid().toString(),
+          outer.FloatsWritten(characteristic.getService().getUuid().toString(),
               characteristic.getUuid().toString(), yailList);
         }
       });
@@ -1104,7 +1131,7 @@ final class BluetoothLEint {
       mHandler.post(new Runnable() {
         @Override
         public void run() {
-          outer.StringValuesWritten(characteristic.getService().getUuid().toString(),
+          outer.StringsWritten(characteristic.getService().getUuid().toString(),
               characteristic.getUuid().toString(), yailList);
         }
       });
@@ -1133,6 +1160,11 @@ final class BluetoothLEint {
   private static final int ERROR_INVALID_UUID_CHARACTERS = 9008;
   private static final int ERROR_INVALID_UUID_FORMAT = 9009;
   private static final int ERROR_ADVERTISEMENTS_NOT_SUPPORTED = 9010;
+  private static final int ERROR_UNSUPPORTED_CHARACTERISTIC = 9011;
+  private static final String BLUETOOTH_BASE_UUID_SUFFIX = "-0000-1000-8000-00805F9B34FB";
+  private static final String UNKNOWN_SERVICE_NAME = "Unknown Service";
+  private static final String UNKNOWN_CHAR_NAME = "Unknown Characteristic";
+  private static final int GATT_LINK_LOSS = 8;  // Not documented in Android SDK
 
   static {
     errorMessages = new HashMap<Integer, String>();
@@ -1164,10 +1196,13 @@ final class BluetoothLEint {
    * Basic Variables
    */
   private final Activity activity;
-  private BluetoothLeScanner mBluetoothLeDeviceScanner;
+  private BluetoothLeScanner mBluetoothLeDeviceScanner = null;
   private BluetoothGatt mBluetoothGatt;
   private int device_rssi = 0;
   private final Handler uiThread;
+  private volatile int connectionTimeout = 10;
+  private boolean autoReconnect = false;
+
   /**
    * pendingOperationsByUuid stores a list of pending BLE operations per characteristic.
    */
@@ -1205,7 +1240,8 @@ final class BluetoothLEint {
    * BluetoothLE Device Status
    */
   private boolean isScanning = false;
-  private boolean isConnected = false;
+  private volatile boolean isConnected = false;
+  private volatile boolean isUserDisconnect = false;
   private boolean isCharRead = false;
   private boolean isCharWritten = false;
   private boolean isServiceRead = false;
@@ -1291,6 +1327,7 @@ final class BluetoothLEint {
             Log.e(LOG_TAG, "Device Scan failed. There is already a scan in progress.");
             break;
           default:
+            isScanning = false;
             Log.e(LOG_TAG, "Device Scan failed due to an internal error. Error Code: " + errorCode);
         }
         super.onScanFailed(errorCode);
@@ -1300,18 +1337,31 @@ final class BluetoothLEint {
     this.mGattCallback = new BluetoothGattCallback() {
       @Override
       public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
+        if (gatt != mBluetoothGatt) {
+          // Connection change targeting a previous connection (due to calling Connect multiple times)
+          return;
+        }
         if (newState == BluetoothProfile.STATE_CONNECTED) {
           gatt.discoverServices();
           gatt.readRemoteRssi();
           Log.i(LOG_TAG, "Connect successful.");
-        }
-
-        if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+        } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
           isConnected = false;
-          mBluetoothGatt.close();
-          mBluetoothGatt = null;
+          if (!autoReconnect || isUserDisconnect) {
+            mBluetoothGatt.close();
+            mBluetoothGatt = null;
+            isUserDisconnect = false;
+          } else {
+            mBluetoothGatt.connect();
+          }
           Disconnected();
           Log.i(LOG_TAG, "Disconnect successful.");
+        }
+
+        if (status != BluetoothGatt.GATT_SUCCESS && !isConnected) {
+          if (status != GATT_LINK_LOSS || !autoReconnect) {
+            BluetoothLEint.this.outer.ConnectionFailed("Connection status was set to OS code " + status);
+          }
         }
 
         Log.i(LOG_TAG, "onConnectionStateChange fired with status: " + status);
@@ -1331,6 +1381,8 @@ final class BluetoothLEint {
           pendingOperationsByUuid.clear();
           pendingOperations.clear();
           Connected();
+        } else {
+          BluetoothLEint.this.outer.ConnectionFailed("Service discovery failed with OS code " + status);
         }
         Log.i(LOG_TAG, "onServicesDiscovered fired with status: " + status);
       }
@@ -1345,37 +1397,6 @@ final class BluetoothLEint {
           for (BLEOperation operation : operations) {
             operation.onCharacteristicRead(gatt, characteristic, status);
           }
-          return;
-        }
-        if (status == BluetoothGatt.GATT_SUCCESS) {
-          data = characteristic.getValue();
-          Log.i(LOG_TAG, "dataLength: " + data.length);
-          switch(charType) {
-            case BYTE:
-              byteValue = "";
-              for (byte i : data) {
-                byteValue += i;
-              }
-              Log.i(LOG_TAG, "byteValue: " + byteValue);
-              ByteValueRead(byteValue);
-              break;
-            case INT:
-              intValue = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT32, intOffset);
-              Log.i(LOG_TAG, "intValue: " + intValue);
-              IntValueRead(intValue);
-              break;
-            case STRING:
-              stringValue = characteristic.getStringValue(strOffset);
-              Log.i(LOG_TAG, "stringValue: " + stringValue);
-              StringValueRead(stringValue);
-              break;
-            case FLOAT:
-              floatValue = characteristic.getFloatValue(BluetoothGattCharacteristic.FORMAT_FLOAT, floatOffset);
-              Log.i(LOG_TAG, "floatValue: " + floatValue);
-              FloatValueRead(floatValue);
-          }
-
-          isCharRead = true;
         }
       }
 
@@ -1389,42 +1410,7 @@ final class BluetoothLEint {
           for (BLEOperation operation : operations) {
             operation.onCharacteristicChanged(gatt, characteristic);
           }
-          return;
         }
-        data = characteristic.getValue();
-        Log.i(LOG_TAG, "dataLength: " + data.length);
-        Log.i(LOG_TAG, "dataValue: " + Arrays.toString(data));
-        switch (charType) {
-          case BYTE:
-            byteValue = "";
-            for (byte i : data) {
-              byteValue += i;
-            }
-            Log.i(LOG_TAG, "byteValue: " + byteValue);
-            ByteValueChanged(byteValue);
-            break;
-          case INT:
-            intValue = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, intOffset);
-            Log.i(LOG_TAG, "intValue: " + intValue);
-            IntValueChanged(intValue);
-            break;
-          case STRING:
-            stringValue = characteristic.getStringValue(strOffset);
-            Log.i(LOG_TAG, "stringValue: " + stringValue);
-            StringValueChanged(stringValue);
-            break;
-          case FLOAT:
-            if (data.length == 1) {
-              floatValue = (float) (data[0] * Math.pow(10, 0));
-            } else if (data.length == 2 || data.length == 3) {
-              floatValue = characteristic.getFloatValue(BluetoothGattCharacteristic.FORMAT_SFLOAT, floatOffset);
-            } else {
-              floatValue = characteristic.getFloatValue(BluetoothGattCharacteristic.FORMAT_FLOAT, floatOffset);
-            }
-            Log.i(LOG_TAG, "floatValue: " + floatValue);
-            FloatValueChanged(floatValue);
-        }
-        isCharRead = true;
       }
 
       @Override
@@ -1435,10 +1421,7 @@ final class BluetoothLEint {
           for (BLEOperation operation : operations) {
             operation.onCharacteristicWrite(gatt, characteristic, status);
           }
-          return;
         }
-        Log.i(LOG_TAG, "Write Characteristic Successfully.");
-        ValueWrite();
       }
 
       @Override
@@ -1509,6 +1492,10 @@ final class BluetoothLEint {
     };
   }
 
+  boolean isScanning() {
+    return isScanning;
+  }
+
   void StartScanning() {
     new BLEAction<Void>("StartScanning") {
       @Override
@@ -1549,6 +1536,7 @@ final class BluetoothLEint {
           // that the ScanCallback parameter of BluetoothLeScanner.stopScan(ScanCallback) is only used as a key to
           // identify the current scan. It is never fired.
           mBluetoothLeDeviceScanner.stopScan(mDeviceScanCallback);
+          isScanning = false;
           Log.i(LOG_TAG, "StopScanning successful.");
         } else {
           signalError("StopScanning", ERROR_NO_DEVICE_SCAN_IN_PROGRESS);
@@ -1559,22 +1547,36 @@ final class BluetoothLEint {
   }
 
   void Connect(final int index) {
+    if (index < 1 || index > mLeDevices.size()) {
+      outer.ConnectionFailed("Invalid index provided to Connect");
+      throw new IndexOutOfBoundsException("Expected device index between 1 and " + mLeDevices.size());
+    }
     new BLEAction<Void>("Connect") {
       @Override
       public Void action() {
         try {
+          if (mBluetoothLeAdvertisementScanner != null) {
+            mBluetoothLeAdvertisementScanner.stopScan(mDeviceScanCallback);
+            isScanning = false;
+          }
           if (!mLeDevices.isEmpty()) {
-            mBluetoothGatt = mLeDevices.get(index - 1).connectGatt(activity, false, mGattCallback);
+            forceDisconnect();
+            mBluetoothGatt = mLeDevices.get(index - 1)
+                .connectGatt(activity, autoReconnect, mGattCallback);
             if (mBluetoothGatt != null) {
               //TODO(Will): Delete the puts to this map
               gattMap.put(mLeDevices.get(index - 1).toString(), mBluetoothGatt);
+              scheduleConnectionTimeoutMessage();
             } else {
+              outer.ConnectionFailed("Connect failed to return a BluetoothGatt object");
               Log.e(LOG_TAG, "Connect failed.");
             }
           } else {
+            outer.ConnectionFailed("Device list was empty");
             signalError("Connect", ERROR_DEVICE_LIST_EMPTY);
           }
         } catch (IndexOutOfBoundsException e) {
+          outer.ConnectionFailed(e.getMessage());
           signalError("Connect", ERROR_INDEX_OUT_OF_BOUNDS, "Connect", "DeviceList");
         }
         return null;
@@ -1588,24 +1590,34 @@ final class BluetoothLEint {
       @Override
       public Void action() {
         try {
+          if (mBluetoothLeAdvertisementScanner != null) {
+            mBluetoothLeAdvertisementScanner.stopScan(mDeviceScanCallback);
+            isScanning = false;
+          }
           if (!mLeDevices.isEmpty()) {
             for (BluetoothDevice bluetoothDevice : mLeDevices) {
               if (bluetoothDevice.getAddress().equals(address)) {
-                mBluetoothGatt = bluetoothDevice.connectGatt(activity, false, mGattCallback);
+                forceDisconnect();
+                mBluetoothGatt = bluetoothDevice.connectGatt(activity, autoReconnect, mGattCallback);
                 if (mBluetoothGatt != null) {
                   //TODO(Will): Delete the puts to this map
                   gattMap.put(bluetoothDevice.getAddress(), mBluetoothGatt);
+                  scheduleConnectionTimeoutMessage();
                   Log.i(LOG_TAG, "ConnectWithAddress successful.");
-                  break;
+                  return null;
                 } else {
+                  outer.ConnectionFailed("Connect failed to return a BluetoothGatt object");
                   Log.e(LOG_TAG, "ConnectWithAddress failed.");
                 }
               }
             }
+            outer.ConnectionFailed("No device found with address " + address);
           } else {
+            outer.ConnectionFailed("Device list was empty");
             signalError("ConnectWithAddress", ERROR_DEVICE_LIST_EMPTY);
           }
         } catch (IndexOutOfBoundsException e) {
+          outer.ConnectionFailed(e.getMessage());
           signalError("ConnectWithAddress", ERROR_INDEX_OUT_OF_BOUNDS, "ConnectWithAddress", "DeviceList");
         }
         return null;
@@ -1618,6 +1630,7 @@ final class BluetoothLEint {
       @Override
       public Void action() {
         if(mBluetoothGatt != null) {
+          isUserDisconnect = true;
           mBluetoothGatt.disconnect();
         } else {
           signalError("Disconnect", ERROR_NOT_CURRENTLY_CONNECTED);
@@ -1641,138 +1654,6 @@ final class BluetoothLEint {
           // signalError here
           Log.e(LOG_TAG, "Disconnect failed. No such address in the list.");
         }
-        return null;
-      }
-    }.run();
-  }
-
-  void WriteStringValue(final String service_uuid, final String characteristic_uuid, final String value) {
-    new BLEAction<Void>("WriteStringValue") {
-      @Override
-      public Void action() {
-        if (!validateUUID(service_uuid, "Service", "WriteStringValue")
-            || !validateUUID(characteristic_uuid, "Characteristic", "WriteStringValue"))
-          return null;
-
-        Log.i(LOG_TAG, "stringValue: " + value);
-
-        writeChar(UUID.fromString(service_uuid), UUID.fromString(characteristic_uuid), value);
-        return null;
-      }
-    }.run();
-  }
-
-  void WriteIntValue(final String service_uuid, final String characteristic_uuid, final int value, final int offset) {
-    new BLEAction<Void>("WriteIntValue") {
-      @Override
-      public Void action() {
-        if (!validateUUID(service_uuid, "Service", "WriteIntValue")
-            || !validateUUID(characteristic_uuid, "Characteristic", "WriteIntValue"))
-          return null;
-
-        Log.i(LOG_TAG, "intValue: " + value);
-
-        int[] payload = {value, BluetoothGattCharacteristic.FORMAT_SINT32, offset};
-        writeChar(UUID.fromString(service_uuid), UUID.fromString(characteristic_uuid), payload);
-        return null;
-      }
-    }.run();
-  }
-
-  void WriteFloatValue(final String service_uuid, final String characteristic_uuid, final float value, final int offset) {
-    new BLEAction<Void>("WriteFloatValue") {
-      @Override
-      public Void action() {
-        if (!validateUUID(service_uuid, "Service", "WriteFloatValue")
-            || !validateUUID(characteristic_uuid, "Characteristic", "WriteFloatValue"))
-          return null;
-
-        int floatRep = Float.floatToIntBits(value);
-        Log.i(LOG_TAG, "floatRepresentation: " + floatRep);
-
-        int[] payload = {floatRep, BluetoothGattCharacteristic.FORMAT_SINT32, offset};
-        writeChar(UUID.fromString(service_uuid), UUID.fromString(characteristic_uuid), payload);
-        return null;
-      }
-    }.run();
-  }
-
-  void WriteByteValue(final String service_uuid, final String characteristic_uuid, final String value) {
-    new BLEAction<Void>("WriteByteValue") {
-      @Override
-      public Void action() {
-        if (!validateUUID(service_uuid, "Service", "WriteByteValue")
-            || !validateUUID(characteristic_uuid, "Characteristic", "WriteByteValue"))
-          return null;
-
-        byte[] bytes = value.getBytes();
-        Log.i(LOG_TAG, "byteValue: " + Arrays.toString(bytes));
-
-        writeChar(UUID.fromString(service_uuid), UUID.fromString(characteristic_uuid), bytes);
-        return null;
-      }
-    }.run();
-
-  }
-
-  void ReadIntValue(final String service_uuid, final String characteristic_uuid, final int intOffset) {
-    new BLEAction<Void>("ReadIntValue") {
-      @Override
-      public Void action() {
-        if (!validateUUID(service_uuid, "Service", "ReadIntValue")
-            || !validateUUID(characteristic_uuid, "Characteristic", "ReadIntValue"))
-          return null;
-
-        charType = CharType.INT;
-        BluetoothLEint.this.intOffset = intOffset;
-        readChar(UUID.fromString(service_uuid), UUID.fromString(characteristic_uuid));
-        return null;
-      }
-    }.run();
-  }
-
-  void ReadStringValue(final String service_uuid, final String characteristic_uuid, final int strOffset) {
-    new BLEAction<Void>("ReadStringValue") {
-      @Override
-      public Void action() {
-        if (!validateUUID(service_uuid, "Service", "ReadStringValue")
-            || !validateUUID(characteristic_uuid, "Characteristic", "ReadStringValue"))
-          return null;
-
-        charType = CharType.STRING;
-        BluetoothLEint.this.strOffset = strOffset;
-        readChar(UUID.fromString(service_uuid), UUID.fromString(characteristic_uuid));
-        return null;
-      }
-    }.run();
-  }
-
-  void ReadFloatValue(final String service_uuid, final String characteristic_uuid, final int floatOffset) {
-    new BLEAction<Void>("ReadFloatValue") {
-      @Override
-      public Void action() {
-        if (!validateUUID(service_uuid, "Service", "ReadFloatValue")
-            || !validateUUID(characteristic_uuid, "Characteristic", "ReadFloatValue"))
-          return null;
-
-        charType = CharType.FLOAT;
-        BluetoothLEint.this.floatOffset = floatOffset;
-        readChar(UUID.fromString(service_uuid), UUID.fromString(characteristic_uuid));
-        return null;
-      }
-    }.run();
-  }
-
-  void ReadByteValue(final String service_uuid, final String characteristic_uuid) {
-    new BLEAction<Void>("ReadByteValue") {
-      @Override
-      public Void action() {
-        if (!validateUUID(service_uuid, "Service", "ReadByteValue")
-            || !validateUUID(characteristic_uuid, "Characteristic", "ReadByteValue"))
-          return null;
-
-        charType = CharType.BYTE;
-        readChar(UUID.fromString(service_uuid), UUID.fromString(characteristic_uuid));
         return null;
       }
     }.run();
@@ -2276,14 +2157,15 @@ final class BluetoothLEint {
     new BLEAction<Void>(METHOD) {
       @Override
       public Void action() {
-        if (!validateUUID(serviceUuid, "Service", METHOD)
-            || !validateUUID(characteristicUuid, "Characteristic", METHOD)) {
-          return null;
+        try {
+          BluetoothGattCharacteristic characteristic = findMGattChar(bleStringToUuid(serviceUuid),
+              bleStringToUuid(characteristicUuid));
+          schedulePendingOperation(new BLEReadStringOperation(characteristic, utf16, handler));
+        } catch(IllegalStateException e) {
+          container.$form().dispatchErrorOccurredEvent(outer, "ReadString",
+              ErrorMessages.ERROR_EXTENSION_ERROR, ERROR_UNSUPPORTED_CHARACTERISTIC,
+              "BluetoothLE", UNKNOWN_CHAR_NAME);
         }
-
-        BluetoothGattCharacteristic characteristic = findMGattChar(UUID.fromString(serviceUuid),
-            UUID.fromString(characteristicUuid));
-        schedulePendingOperation(new BLEReadStringOperation(characteristic, utf16, handler));
         return null;
       }
     }.run();
@@ -2410,6 +2292,9 @@ final class BluetoothLEint {
   }
 
   int FoundDeviceRssi(final int index) {
+    if (index < 1 || index > mLeDevices.size()) {
+      throw new IllegalArgumentException("Expected device index between 1 and " + mLeDevices.size());
+    }
     Integer result = new BLEAction<Integer>("FoundDeviceRssi") {
       @Override
       public Integer action() {
@@ -2432,6 +2317,9 @@ final class BluetoothLEint {
   }
 
   String FoundDeviceName(int index) {
+    if (index < 1 || index > mLeDevices.size()) {
+      throw new IllegalArgumentException("Expected device index between 1 and " + mLeDevices.size());
+    }
     if (index <= mLeDevices.size()) {
       Log.i(LOG_TAG, "Device Name is found");
       return mLeDevices.get(index - 1).getName();
@@ -2442,6 +2330,9 @@ final class BluetoothLEint {
   }
 
   String FoundDeviceAddress(int index) {
+    if (index < 1 || index > mLeDevices.size()) {
+      throw new IllegalArgumentException("Expected device index between 1 and " + mLeDevices.size());
+    }
     if (index <= mLeDevices.size()) {
       Log.i(LOG_TAG, "Device Address is found");
       return mLeDevices.get(index - 1).getAddress();
@@ -2449,6 +2340,16 @@ final class BluetoothLEint {
       Log.e(LOG_TAG, "Device Address is found");
       return "";
     }
+  }
+
+  String ConnectedDeviceName() {
+    if (isConnected && mBluetoothGatt != null) {
+      BluetoothDevice device = mBluetoothGatt.getDevice();
+      if (device != null) {
+        return device.getName();
+      }
+    }
+    return "";
   }
 
   void StartAdvertising(final String inData, final String serviceUuid) {
@@ -2654,8 +2555,8 @@ final class BluetoothLEint {
     return deviceInfoList;
   }
 
-  String ConnectedDeviceRssi() {
-    return Integer.toString(device_rssi);
+  int ConnectedDeviceRssi() {
+    return device_rssi;
   }
 
   long AdvertisementScanPeriod() {
@@ -2679,6 +2580,11 @@ final class BluetoothLEint {
       @Override
       public void run() {
         EventDispatcher.dispatchEvent(outer, "Connected");
+        Set<BluetoothConnectionListener> listeners =
+            new HashSet<BluetoothConnectionListener>(outer.connectionListeners);
+        for (BluetoothConnectionListener listener : listeners) {
+          listener.onConnected(outer);
+        }
       }
     });
   }
@@ -2687,7 +2593,15 @@ final class BluetoothLEint {
     uiThread.post(new Runnable() {
       @Override
       public void run() {
-        EventDispatcher.dispatchEvent(outer, "Disconnected");
+        try {
+          Set<BluetoothConnectionListener> listeners =
+              new HashSet<BluetoothConnectionListener>(outer.connectionListeners);
+          for (BluetoothConnectionListener listener : listeners) {
+            listener.onDisconnected(outer);
+          }
+        } finally {
+          EventDispatcher.dispatchEvent(outer, "Disconnected");
+        }
       }
     });
   }
@@ -2710,87 +2624,6 @@ final class BluetoothLEint {
     });
   }
 
-  private void ByteValueRead(final String byteValue) {
-    uiThread.post(new Runnable() {
-      @Override
-      public void run() {
-        EventDispatcher.dispatchEvent(outer, "ByteValueRead", byteValue);
-      }
-    });
-  }
-
-  private void IntValueRead(final int intValue) {
-    uiThread.post(new Runnable() {
-      @Override
-      public void run() {
-        EventDispatcher.dispatchEvent(outer, "IntValueRead", intValue);
-      }
-    });
-  }
-
-  private void StringValueRead(final String stringValue) {
-    uiThread.post(new Runnable() {
-      @Override
-      public void run() {
-        EventDispatcher.dispatchEvent(outer, "StringValueRead", stringValue);
-      }
-    });
-  }
-
-  private void FloatValueRead(final float floatValue) {
-    uiThread.post(new Runnable() {
-      @Override
-      public void run() {
-        EventDispatcher.dispatchEvent(outer, "FloatValueRead", floatValue);
-      }
-    });
-  }
-
-  private void ByteValueChanged(final String byteValue) {
-    uiThread.post(new Runnable() {
-      @Override
-      public void run() {
-        EventDispatcher.dispatchEvent(outer, "ByteValueChanged", byteValue);
-      }
-    });
-  }
-
-  private void IntValueChanged(final int intValue) {
-    uiThread.post(new Runnable() {
-      @Override
-      public void run() {
-        EventDispatcher.dispatchEvent(outer, "IntValueChanged", intValue);
-      }
-    });
-  }
-
-  private void FloatValueChanged(final float floatValue) {
-    uiThread.post(new Runnable() {
-      @Override
-      public void run() {
-        EventDispatcher.dispatchEvent(outer, "FloatValueChanged", floatValue);
-      }
-    });
-  }
-
-  private void StringValueChanged(final String stringValue) {
-    uiThread.post(new Runnable() {
-      @Override
-      public void run() {
-        EventDispatcher.dispatchEvent(outer, "StringValueChanged", stringValue);
-      }
-    });
-  }
-
-  private void ValueWrite() {
-    uiThread.post(new Runnable() {
-      @Override
-      public void run() {
-        EventDispatcher.dispatchEvent(outer, "ValueWrite");
-      }
-    });
-  }
-
   String GetSupportedServices() {
     if (mGattService == null) return ",";
     serviceUUIDList = ", ";
@@ -2807,7 +2640,24 @@ final class BluetoothLEint {
     return serviceUUIDList;
   }
 
+  YailList getSupportedServicesList() {
+    if (mGattService == null) return YailList.makeEmptyList();
+    YailList result = YailList.makeEmptyList();
+    for (BluetoothGattService service : mGattService) {
+      UUID serviceUuid = service.getUuid();
+      YailList pair = YailList.makeList(new Object[] {
+          serviceUuid.toString(),
+          BluetoothLEGattAttributes.lookup(serviceUuid, UNKNOWN_SERVICE_NAME)
+          });
+      result.add(pair);
+    }
+    return result;
+  }
+
   String GetServiceByIndex(int index) {
+    if (index < 1 || index > mGattService.size()) {
+      throw new IndexOutOfBoundsException("Expected service index between 1 and " + mGattService.size());
+    }
     return mGattService.get(index - 1).getUuid().toString();
   }
 
@@ -2831,6 +2681,24 @@ final class BluetoothLEint {
     return charUUIDList;
   }
 
+  YailList getSupportedCharacteristicsList() {
+    if (mGattService == null) return YailList.makeEmptyList();
+    YailList result = YailList.makeEmptyList();
+    for (BluetoothGattService service : mGattService) {
+      for (BluetoothGattCharacteristic characteristic : service.getCharacteristics()) {
+        UUID serviceUuid = service.getUuid();
+        UUID characteristicUuid = characteristic.getUuid();
+        YailList triple = YailList.makeList(new Object[] {
+            serviceUuid.toString(),
+            characteristicUuid.toString(),
+            BluetoothLEGattAttributes.lookup(characteristicUuid, UNKNOWN_CHAR_NAME)
+        });
+        result.add(triple);
+      }
+    }
+    return result;
+  }
+
   YailList GetCharacteristicsForService(String serviceUuid) {
     if (mGattService == null) {
       return YailList.makeEmptyList();
@@ -2839,18 +2707,60 @@ final class BluetoothLEint {
     final String unknownCharString = "Unknown Characteristic";
     try {
       BluetoothGattService service = mBluetoothGatt.getService(UUID.fromString(serviceUuid));
+      if (service == null) {
+        throw new IllegalArgumentException("Device does not advertise service " + serviceUuid);
+      }
       for (BluetoothGattCharacteristic c : service.getCharacteristics()) {
         result.add(YailList.makeList(new Object[] {c.getUuid().toString().toUpperCase(),
             BluetoothLEGattAttributes.lookup(c.getUuid(), unknownCharString)}));
       }
     } catch(Exception e) {
       Log.e(LOG_TAG, "Exception while looking up BluetoothLE service", e);
+      throw new RuntimeException("Exception while looking up BluetoothLE service: " +
+          e.getMessage(), e);
     }
     return YailList.makeList(result);
   }
 
   String GetCharacteristicByIndex(int index) {
+    if (index < 1 || index > gattChars.size()) {
+      throw new IndexOutOfBoundsException("Expected characteristic index between 1 and " +
+          gattChars.size());
+    }
     return gattChars.get(index - 1).getUuid().toString();
+  }
+
+  boolean isServicePublished(String serviceUuid) {
+    UUID service = bleStringToUuid(serviceUuid);
+    return mBluetoothGatt != null && mBluetoothGatt.getService(service) != null;
+  }
+
+  boolean isCharacteristicPublished(String serviceUuid, String characteristicUuid) {
+    UUID service = bleStringToUuid(serviceUuid);
+    UUID characteristic = bleStringToUuid(characteristicUuid);
+    if (mBluetoothGatt != null) {
+      BluetoothGattService gattService = mBluetoothGatt.getService(service);
+      if (gattService != null) {
+        return gattService.getCharacteristic(characteristic) != null;
+      }
+    }
+    return false;
+  }
+
+  void setConnectionTimeout(int timeout) {
+    this.connectionTimeout = timeout;
+  }
+
+  int getConnectionTimeout() {
+    return this.connectionTimeout;
+  }
+
+  void setAutoReconnect(boolean autoReconnect) {
+    this.autoReconnect = autoReconnect;
+  }
+
+  boolean getAutoReconnect() {
+    return this.autoReconnect;
   }
 
   /*
@@ -2868,12 +2778,8 @@ final class BluetoothLEint {
     activity.runOnUiThread(new Runnable() {
       @Override
       public void run() {
-        container.$form().ErrorOccurredDialog(BluetoothLEint.this.outer,
-            functionName,
-            errorNumber,
-            errorMessage,
-            "BluetoothLE",
-            "Dismiss");
+        container.$form().dispatchErrorOccurredEvent(BluetoothLEint.this.outer, functionName,
+            ErrorMessages.ERROR_EXTENSION_ERROR, errorNumber, "BluetoothLE", errorMessage);
       }
     });
   }
@@ -2922,7 +2828,9 @@ final class BluetoothLEint {
     Log.i(LOG_TAG, "isServiceRead: " + isServiceRead);
     Log.i(LOG_TAG, "mGattService.isEmpty(): " + mGattService.isEmpty());
 
-    if (isServiceRead && !mGattService.isEmpty()) {
+    if (!isServiceRead) {
+      throw new IllegalStateException("Not connected to a Bluetooth low energy device.");
+    } else if (!mGattService.isEmpty()) {
       for (BluetoothGattService aMGattService : mGattService) {
         if (aMGattService.getUuid().equals(ser_uuid)) {
           return aMGattService.getCharacteristic(char_uuid);
@@ -2930,7 +2838,7 @@ final class BluetoothLEint {
       }
     }
 
-    return null;
+    throw new IllegalStateException("Service " + ser_uuid + ", characteristic " + char_uuid + " are not published by the connected device.");
   }
 
   // Read the characteristic with the corresponding UUID
@@ -3011,11 +2919,59 @@ final class BluetoothLEint {
         pendingOperations.poll();
         removed = true;
         operation = pendingOperations.peek();
+        Log.d(LOG_TAG, "running next operation " + operation);
         if (operation != null) {
           mHandler.post(operation);
         }
+      } else {
+        Log.d(LOG_TAG, "after operation = " + after);
+        Log.d(LOG_TAG, "pending operation = " + operation);
       }
       return removed;
     }
+  }
+
+  private void scheduleConnectionTimeoutMessage() {
+    uiThread.postDelayed(new Runnable() {
+      @Override
+      public void run() {
+        if (!isConnected && mBluetoothGatt != null) {
+          mBluetoothGatt.disconnect();
+          outer.ConnectionFailed("Connection timeout reached");
+        }
+      }
+    }, connectionTimeout * 1000);
+  }
+
+  private void forceDisconnect() {
+    if (mBluetoothGatt != null) {
+      if (isConnected) {
+        mBluetoothGatt.disconnect();
+        mBluetoothGatt.close();
+        mBluetoothGatt = null;
+      } else if (autoReconnect) {
+        mBluetoothGatt.disconnect();
+        mBluetoothGatt.close();
+        mBluetoothGatt = null;
+      }
+      isConnected = false;
+      isUserDisconnect = true;
+    }
+    mBluetoothGatt = null;
+  }
+
+  private static UUID bleStringToUuid(String uuid) {
+    uuid = uuid.toLowerCase();
+    if (uuid.length() == 4) {  // 16 bit short Bluetooth UUID
+      uuid = "0000" + uuid + BLUETOOTH_BASE_UUID_SUFFIX;
+    } else if (uuid.length() == 8) {  // 32 bit short Bluetooth UUID
+      uuid = uuid + BLUETOOTH_BASE_UUID_SUFFIX;
+    } else if (uuid.length() == 32) {  // 128 bit Bluetooth UUID without dashes
+      uuid = uuid.substring(0, 8) + "-" + uuid.substring(8, 12) + "-" + uuid.substring(12, 16) +
+          "-" + uuid.substring(16, 20) + "-" + uuid.substring(20);
+    } else if (!BLEUtil.hasValidUUIDFormat(uuid)) {
+      throw new IllegalArgumentException("Invalid UUID: " + uuid);
+    }
+    return UUID.fromString(uuid);
   }
 }
