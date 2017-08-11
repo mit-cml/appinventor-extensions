@@ -1,11 +1,12 @@
 // -*- mode: java; c-basic-offset: 2; -*-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2013 MIT, All rights reserved
+// Copyright 2011-2017 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
 package com.google.appinventor.client;
 
+import com.google.appinventor.client.explorer.dialogs.ProgressBarDialogBox;
 import com.google.appinventor.client.explorer.project.Project;
 import com.google.appinventor.client.explorer.project.ProjectChangeListener;
 import com.google.appinventor.common.utils.StringUtils;
@@ -20,9 +21,14 @@ import com.google.appinventor.client.output.OdeLog;
 
 import com.google.gwt.core.client.JavaScriptObject;
 
+import com.google.gwt.core.client.JsArrayString;
 import com.google.gwt.user.client.rpc.AsyncCallback;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+
+import static com.google.appinventor.client.Ode.MESSAGES;
 
 /**
  * Manage known assets and components for a project and arrange to send them to the
@@ -46,6 +52,10 @@ public final class AssetManager implements ProjectChangeListener {
   private YoungAndroidAssetsFolder assetsFolder;
   private YoungAndroidComponentsFolder componentsFolder;
   private JavaScriptObject assetsTransferredCallback;
+  private ProgressBarDialogBox progress = null;
+  private List<String> extensions = new ArrayList<>();
+  private int retryCount = 0;
+  private volatile int assetTransferProgress = 0;
 
   private static AssetManager INSTANCE;
   private static boolean DEBUG = false;
@@ -78,6 +88,7 @@ public final class AssetManager implements ProjectChangeListener {
       componentsFolder = ((YoungAndroidProjectNode) project.getRootNode()).getComponentsFolder();
       project.addProjectChangeListener(this);
       assets = new HashMap<String,AssetInfo>();
+      extensions.clear();
       // Add Asset Files
       for (ProjectNode node : assetsFolder.getChildren()) {
         if (nodeFilter(node)) {
@@ -98,6 +109,9 @@ public final class AssetManager implements ProjectChangeListener {
             continue;
           }
           else {
+            if (node.getName().equals("classes.jar")) {
+              extensions.add(node.getFileId().split("/")[2]);
+            }
             assetSetup(node);
           }
         }
@@ -171,39 +185,62 @@ public final class AssetManager implements ProjectChangeListener {
     return allow | allowAll;
   }
 
-  private void readIn(final AssetInfo assetInfo, final String formName) {
+  private void readIn(final AssetInfo assetInfo) {
     Ode.getInstance().getProjectService().loadraw2(projectId, assetInfo.fileId,
       new AsyncCallback<String>() {
         @Override
           public void onSuccess(String data) {
+            assetTransferProgress++;
             assetInfo.fileContent = Base64Util.decodeLines(data);
             assetInfo.loaded = false; // Set to true when it is loaded to the repl
             assetInfo.transferred = false; // Set to true when file is received on phone
-            refreshAssets1(formName);
+            refreshAssets1();
           }
         @Override
           public void onFailure(Throwable ex) {
-          OdeLog.elog("Failed to load asset.");
+          if (retryCount > 0) {
+            retryCount--;
+            readIn(assetInfo);
+          } else {
+            OdeLog.elog("Failed to load asset.");
+          }
         }
       });
   }
 
-  private void refreshAssets1(String formName, JavaScriptObject callback) {
+  private void refreshAssets1(JavaScriptObject callback) {
     assetsTransferredCallback = callback;
-    refreshAssets1(formName);
+    assetTransferProgress = 0;
+    refreshAssets1();
   }
 
-  private void refreshAssets1(String formName) {
-    if (DEBUG)
-      OdeLog.log("AssetManager: formName = " + formName);
+  private void refreshAssets1() {
     for (AssetInfo a : assets.values()) {
       if (!a.loaded) {
+        if (progress == null) {
+          progress = new ProgressBarDialogBox("AssetManager", project.getRootNode());
+          progress.setProgress(0, MESSAGES.startingAssetTransfer());
+          progress.showDismissButton();
+        } else if (!progress.isShowing() && progress.getProgressBarShow() < 2) {
+          progress.show();
+          progress.center();
+        }
         if (a.fileContent == null) { // Need to fetch it from the server
-          readIn(a, formName);       // Read it in asynchronously
+          retryCount = 3;
+          if (progress != null) {
+            progress.setProgress(100 * assetTransferProgress / (2 * assets.size()),
+                MESSAGES.loadingAsset(a.fileId));
+          }
+          readIn(a);       // Read it in asynchronously
           break;                     // we'll resume when we have it
         } else {
-          boolean didit = doPutAsset(formName, a.fileId, a.fileContent);
+          if (progress != null) {
+            progress.setProgress(100 * assetTransferProgress / (2 * assets.size()),
+                MESSAGES.sendingAssetToCompanion(a.fileId));
+          }
+          boolean didit = doPutAsset(a.fileId, a.fileContent);
           if (didit) {
+            assetTransferProgress++;
             a.loaded = true;
             a.fileContent = null; // Save memory
           }
@@ -216,10 +253,10 @@ public final class AssetManager implements ProjectChangeListener {
     }
   }
 
-  public static void refreshAssets(String formName, JavaScriptObject callback) {
+  public static void refreshAssets(JavaScriptObject callback) {
     if (INSTANCE == null)
       return;
-    INSTANCE.refreshAssets1(formName, callback);
+    INSTANCE.refreshAssets1(callback);
   }
 
   public static void reset(String formName) {
@@ -255,10 +292,30 @@ public final class AssetManager implements ProjectChangeListener {
         return true;
       }
     }
+    // Dismiss the progress bar if showing
+    if (progress != null && progress.isShowing()) {
+      progress.hide(true);
+    }
+    progress = null;
     // If we get here, then all assets have been transferred to the device
     // so we fire the assetsTransferredCallback
     doCallBack(assetsTransferredCallback);
+    // Dismiss the progress bar if showing
+    if (progress != null && progress.isShowing()) {
+      progress.hide(true);
+    }
+    progress = null;
     return  true;
+  }
+
+  public static JsArrayString getExtensionsToLoad() {
+    JsArrayString result = JsArrayString.createArray().cast();
+    if (INSTANCE != null) {
+      for (String s : INSTANCE.extensions) {
+        result.push(s);
+      }
+    }
+    return result;
   }
 
   @Override
@@ -290,19 +347,21 @@ public final class AssetManager implements ProjectChangeListener {
 
   private static native void exportMethodsToJavascript() /*-{
     $wnd.AssetManager_refreshAssets =
-      $entry(@com.google.appinventor.client.AssetManager::refreshAssets(Ljava/lang/String;Lcom/google/gwt/core/client/JavaScriptObject;));
+      $entry(@com.google.appinventor.client.AssetManager::refreshAssets(Lcom/google/gwt/core/client/JavaScriptObject;));
     $wnd.AssetManager_reset =
       $entry(@com.google.appinventor.client.AssetManager::reset(Ljava/lang/String;));
     $wnd.AssetManager_markAssetTransferred =
       $entry(@com.google.appinventor.client.AssetManager::markAssetTransferred(Ljava/lang/String;));
+    $wnd.AssetManager_getExtensions =
+      $entry(@com.google.appinventor.client.AssetManager::getExtensionsToLoad());
   }-*/;
 
-  private static native boolean doPutAsset(String formName, String filename, byte[] content) /*-{
-    return $wnd.Blocklies[formName].ReplMgr.putAsset(filename, content, function() { window.parent.AssetManager_markAssetTransferred(filename) });
+  private static native boolean doPutAsset(String filename, byte[] content) /*-{
+    return Blockly.ReplMgr.putAsset(filename, content, function() { window.parent.AssetManager_markAssetTransferred(filename) });
   }-*/;
 
   private static native void doCallBack(JavaScriptObject callback) /*-{
-    callback.call(null);
+    if (typeof callback === 'function') callback.call(null);
   }-*/;
 
 }

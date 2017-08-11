@@ -1,6 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2012 MIT, All rights reserved
+// Copyright 2011-2017 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -8,6 +8,7 @@ package com.google.appinventor.client.editor.youngandroid;
 
 import static com.google.appinventor.client.Ode.MESSAGES;
 
+import com.google.appinventor.client.ErrorReporter;
 import com.google.appinventor.client.Ode;
 import com.google.appinventor.client.OdeAsyncCallback;
 import com.google.appinventor.client.boxes.AssetListBox;
@@ -15,6 +16,7 @@ import com.google.appinventor.client.boxes.PaletteBox;
 import com.google.appinventor.client.boxes.PropertiesBox;
 import com.google.appinventor.client.boxes.SourceStructureBox;
 import com.google.appinventor.client.editor.ProjectEditor;
+import com.google.appinventor.client.editor.simple.ComponentNotFoundException;
 import com.google.appinventor.client.editor.simple.SimpleComponentDatabase;
 import com.google.appinventor.client.editor.simple.SimpleEditor;
 import com.google.appinventor.client.editor.simple.SimpleNonVisibleComponentsPanel;
@@ -53,6 +55,7 @@ import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.DockPanel;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -82,6 +85,9 @@ public final class YaFormEditor extends SimpleEditor implements FormChangeListen
       return content;
     }
   }
+
+  private static final String ERROR_EXISTING_UUID = "Component with UUID \"%1$s\" already exists.";
+  private static final String ERROR_NONEXISTENT_UUID = "No component exists with UUID \"%1$s\".";
 
   // JSON parser
   private static final JSONParser JSON_PARSER = new ClientJsonParser();
@@ -119,6 +125,11 @@ public final class YaFormEditor extends SimpleEditor implements FormChangeListen
   private final List<ComponentDatabaseChangeListener> componentDatabaseChangeListeners = new ArrayList<ComponentDatabaseChangeListener>();
   private JSONArray authURL;    // List of App Inventor versions we have been edited on.
 
+  /**
+   * A mapping of component UUIDs to mock components in the designer view.
+   */
+  private final Map<String, MockComponent> componentsDb = new HashMap<String, MockComponent>();
+
   private static final int OLD_PROJECT_YAV = 150; // Projects older then this have no authURL
 
   /**
@@ -139,9 +150,9 @@ public final class YaFormEditor extends SimpleEditor implements FormChangeListen
 
     // Create UI elements for the designer panels.
     nonVisibleComponentsPanel = new SimpleNonVisibleComponentsPanel();
-    addComponentDatabaseChangeListener(nonVisibleComponentsPanel);
+    componentDatabaseChangeListeners.add(nonVisibleComponentsPanel);
     visibleComponentsPanel = new SimpleVisibleComponentsPanel(this, nonVisibleComponentsPanel);
-    addComponentDatabaseChangeListener(visibleComponentsPanel);
+    componentDatabaseChangeListeners.add(visibleComponentsPanel);
     DockPanel componentsPanel = new DockPanel();
     componentsPanel.setHorizontalAlignment(DockPanel.ALIGN_CENTER);
     componentsPanel.add(visibleComponentsPanel, DockPanel.NORTH);
@@ -163,7 +174,7 @@ public final class YaFormEditor extends SimpleEditor implements FormChangeListen
       }
     });
     palettePanel.setSize("100%", "100%");
-    addComponentDatabaseChangeListener(palettePanel);
+    componentDatabaseChangeListeners.add(palettePanel);
 
     // Create designProperties, which will be used as the content of the PropertiesBox.
     designProperties = new PropertiesPanel();
@@ -192,7 +203,11 @@ public final class YaFormEditor extends SimpleEditor implements FormChangeListen
         upgradeFile(fileContentHolder, new Command() {
           @Override
           public void execute() {
-            onFileLoaded(fileContentHolder.getFileContent());
+            try {
+              onFileLoaded(fileContentHolder.getFileContent());
+            } catch(IllegalArgumentException e) {
+              return;
+            }
             if (afterFileLoaded != null) {
               afterFileLoaded.execute();
             }
@@ -483,7 +498,15 @@ public final class YaFormEditor extends SimpleEditor implements FormChangeListen
   private void onFileLoaded(String content) {
     JSONObject propertiesObject = YoungAndroidSourceAnalyzer.parseSourceFile(
         content, JSON_PARSER);
-    form = createMockForm(propertiesObject.getProperties().get("Properties").asObject());
+    try {
+      form = createMockForm(propertiesObject.getProperties().get("Properties").asObject());
+    } catch(ComponentNotFoundException e) {
+      Ode.getInstance().recordCorruptProject(getProjectId(), getProjectRootNode().getName(),
+          e.getMessage());
+      ErrorReporter.reportError(MESSAGES.noComponentFound(e.getComponentName(),
+          getProjectRootNode().getName()));
+      throw e;
+    }
 
     // Initialize the nonVisibleComponentsPanel and visibleComponentsPanel.
     nonVisibleComponentsPanel.setForm(form);
@@ -520,7 +543,8 @@ public final class YaFormEditor extends SimpleEditor implements FormChangeListen
       // Instantiate new root component
       mockComponent = new MockForm(this);
     } else {
-      mockComponent = SimpleComponentDescriptor.createMockComponent(componentType, this);
+      mockComponent = SimpleComponentDescriptor.createMockComponent(componentType,
+          COMPONENT_DATABASE.getComponentType(componentType), this);
 
       // Add the component to its parent component (and if it is non-visible, add it to the
       // nonVisibleComponent panel).
@@ -569,7 +593,7 @@ public final class YaFormEditor extends SimpleEditor implements FormChangeListen
   }
 
   @Override
-  public void getBlocksImage(Callback callback) {
+  public void getBlocksImage(Callback<String, String> callback) {
     YaProjectEditor yaProjectEditor = (YaProjectEditor) projectEditor;
     YaBlocksEditor blockEditor = yaProjectEditor.getBlocksFileEditor(formNode.getFormName());
     blockEditor.getBlocksImage(callback);
@@ -749,19 +773,7 @@ public final class YaFormEditor extends SimpleEditor implements FormChangeListen
   private void updatePhone() {
     YaProjectEditor yaProjectEditor = (YaProjectEditor) projectEditor;
     YaBlocksEditor blockEditor = yaProjectEditor.getBlocksFileEditor(formNode.getFormName());
-    blockEditor.onBlocksAreaChanged(getProjectId() + "_" + formNode.getFormName());
-  }
-
-  private void addComponentDatabaseChangeListener(ComponentDatabaseChangeListener cdbChangeListener) {
-    componentDatabaseChangeListeners.add(cdbChangeListener);
-  }
-
-  private void removeComponentDatabaseChangeListener(ComponentDatabaseChangeListener cdbChangeListener) {
-    componentDatabaseChangeListeners.remove(cdbChangeListener);
-  }
-
-  private void clearComponentDatabaseChangeListener() {
-    componentDatabaseChangeListeners.clear();
+    blockEditor.sendComponentData();
   }
 
   @Override

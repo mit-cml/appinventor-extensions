@@ -7,14 +7,16 @@
  */
 'use strict';
 
-goog.provide('Blockly.Msg.fr_fr');
+goog.provide('AI.Blockly.Msg.fr_fr');
+
+goog.require('Blockly.Msg.fr');
 
 /**
  * Due to the frequency of long strings, the 80-column wrap rule need not apply
  * to message files.
  */
 
-Blockly.Msg.fr_fr.switch_language_to_french = {
+Blockly.Msg.fr.switch_language_to_french = {
   // Switch language to French.
   category: '',
   helpUrl: '',
@@ -560,8 +562,18 @@ Blockly.Msg.fr_fr.switch_language_to_french = {
     Blockly.Msg.WARNING_DELETE_X_BLOCKS = 'Voulez-vous vraiment supprimer tous les %1 blocs ?';
     Blockly.Msg.WRONG_TYPE_BLOCK_WARINGS = 'Ce bloc doit être connecté à un bloc d\'évènement ou la définition d\'une procédure';
 
+    Blockly.Msg.TIME_YEARS = "Années";
+    Blockly.Msg.TIME_MONTHS = "Mois";
+    Blockly.Msg.TIME_WEEKS = "Semaines";
+    Blockly.Msg.TIME_DAYS = "Jours";
+    Blockly.Msg.TIME_HOURS = "Heures";
+    Blockly.Msg.TIME_MINUTES = "Minutes";
+    Blockly.Msg.TIME_SECONDS = "Secondes";
+    Blockly.Msg.TIME_DURATION = "Durée";
+
   }
 };
 
 // Initalize language definition to French
-Blockly.Msg.fr_fr.switch_language_to_french.init();
+Blockly.Msg.fr.switch_blockly_language_to_fr.init();
+Blockly.Msg.fr.switch_language_to_french.init();

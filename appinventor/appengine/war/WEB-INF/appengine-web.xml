@@ -5,18 +5,16 @@
 
   <!-- Configure serving/caching of GWT files -->
   <static-files>
-    <include path="/blockly-*.js" expiration="365d">
-      <http-header name="Content-Type" value="application/javascript; charset=UTF-8" />
-    </include>
     <include path="/fonts/*" expiration="365d">
       <http-header name="Content-Type" value="font/ttf" />
     </include>
-    <include path="/media/*" expiration="365d" />
+    <include path="/assets/*" />
+    <include path="/companions/*" />
     <include path="/images/*" expiration="365d" />
     <include path="/Ya_tos_form.html" expiration="1d" />
     <include path="/favicon.ico" expiration="365d" />
     <include path="/gwt.css" expiration="1d" />
-    <include path="/Ya.css" expiration="1d" />
+    <include path="/Ya.css" />
     <include path="/templates/**" expiration="1d" />
     <include path="/reference/**" expiration="1d" />
     <include path="/closure-library/closure/goog/base.js" expiration="1d" />

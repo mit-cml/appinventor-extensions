@@ -7,7 +7,6 @@
 package com.google.appinventor.client.editor.youngandroid.palette;
 
 import com.google.appinventor.client.ComponentsTranslation;
-import com.google.appinventor.client.TranslationDesignerPallete;
 import com.google.appinventor.client.editor.simple.SimpleComponentDatabase;
 import com.google.appinventor.client.editor.simple.components.MockComponent;
 import com.google.appinventor.client.editor.simple.components.utils.PropertiesUtil;
@@ -32,6 +31,8 @@ import com.google.gwt.user.client.ui.VerticalPanel;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import static com.google.appinventor.client.Ode.MESSAGES;
 
 /**
  * Panel showing Simple components which can be dropped onto the Young Android
@@ -79,8 +80,13 @@ public class YoungAndroidPalettePanel extends Composite implements SimplePalette
         VerticalPanel categoryPanel = new VerticalPanel();
         categoryPanel.setWidth("100%");
         categoryPanels.put(category, categoryPanel);
-        stackPalette.add(categoryPanel,
-            TranslationDesignerPallete.getCorrespondingString(category.getName()));
+        // The production version will not include a mapping for Extension because
+        // only compile-time categories are included. This allows us to i18n the
+        // Extension title for the palette.
+        String title = ComponentCategory.EXTENSION.equals(category) ?
+          MESSAGES.extensionComponentPallette() :
+          ComponentsTranslation.getCategoryName(category.getName());
+        stackPalette.add(categoryPanel, title);
       }
     }
 
@@ -143,6 +149,7 @@ public class YoungAndroidPalettePanel extends Composite implements SimplePalette
       removeComponent(componentTypeName);
     }
     String helpString = COMPONENT_DATABASE.getHelpString(componentTypeName);
+    String helpUrl = COMPONENT_DATABASE.getHelpUrl(componentTypeName);
     String categoryDocUrlString = COMPONENT_DATABASE.getCategoryDocUrlString(componentTypeName);
     String categoryString = COMPONENT_DATABASE.getCategoryString(componentTypeName);
     Boolean showOnPalette = COMPONENT_DATABASE.getShowOnPalette(componentTypeName);
@@ -151,7 +158,7 @@ public class YoungAndroidPalettePanel extends Composite implements SimplePalette
     ComponentCategory category = ComponentCategory.valueOf(categoryString);
     if (showOnPalette && showCategory(category)) {
       SimplePaletteItem item = new SimplePaletteItem(
-          new SimpleComponentDescriptor(componentTypeName, editor, helpString,
+          new SimpleComponentDescriptor(componentTypeName, editor, helpString, helpUrl,
               categoryDocUrlString, showOnPalette, nonVisible, external),
             dropTargetProvider);
       simplePaletteItems.put(componentTypeName, item);
@@ -186,7 +193,7 @@ public class YoungAndroidPalettePanel extends Composite implements SimplePalette
   }
 
   private void initExtensionPanel() {
-    Anchor addComponentAnchor = new Anchor("Import extension");
+    Anchor addComponentAnchor = new Anchor(MESSAGES.importExtensionMenuItem());
     addComponentAnchor.setStylePrimaryName("ode-ExtensionAnchor");
     addComponentAnchor.addClickHandler(new ClickHandler() {
       @Override
