@@ -22,11 +22,15 @@ git submodule init
 git submodule update --recursive --remote
 ```
 
-### Build and Run
+### Build and Run Server
 1. Compile project by `cd appinventor; ant clean && ant`.
 2. Run `dev_appserver.sh --address=0.0.0.0 --port=8888` to start server. 0.0.0.0 is a special address making the server listen to outer connections.
 3. Run `ant RunLocalBuildServer` in another console to enable APK compilation.
 4. Go to link `http://wtf.csie.org:8888/` (or addrs other than wtf.csie.org)
+
+### Build Extensions only
+1. Compile extensions by `cd appinventor; ant clean && ant extensions`.
+2. The .aix file should be located at `appinventor/components/build/extensions/YOUR.EXTENSION.aix`.
 
 ### Flash MT7697
 1. Clone repository `git clone git@github.com:MediaTek-Labs/mt76x7-uploader.git`.
