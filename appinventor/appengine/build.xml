@@ -497,6 +497,7 @@
       <arg line="-war"/>
       <arg value="${build.war.dir}"/>
       <arg line="-logLevel INFO -style pretty"/>
+      <arg line="-localWorkers 4"/>  <!-- run in 4 workers to speed up compilation -->
       <arg value="com.google.appinventor.YaClient"/>
     </java>
   </target>
