@@ -10,6 +10,20 @@
 * Before making new commits, `git diff --staged` to check if modifications are proper.
 * `grep` is your friend to locate files.
 
+### Road Map
+
+* MT7697 extension for AI2
+
+Sources are located under `appinventor/components/src/edu/mit/appinventor/iot/mt7697/`. It's a clone of Arduino 101 extension with some modifications.
+
+* (Arduino based) MT7697 driving code
+
+We'll create it from scratch under `arduino-sources`. The Arduino 101 code in `arduino-sources/AIM-for-Things-Arduino101` is taken as the reference implementation.
+
+* Device Connectivity
+
+Android phone communicates with MT7697 over GATT protocol. MT7697 behaves as a peripheral device, while the Android phone, the central device, connects to it to retrieve data.
+
 ## Build & Test
 
 ### Get sources
