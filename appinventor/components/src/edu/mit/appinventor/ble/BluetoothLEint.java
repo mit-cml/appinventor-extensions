@@ -1509,17 +1509,20 @@ final class BluetoothLEint {
 
         if (btAdapter != null) {
           mBluetoothLeDeviceScanner = btAdapter.getBluetoothLeScanner();
+
+          if (mBluetoothLeDeviceScanner != null) {
           
-          ScanSettings settings = new ScanSettings.Builder()
+            ScanSettings settings = new ScanSettings.Builder()
               .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
               .build();
 
-          List<ScanFilter> filters = new ArrayList<ScanFilter>();
-          ScanFilter filter = new ScanFilter.Builder().build();
-          filters.add(filter);
+            List<ScanFilter> filters = new ArrayList<ScanFilter>();
+            ScanFilter filter = new ScanFilter.Builder().build();
+            filters.add(filter);
 
-          mBluetoothLeDeviceScanner.startScan(filters, settings, mDeviceScanCallback);
-          Log.i(LOG_TAG, "StartScanning successful.");
+            mBluetoothLeDeviceScanner.startScan(filters, settings, mDeviceScanCallback);
+            Log.i(LOG_TAG, "StartScanning successful.");
+          }
         }
 
         return null;
