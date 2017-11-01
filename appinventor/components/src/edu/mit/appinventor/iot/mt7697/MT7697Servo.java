@@ -15,6 +15,10 @@ import com.google.appinventor.components.runtime.EventDispatcher;
 import com.google.appinventor.components.runtime.Form;
 import edu.mit.appinventor.ble.BluetoothLE.BLEResponseHandler;
 
+import static edu.mit.appinventor.iot.mt7697.Constants.SERVO_SERVICE_UUID;
+import static edu.mit.appinventor.iot.mt7697.Constants.SERVO_POSITION_CHARACTERISTIC_UUID;
+import static edu.mit.appinventor.iot.mt7697.Constants.SERVO_POSITION_MICROS_CHARACTERISTIC_UUID;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -37,12 +41,6 @@ import java.util.List;
                    iconName = "aiwebres/mt7697.png")
 @SimpleObject(external = true)
 public class MT7697Servo extends MT7697ExtensionBase {
-  private static final String SERVO_SERVICE_UUID = "E95D0C00-251D-470A-A062-FA1922DFA9A7";
-  private static final String SERVO_POSITION_CHARACTERISTIC_UUID =
-    "E95D0C01-251D-470A-A062-FA1922DFA9A7";
-  private static final String SERVO_POSITION_MICROS_CHARACTERISTIC_UUID =
-    "E95D0C02-251D-470A-A062-FA1922DFA9A7";
-
   private final BLEResponseHandler<Integer> positionWritten =
     new BLEResponseHandler<Integer>() {
       @Override

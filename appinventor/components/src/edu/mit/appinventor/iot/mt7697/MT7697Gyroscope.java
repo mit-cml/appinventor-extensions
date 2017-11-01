@@ -12,6 +12,9 @@ import com.google.appinventor.components.runtime.EventDispatcher;
 import com.google.appinventor.components.runtime.Form;
 import edu.mit.appinventor.ble.BluetoothLE;
 
+import static edu.mit.appinventor.iot.mt7697.Constants.GYROSCOPE_SERVICE_UUID;
+import static edu.mit.appinventor.iot.mt7697.Constants.GYROSCOPE_DATA_CHARACTERISTIC_UUID;
+
 import java.util.List;
 
 /**
@@ -32,9 +35,6 @@ import java.util.List;
                    iconName = "aiwebres/mt7697.png")
 @SimpleObject(external = true)
 public class MT7697Gyroscope extends MT7697ExtensionBase {
-  private static final String GYROSCOPE_SERVICE_UUID = "E95D0500-251D-470A-A062-FA1922DFA9A7";
-  private static final String GYROSCOPE_DATA_CHARACTERISTIC_UUID = "E95D0501-251D-470A-A062-FA1922DFA9A7";
-
   private final BluetoothLE.BLEResponseHandler<Float> gyroscopeDataHandler =
     new BluetoothLE.BLEResponseHandler<Float>() {
       @Override

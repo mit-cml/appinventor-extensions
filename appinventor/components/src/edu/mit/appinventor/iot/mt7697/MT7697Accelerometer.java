@@ -12,6 +12,9 @@ import com.google.appinventor.components.runtime.EventDispatcher;
 import com.google.appinventor.components.runtime.Form;
 import edu.mit.appinventor.ble.BluetoothLE;
 
+import static edu.mit.appinventor.iot.mt7697.Constants.ACCELEROMETER_SERVICE_UUID;
+import static edu.mit.appinventor.iot.mt7697.Constants.ACCELEROMETER_DATA_CHARACTERISTIC_UUID;
+
 import java.util.List;
 
 /**
@@ -32,9 +35,6 @@ import java.util.List;
                    iconName = "aiwebres/mt7697.png")
 @SimpleObject(external = true)
 public class MT7697Accelerometer extends MT7697ExtensionBase {
-  private static final String ACCELEROMETER_SERVICE_UUID = "E95D0100-251D-470A-A062-FA1922DFA9A7";
-  private static final String ACCELEROMETER_DATA_CHARACTERISTIC_UUID = "E95D0101-251D-470A-A062-FA1922DFA9A7";
-
   private final BluetoothLE.BLEResponseHandler<Float> accelerometerDataHandler =
     new BluetoothLE.BLEResponseHandler<Float>() {
       @Override
@@ -124,7 +124,8 @@ public class MT7697Accelerometer extends MT7697ExtensionBase {
    * @param Accelerometer_Z The Z value of the accelerometer, in G.
    */
   @SimpleEvent
-  public void AccelerometerDataReceived(final float Accelerometer_X, final float Accelerometer_Y,
+  public void AccelerometerDataReceived(final float Accelerometer_X,
+                                        final float Accelerometer_Y,
                                         final float Accelerometer_Z) {
     EventDispatcher.dispatchEvent(this,
                                   "AccelerometerDataReceived",

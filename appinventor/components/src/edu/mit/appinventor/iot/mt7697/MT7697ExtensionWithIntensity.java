@@ -45,8 +45,8 @@ public abstract class MT7697ExtensionWithIntensity extends MT7697ExtensionBase {
   }
 
   @SimpleProperty(description = "Get whether the device attached to the MT7697 is turned on." +
-      " This is a best guess approximation given the connected state of the Bluetooth low energy " +
-      "component and previous calls to TurnOn and TurnOff.")
+                                " This is a best guess approximation given the connected state of the Bluetooth low energy " +
+                                "component and previous calls to TurnOn and TurnOff.")
   public boolean On() {
     return on;
   }

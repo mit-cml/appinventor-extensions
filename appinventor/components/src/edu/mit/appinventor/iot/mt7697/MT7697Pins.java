@@ -15,6 +15,12 @@ import com.google.appinventor.components.runtime.EventDispatcher;
 import com.google.appinventor.components.runtime.Form;
 import edu.mit.appinventor.ble.BluetoothLE.BLEResponseHandler;
 
+import static edu.mit.appinventor.iot.mt7697.Constants.PIN_SERVICE;
+import static edu.mit.appinventor.iot.mt7697.Constants.ANALOG_PIN_CHARACTERISTIC;
+import static edu.mit.appinventor.iot.mt7697.Constants.DIGITAL_PIN_CHARACTERISTIC;
+import static edu.mit.appinventor.iot.mt7697.Constants.PIN_MODE_CHARACTERISTIC;
+import static edu.mit.appinventor.iot.mt7697.Constants.PIN_WRITE_CHARACTERISTIC;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -25,28 +31,14 @@ import java.util.List;
  * @author jerry73204@gmail.com (Hsiang-Jui Lin)
  */
 @DesignerComponent(version = 1,
-    description = "The MT7697Pins extension provides a general purpose interface to any " +
-        "hardware connected to the Arduino's digital or analog I/O pins."
-        /* removed until an example is made
-        + "<!--<br>\n\n<strong>More " +
-        "links</strong><ul><li>Download a <a " +
-        "href='http://iot.appinventor.mit.edu/assets/samples/MT7697Pins.aia' " +
-        "target='_blank'>sample project</a> for the MT7697 Pins.</li><li>View the <a " +
-        "href='http://iot.appinventor.mit.edu/assets/howtos/MIT_App_Inventor_IoT_Pins.pdf' " +
-        "target='_blank'>how to instructions</a> for the MT7697 Pins extension.</li></ul>-->"
-        */,
-    category = ComponentCategory.EXTENSION,
-    helpUrl = "http://iot.appinventor.mit.edu/#/arduino101/arduinopins",
-    nonVisible = true,
-    iconName = "aiwebres/mt7697.png")
+                   description = "The MT7697Pins extension provides a general purpose interface to any " +
+                                 "hardware connected to the Arduino's digital or analog I/O pins.",
+                   category = ComponentCategory.EXTENSION,
+                   helpUrl = "http://iot.appinventor.mit.edu/#/arduino101/arduinopins",
+                   nonVisible = true,
+                   iconName = "aiwebres/mt7697.png")
 @SimpleObject(external = true)
 public class MT7697Pins extends MT7697ExtensionBase {
-  public static final String PIN_SERVICE = "a56ada00-ed09-11e5-9c97-0002a5d5c51b";
-  public static final String ANALOG_PIN_CHARACTERISTIC = "a56ada02-ed09-11e5-9c97-0002a5d5c51b";
-  public static final String DIGITAL_PIN_CHARACTERISTIC = "a56ada03-ed09-11e5-9c97-0002a5d5c51b";
-  public static final String PIN_MODE_CHARACTERISTIC = "a56ada04-ed09-11e5-9c97-0002a5d5c51b";
-  public static final String PIN_WRITE_CHARACTERISTIC = "a56ada05-ed09-11e5-9c97-0002a5d5c51b";
-
   private int pin;
   private boolean analog;
   private boolean output;
@@ -89,12 +81,13 @@ public class MT7697Pins extends MT7697ExtensionBase {
   @Override
   @SimpleFunction
   public boolean IsSupported() {
-    return bleConnection != null && bleConnection.isCharacteristicPublished(PIN_SERVICE,
-        PIN_MODE_CHARACTERISTIC);
+    return bleConnection != null &&
+      bleConnection.isCharacteristicPublished(PIN_SERVICE,
+                                              PIN_MODE_CHARACTERISTIC);
   }
 
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_NON_NEGATIVE_INTEGER,
-      defaultValue = "0")
+                    defaultValue = "0")
   @SimpleProperty
   public void Pin(int pin) {
     this.pin = pin;
@@ -106,7 +99,7 @@ public class MT7697Pins extends MT7697ExtensionBase {
   }
 
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN,
-      defaultValue = "false")
+                    defaultValue = "false")
   @SimpleProperty
   public void Analog(boolean analog) {
     this.analog = analog;
@@ -119,16 +112,16 @@ public class MT7697Pins extends MT7697ExtensionBase {
   }
 
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN,
-      defaultValue = "false")
+                    defaultValue = "false")
   @SimpleProperty
   public void Output(boolean output) {
     this.output = output;
   }
 
   @SimpleProperty(description = "Set or get whether the pin is an input or output pin. This only " +
-      "applies to digital pins. Analog pins are read-only. See the <a " +
-      "href=\"#/component/arduinopwm\">MT7697 PWM</a> extension for treating digital pins " +
-      "as 'analog' outputs. Default: input (false).")
+                                "applies to digital pins. Analog pins are read-only. See the <a " +
+                                "href=\"#/component/arduinopwm\">MT7697 PWM</a> extension for treating digital pins " +
+                                "as 'analog' outputs. Default: input (false).")
   public boolean Output() {
     return output;
   }
@@ -141,7 +134,10 @@ public class MT7697Pins extends MT7697ExtensionBase {
   public void ReadPinState() {
     if (isConnected() && !reading) {
       reading = true;
-      bleConnection.ExReadByteValues(PIN_SERVICE, analog? ANALOG_PIN_CHARACTERISTIC : DIGITAL_PIN_CHARACTERISTIC, false, stateHandler);
+      bleConnection.ExReadByteValues(PIN_SERVICE,
+                                     analog ? ANALOG_PIN_CHARACTERISTIC : DIGITAL_PIN_CHARACTERISTIC,
+                                     false,
+                                     stateHandler);
     }
   }
 

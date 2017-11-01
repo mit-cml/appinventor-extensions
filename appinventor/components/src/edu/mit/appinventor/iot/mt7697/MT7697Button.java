@@ -12,6 +12,10 @@ import com.google.appinventor.components.runtime.EventDispatcher;
 import com.google.appinventor.components.runtime.Form;
 import edu.mit.appinventor.ble.BluetoothLE;
 
+import static edu.mit.appinventor.iot.mt7697.Constants.BUTTON_SERVICE_UUID;
+import static edu.mit.appinventor.iot.mt7697.Constants.BUTTON_PIN_CHARACTERISTIC_UUID;
+import static edu.mit.appinventor.iot.mt7697.Constants.BUTTON_DATA_CHARACTERISTIC_UUID;
+
 import java.util.List;
 
 /**
@@ -34,10 +38,6 @@ import java.util.List;
                    iconName = "aiwebres/mt7697.png")
 @SimpleObject(external = true)
 public class MT7697Button extends MT7697ExtensionWithPin<MT7697Button> {
-  private static final String BUTTON_SERVICE_UUID = "E95D0200-251D-470A-A062-FA1922DFA9A7";
-  private static final String BUTTON_PIN_CHARACTERISTIC_UUID = "E95D0201-251D-470A-A062-FA1922DFA9A7";
-  private static final String BUTTON_DATA_CHARACTERISTIC_UUID = "E95D0202-251D-470A-A062-FA1922DFA9A7";
-
   private static final byte[] BITS = new byte[] {
       -128, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01
   };

@@ -12,6 +12,11 @@ import com.google.appinventor.components.common.ComponentCategory;
 import com.google.appinventor.components.common.PropertyTypeConstants;
 import com.google.appinventor.components.runtime.Form;
 
+import static edu.mit.appinventor.iot.mt7697.Constants.SOUND_RECORDER_SERVICE;
+import static edu.mit.appinventor.iot.mt7697.Constants.SOUND_RECORDER_PINS_CHARACTERISTIC;
+import static edu.mit.appinventor.iot.mt7697.Constants.SOUND_RECORDER_RECORD_CHARACTERISTIC;
+import static edu.mit.appinventor.iot.mt7697.Constants.SOUND_RECORDER_PLAYBACK_CHARACTERISTIC;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,24 +26,19 @@ import java.util.List;
  * @author jerry73204@gmail.com (Hsiang-Jui Lin)
  */
 @DesignerComponent(version = 1,
-    description = "The MT7697 Sound Recorder extension lets users control a sound recorder " +
-        "and playback device connected to a Grove Shield.<br>\n\n<strong>More Links</strong><ul>" +
-        "<li>Download a <a " +
-        "href='http://iot.appinventor.mit.edu/assets/samples/MT7697SoundRecorder.aia' " +
-        "target='_blank'>sample project</a>.</li><li>Vew the <a " +
-        "href='http://iot.appinventor.mit.edu/assets/howtos/MIT_App_Inventor_IoT_Sound_Recorder.pdf' " +
-        "target='_blank'>how to instructions</a> for the MT7697 Sound Recorder.</li></ul>",
-    category = ComponentCategory.EXTENSION,
-    helpUrl = "http://iot.appinventor.mit.edu/#/arduino101/arduinosoundrecorder",
-    nonVisible = true,
-    iconName = "aiwebres/mt7697.png")
+                   description = "The MT7697 Sound Recorder extension lets users control a sound recorder " +
+                                  "and playback device connected to a Grove Shield.<br>\n\n<strong>More Links</strong><ul>" +
+                                  "<li>Download a <a " +
+                                  "href='http://iot.appinventor.mit.edu/assets/samples/MT7697SoundRecorder.aia' " +
+                                  "target='_blank'>sample project</a>.</li><li>Vew the <a " +
+                                  "href='http://iot.appinventor.mit.edu/assets/howtos/MIT_App_Inventor_IoT_Sound_Recorder.pdf' " +
+                                  "target='_blank'>how to instructions</a> for the MT7697 Sound Recorder.</li></ul>",
+                   category = ComponentCategory.EXTENSION,
+                   helpUrl = "http://iot.appinventor.mit.edu/#/arduino101/arduinosoundrecorder",
+                   nonVisible = true,
+                   iconName = "aiwebres/mt7697.png")
 @SimpleObject(external = true)
 public class MT7697SoundRecorder extends MT7697ExtensionWithSerialTTL {
-  private static final String SOUND_RECORDER_SERVICE = "E95D0D00-251D-470A-A062-FA1922DFA9A7";
-  private static final String SOUND_RECORDER_PINS_CHARACTERISTIC = "E95D0D01-251D-470A-A062-FA1922DFA9A7";
-  private static final String SOUND_RECORDER_RECORD_CHARACTERISTIC = "E95D0D02-251D-470A-A062-FA1922DFA9A7";
-  private static final String SOUND_RECORDER_PLAYBACK_CHARACTERISTIC = "E95D0D03-251D-470A-A062-FA1922DFA9A7";
-
   public MT7697SoundRecorder(Form form) {
     super(form);
   }

@@ -12,6 +12,12 @@ import com.google.appinventor.components.runtime.EventDispatcher;
 import com.google.appinventor.components.runtime.Form;
 import edu.mit.appinventor.ble.BluetoothLE;
 
+
+import static edu.mit.appinventor.iot.mt7697.Constants.RGBLCD_SERVICE_UUID;
+import static edu.mit.appinventor.iot.mt7697.Constants.RGBLCD_BACKGROUND_UUID;
+import static edu.mit.appinventor.iot.mt7697.Constants.RGBLCD_TEXT1_UUID;
+import static edu.mit.appinventor.iot.mt7697.Constants.RGBLCD_TEXT2_UUID;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -22,27 +28,23 @@ import java.util.List;
  * @author jerry73204@gmail.com (Hsiang-Jui Lin)
  */
 @DesignerComponent(version = 1,
-    description = "The MT7697 RGB LCD lets users communicate information on a liquid crystal " +
-        "display (LCD) with optional RGB LED backlight.<br>" +
-        "<img src='/assets/sensors/Grove-RGBLCD.jpg' width='50%'><br>" +
-        "<strong>Note:</strong> The RGB LCD display requires 5V power rather than 3.3V. If you are" +
-        "connecting it with the Grove Shield, you will need to make sure the voltage switch is in " +
-        "the 5V position otherwise the display may not function correctly.<br>\n\n<strong>More " +
-        "Links</strong><ul><li>Download a <a " +
-        "href='http://iot.appinventor.mit.edu/assets/samples/MT7697RgbLcd.aia' " +
-        "target='_blank'>sample project</a> for the .</li><li>View the <a " +
-        "href='http://iot.appinventor.mit.edu/assets/howtos/MIT_App_Inventor_IoT_RgbLcd.pdf' " +
-        "target='_blank'>how to instructions</a> for the RGB LCD.</li></ul>",
-    category = ComponentCategory.EXTENSION,
-    helpUrl = "http://iot.appinventor.mit.edu/#/arduino101/arduinorgblcd",
-    nonVisible = true,
-    iconName = "aiwebres/mt7697.png")
+                   description = "The MT7697 RGB LCD lets users communicate information on a liquid crystal " +
+                                 "display (LCD) with optional RGB LED backlight.<br>" +
+                                 "<img src='/assets/sensors/Grove-RGBLCD.jpg' width='50%'><br>" +
+                                 "<strong>Note:</strong> The RGB LCD display requires 5V power rather than 3.3V. If you are" +
+                                 "connecting it with the Grove Shield, you will need to make sure the voltage switch is in " +
+                                 "the 5V position otherwise the display may not function correctly.<br>\n\n<strong>More " +
+                                 "Links</strong><ul><li>Download a <a " +
+                                 "href='http://iot.appinventor.mit.edu/assets/samples/MT7697RgbLcd.aia' " +
+                                 "target='_blank'>sample project</a> for the .</li><li>View the <a " +
+                                 "href='http://iot.appinventor.mit.edu/assets/howtos/MIT_App_Inventor_IoT_RgbLcd.pdf' " +
+                                 "target='_blank'>how to instructions</a> for the RGB LCD.</li></ul>",
+                   category = ComponentCategory.EXTENSION,
+                   helpUrl = "http://iot.appinventor.mit.edu/#/arduino101/arduinorgblcd",
+                   nonVisible = true,
+                   iconName = "aiwebres/mt7697.png")
 @SimpleObject(external = true)
 public class MT7697RgbLcd extends MT7697ExtensionBase {
-  private static final String RGBLCD_SERVICE_UUID = "E95D0B00-251D-470A-A062-FA1922DFA9A7";
-  private static final String RGBLCD_BACKGROUND_UUID = "E95D0B01-251D-470A-A062-FA1922DFA9A7";
-  private static final String RGBLCD_TEXT1_UUID = "E95D0B02-251D-470A-A062-FA1922DFA9A7";
-  private static final String RGBLCD_TEXT2_UUID = "E95D0B03-251D-470A-A062-FA1922DFA9A7";
   private static final int MAX_PACKET_LENGTH = 23;
   private static final String[] UUIDS = {
       RGBLCD_TEXT1_UUID,
@@ -89,8 +91,8 @@ public class MT7697RgbLcd extends MT7697ExtensionBase {
   @Override
   @SimpleFunction
   public boolean IsSupported() {
-    return bleConnection != null && bleConnection.isCharacteristicPublished(RGBLCD_SERVICE_UUID,
-        RGBLCD_TEXT1_UUID);
+    return bleConnection != null &&
+      bleConnection.isCharacteristicPublished(RGBLCD_SERVICE_UUID, RGBLCD_TEXT1_UUID);
   }
 
   /**
@@ -100,8 +102,10 @@ public class MT7697RgbLcd extends MT7697ExtensionBase {
   @SimpleFunction
   public void GetBackgroundColor() {
     if (bleConnection != null) {
-      bleConnection.ExReadIntegerValues(RGBLCD_SERVICE_UUID, RGBLCD_BACKGROUND_UUID, true,
-          rgbLcdBackgroundHandler);
+      bleConnection.ExReadIntegerValues(RGBLCD_SERVICE_UUID,
+                                        RGBLCD_BACKGROUND_UUID,
+                                        true,
+                                        rgbLcdBackgroundHandler);
     }
   }
 
@@ -122,8 +126,10 @@ public class MT7697RgbLcd extends MT7697ExtensionBase {
   @SimpleFunction
   public void SetBackgroundColor(int color) {
     if (bleConnection != null) {
-      bleConnection.ExWriteIntegerValues(RGBLCD_SERVICE_UUID, RGBLCD_BACKGROUND_UUID, true,
-          color);
+      bleConnection.ExWriteIntegerValues(RGBLCD_SERVICE_UUID,
+                                         RGBLCD_BACKGROUND_UUID,
+                                         true,
+                                         color);
     }
   }
 
@@ -134,10 +140,14 @@ public class MT7697RgbLcd extends MT7697ExtensionBase {
   @SimpleFunction
   public void GetText() {
     if (bleConnection != null) {
-      bleConnection.ExReadStringValues(RGBLCD_SERVICE_UUID, RGBLCD_TEXT1_UUID, false,
-          rgbLcdTextHandler);
-      bleConnection.ExReadStringValues(RGBLCD_SERVICE_UUID, RGBLCD_TEXT2_UUID, false,
-          rgbLcdTextHandler);
+      bleConnection.ExReadStringValues(RGBLCD_SERVICE_UUID,
+                                       RGBLCD_TEXT1_UUID,
+                                       false,
+                                       rgbLcdTextHandler);
+      bleConnection.ExReadStringValues(RGBLCD_SERVICE_UUID,
+                                       RGBLCD_TEXT2_UUID,
+                                       false,
+                                       rgbLcdTextHandler);
     }
   }
 

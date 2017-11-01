@@ -13,6 +13,10 @@ import com.google.appinventor.components.runtime.Form;
 import edu.mit.appinventor.ble.BluetoothLE;
 import edu.mit.appinventor.ble.BluetoothLE.BLEResponseHandler;
 
+import static edu.mit.appinventor.iot.mt7697.Constants.LIGHT_SENSOR_SERVICE_UUID;
+import static edu.mit.appinventor.iot.mt7697.Constants.LIGHT_SENSOR_PIN_CHARACTERISTIC_UUID;
+import static edu.mit.appinventor.iot.mt7697.Constants.LIGHT_SENSOR_DATA_CHARACTERISTIC_UUID;
+
 import java.util.List;
 
 /**
@@ -21,25 +25,19 @@ import java.util.List;
  * @author jerry73204@gmail.com (Hsiang-Jui Lin)
  */
 @DesignerComponent(version = 1,
-    description = "The MT7697 Light Sensor component lets users receive data from a light " +
-        "sensor attached to the Arduino, however it can be used for any similar device that " +
-        "provides a linear analog signal based on some external phenomenon.<br>\n\n<strong>" +
-        "More Links</strong><ul><li>Download a <a " +
-        "href='http://iot.appinventor.mit.edu/assets/samples/MT7697LightSensor.aia' " +
-        "target='_blank'>sample project</a></li><li>View the <a " +
-        "href='http://iot.appinventor.mit.edu/assets/howtos/MIT_App_Inventor_IoT_Light_Sensor.pdf' " +
-        "target='_blank'>how to instructions</a> for the MT7697 Light Sensor.</li></ul>",
-    category = ComponentCategory.EXTENSION,
-    nonVisible = true,
-    iconName = "aiwebres/mt7697.png")
+                   description = "The MT7697 Light Sensor component lets users receive data from a light " +
+                                 "sensor attached to the Arduino, however it can be used for any similar device that " +
+                                 "provides a linear analog signal based on some external phenomenon.<br>\n\n<strong>" +
+                                 "More Links</strong><ul><li>Download a <a " +
+                                 "href='http://iot.appinventor.mit.edu/assets/samples/MT7697LightSensor.aia' " +
+                                 "target='_blank'>sample project</a></li><li>View the <a " +
+                                 "href='http://iot.appinventor.mit.edu/assets/howtos/MIT_App_Inventor_IoT_Light_Sensor.pdf' " +
+                                 "target='_blank'>how to instructions</a> for the MT7697 Light Sensor.</li></ul>",
+                   category = ComponentCategory.EXTENSION,
+                   nonVisible = true,
+                   iconName = "aiwebres/mt7697.png")
 @SimpleObject(external = true)
 public class MT7697LightSensor extends MT7697ExtensionWithPin<MT7697LightSensor> {
-  private static final String LIGHT_SENSOR_SERVICE_UUID = "E95D0E00-251D-470A-A062-FA1922DFA9A7";
-  private static final String LIGHT_SENSOR_PIN_CHARACTERISTIC_UUID =
-      "E95D0E01-251D-470A-A062-FA1922DFA9A7";
-  private static final String LIGHT_SENSOR_DATA_CHARACTERISTIC_UUID =
-      "E95D0E02-251D-470A-A062-FA1922DFA9A7";
-
   private final BluetoothLE.BLEResponseHandler<Integer> lightSensorDataHandler =
       new BLEResponseHandler<Integer>() {
         @Override
@@ -61,7 +59,9 @@ public class MT7697LightSensor extends MT7697ExtensionWithPin<MT7697LightSensor>
   public void ReadLightSensor() {
     if (bleConnection != null) {
       bleConnection.ExReadByteValues(LIGHT_SENSOR_SERVICE_UUID,
-          LIGHT_SENSOR_DATA_CHARACTERISTIC_UUID, false, lightSensorDataHandler);
+                                     LIGHT_SENSOR_DATA_CHARACTERISTIC_UUID,
+                                     false,
+                                     lightSensorDataHandler);
     }
   }
 
@@ -74,7 +74,9 @@ public class MT7697LightSensor extends MT7697ExtensionWithPin<MT7697LightSensor>
   public void RequestLightSensorUpdates() {
     if (bleConnection != null) {
       bleConnection.ExRegisterForByteValues(LIGHT_SENSOR_SERVICE_UUID,
-          LIGHT_SENSOR_DATA_CHARACTERISTIC_UUID, false, lightSensorDataHandler);
+                                            LIGHT_SENSOR_DATA_CHARACTERISTIC_UUID,
+                                            false,
+                                            lightSensorDataHandler);
     }
   }
 
@@ -88,7 +90,8 @@ public class MT7697LightSensor extends MT7697ExtensionWithPin<MT7697LightSensor>
   public void StopLightSensorUpdates() {
     if (bleConnection != null) {
       bleConnection.ExUnregisterForValues(LIGHT_SENSOR_SERVICE_UUID,
-          LIGHT_SENSOR_DATA_CHARACTERISTIC_UUID, lightSensorDataHandler);
+                                          LIGHT_SENSOR_DATA_CHARACTERISTIC_UUID,
+                                          lightSensorDataHandler);
     }
   }
 

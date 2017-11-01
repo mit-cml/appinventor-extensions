@@ -12,6 +12,10 @@ import com.google.appinventor.components.runtime.EventDispatcher;
 import com.google.appinventor.components.runtime.Form;
 import edu.mit.appinventor.ble.BluetoothLE;
 
+import static edu.mit.appinventor.iot.mt7697.Constants.PROXIMITY_SERVICE_UUID;
+import static edu.mit.appinventor.iot.mt7697.Constants.PROXIMITY_PIN_CHARACTERISTIC_UUID;
+import static edu.mit.appinventor.iot.mt7697.Constants.PROXIMITY_DATA_CHARACTERISTIC_UUID;
+
 import java.util.List;
 
 /**
@@ -21,29 +25,25 @@ import java.util.List;
  * @author jerry73204@gmail.com (Hsiang-Jui Lin)
  */
 @DesignerComponent(version = 1,
-    description = "The MT7697 Proximity Sensor lets users receive data from a infrared " +
-        "proximity sensor. Note that the signal wire on the Grove header may be off by one pin. " +
-        "If you are not receiving any reading from the sensor, you may need to increase the pin " +
-        "number by one (A0 becomes A1) to read the correct pin. The Arduino sketch transforms " +
-        "the raw reading from the sensor into a distance in centimeters based on the spec sheet " +
-        "published by Sharp.<br><img src='/assets/sensors/Grove-InfraredProxSensor.jpg' " +
-        "width='50%'><br>\n\n<strong>More Links</strong><ul><li>Download a <a " +
-        "href='http://iot.appinventor.mit.edu/assets/samples/MT7697ProximitySensor.aia' " +
-        "target='_blank'>sample project</a> for the MT7697 Proximity Sensor.</li><li>View the <a " +
-        "href='http://iot.appinventor.mit.edu/assets/howtos/MIT_App_Inventor_IoT_Proximity_Sensor.pdf' " +
-        "target='_blank'>how to instructions</a> for the MT7697 Proximity Sensor.</li><li>" +
-        "View the <a href='http://iot.appinventor.mit.edu/assets/GP2Y0A21YK.pdf' " +
-        "target='_blank'>hardware data sheet</a>.</li></ul>",
-    category = ComponentCategory.EXTENSION,
-    helpUrl = "http://iot.appinventor.mit.edu/#/arduino101/arduinoproximitysensor",
-    nonVisible = true,
-    iconName = "aiwebres/mt7697.png")
+                   description = "The MT7697 Proximity Sensor lets users receive data from a infrared " +
+                                 "proximity sensor. Note that the signal wire on the Grove header may be off by one pin. " +
+                                 "If you are not receiving any reading from the sensor, you may need to increase the pin " +
+                                 "number by one (A0 becomes A1) to read the correct pin. The Arduino sketch transforms " +
+                                 "the raw reading from the sensor into a distance in centimeters based on the spec sheet " +
+                                 "published by Sharp.<br><img src='/assets/sensors/Grove-InfraredProxSensor.jpg' " +
+                                 "width='50%'><br>\n\n<strong>More Links</strong><ul><li>Download a <a " +
+                                 "href='http://iot.appinventor.mit.edu/assets/samples/MT7697ProximitySensor.aia' " +
+                                 "target='_blank'>sample project</a> for the MT7697 Proximity Sensor.</li><li>View the <a " +
+                                 "href='http://iot.appinventor.mit.edu/assets/howtos/MIT_App_Inventor_IoT_Proximity_Sensor.pdf' " +
+                                 "target='_blank'>how to instructions</a> for the MT7697 Proximity Sensor.</li><li>" +
+                                 "View the <a href='http://iot.appinventor.mit.edu/assets/GP2Y0A21YK.pdf' " +
+                                 "target='_blank'>hardware data sheet</a>.</li></ul>",
+                   category = ComponentCategory.EXTENSION,
+                   helpUrl = "http://iot.appinventor.mit.edu/#/arduino101/arduinoproximitysensor",
+                   nonVisible = true,
+                   iconName = "aiwebres/mt7697.png")
 @SimpleObject(external = true)
 public class MT7697ProximitySensor extends MT7697ExtensionWithPin {
-  private static final String PROXIMITY_SERVICE_UUID = "E95D0A00-251D-470A-A062-FA1922DFA9A7";
-  private static final String PROXIMITY_PIN_CHARACTERISTIC_UUID = "E95D0A01-251D-470A-A062-FA1922DFA9A7";
-  private static final String PROXIMITY_DATA_CHARACTERISTIC_UUID = "E95D0A02-251D-470A-A062-FA1922DFA9A7";
-
   private final BluetoothLE.BLEResponseHandler<Integer> proximityDataHandler =
       new BluetoothLE.BLEResponseHandler<Integer>() {
         @Override

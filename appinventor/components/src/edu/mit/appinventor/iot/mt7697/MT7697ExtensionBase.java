@@ -46,7 +46,7 @@ public abstract class MT7697ExtensionBase extends AndroidNonvisibleComponent {
    * @return The BluetoothLE connection used to talk to the micro:bit device.
    */
   @SimpleProperty(description = "The <a href='http://iot.appinventor.mit.edu/#/bluetoothle/bluetoothleintro'>BluetoothLE</a>" +
-                  " component with a connection to the MT7697.")
+                                " component with a connection to the MT7697.")
   public BluetoothLE BluetoothDevice() {
     return bleConnection;
   }
