@@ -72,11 +72,12 @@ public abstract class MT7697ExtensionWithIntensity extends MT7697ExtensionBase {
 
   private boolean writeIntensity(String service, String characteristic, int intensity) {
     if (bleConnection != null) {
-      bleConnection.ExWriteByteValues(service, characteristic, false,
-          toList((byte) pin, (byte) intensity));
+      bleConnection.ExWriteByteValues(service, characteristic, false, toList((byte) pin, (byte) intensity));
       return true;
     }
-    return false;
+    else {
+      return false;
+    }
   }
 
   /**
@@ -87,8 +88,8 @@ public abstract class MT7697ExtensionWithIntensity extends MT7697ExtensionBase {
   @Override
   @SimpleFunction
   public boolean IsSupported() {
-    return bleConnection != null && bleConnection.isCharacteristicPublished(getService(),
-        getCharacteristic());
+    return bleConnection != null &&
+      bleConnection.isCharacteristicPublished(getService(), getCharacteristic());
   }
 
   protected abstract String getService();

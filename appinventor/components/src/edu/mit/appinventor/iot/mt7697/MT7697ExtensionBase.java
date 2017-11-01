@@ -21,6 +21,7 @@ import java.util.List;
  *
  * @author jerry73204@gmail.com (Hsiang-Jui Lin)
  */
+
 @SimpleObject
 public abstract class MT7697ExtensionBase extends AndroidNonvisibleComponent {
   protected BluetoothLE bleConnection = null;
@@ -34,7 +35,7 @@ public abstract class MT7697ExtensionBase extends AndroidNonvisibleComponent {
    * @param bluetoothLE the BluetoothLE device
    */
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_COMPONENT +
-      ":edu.mit.appinventor.ble.BluetoothLE")
+                    ":edu.mit.appinventor.ble.BluetoothLE")
   @SimpleProperty
   public void BluetoothDevice(BluetoothLE bluetoothLE) {
     bleConnection = bluetoothLE;
@@ -45,7 +46,7 @@ public abstract class MT7697ExtensionBase extends AndroidNonvisibleComponent {
    * @return The BluetoothLE connection used to talk to the micro:bit device.
    */
   @SimpleProperty(description = "The <a href='http://iot.appinventor.mit.edu/#/bluetoothle/bluetoothleintro'>BluetoothLE</a>" +
-      " component with a connection to the MT7697.")
+                  " component with a connection to the MT7697.")
   public BluetoothLE BluetoothDevice() {
     return bleConnection;
   }

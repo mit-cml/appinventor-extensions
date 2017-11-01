@@ -20,28 +20,28 @@ import java.util.List;
  * @author jerry73204@gmail.com (Hsiang-Jui Lin)
  */
 @DesignerComponent(version = 1,
-    description = "The MT7697Accelerometer component lets users configure the MT7697's " +
-        "on-board accelerometer and receive one or more accelerometer samples via the " +
-        "appropriate methods.<br>\n\n<strong>More links:</strong><ul><li>Download a <a " +
-        "href='http://iot.appinventor.mit.edu/assets/samples/MT7697Accelerometer.aia' " +
-        "target='_blank'>sample project</a> for the MT7697 Accelerometer.</li><li>View the " +
-        "<a href='http://iot.appinventor.mit.edu/assets/howtos/MIT_App_Inventor_IoT_Accelerometer.pdf' " +
-        "target='_blank'>how to instructions</a> for the MT7697 Accelerometer.</li></ul>",
-    category = ComponentCategory.EXTENSION,
-    nonVisible = true,
-    iconName = "aiwebres/mt7697.png")
+                   description = "The MT7697Accelerometer component lets users configure the MT7697's " +
+                                 "on-board accelerometer and receive one or more accelerometer samples via the " +
+                                 "appropriate methods.<br>\n\n<strong>More links:</strong><ul><li>Download a <a " +
+                                 "href='http://iot.appinventor.mit.edu/assets/samples/MT7697Accelerometer.aia' " +
+                                 "target='_blank'>sample project</a> for the MT7697 Accelerometer.</li><li>View the " +
+                                 "<a href='http://iot.appinventor.mit.edu/assets/howtos/MIT_App_Inventor_IoT_Accelerometer.pdf' " +
+                                 "target='_blank'>how to instructions</a> for the MT7697 Accelerometer.</li></ul>",
+                   category = ComponentCategory.EXTENSION,
+                   nonVisible = true,
+                   iconName = "aiwebres/mt7697.png")
 @SimpleObject(external = true)
 public class MT7697Accelerometer extends MT7697ExtensionBase {
   private static final String ACCELEROMETER_SERVICE_UUID = "E95D0100-251D-470A-A062-FA1922DFA9A7";
   private static final String ACCELEROMETER_DATA_CHARACTERISTIC_UUID = "E95D0101-251D-470A-A062-FA1922DFA9A7";
 
   private final BluetoothLE.BLEResponseHandler<Float> accelerometerDataHandler =
-      new BluetoothLE.BLEResponseHandler<Float>() {
-        @Override
-        public void onReceive(String serviceUuid, String characteristicUuid, List<Float> values) {
-          AccelerometerDataReceived(values.get(0), values.get(1), values.get(2));
-        }
-      };
+    new BluetoothLE.BLEResponseHandler<Float>() {
+      @Override
+      public void onReceive(String serviceUuid, String characteristicUuid, List<Float> values) {
+        AccelerometerDataReceived(values.get(0), values.get(1), values.get(2));
+      }
+    };
 
   public MT7697Accelerometer(Form form) {
     super(form);
@@ -58,8 +58,8 @@ public class MT7697Accelerometer extends MT7697ExtensionBase {
   @SimpleFunction
   public boolean IsSupported() {
     return bleConnection != null &&
-        bleConnection.isCharacteristicPublished(ACCELEROMETER_SERVICE_UUID,
-            ACCELEROMETER_DATA_CHARACTERISTIC_UUID);
+      bleConnection.isCharacteristicPublished(ACCELEROMETER_SERVICE_UUID,
+                                              ACCELEROMETER_DATA_CHARACTERISTIC_UUID);
   }
 
   /**
@@ -71,7 +71,9 @@ public class MT7697Accelerometer extends MT7697ExtensionBase {
   public void ReadAccelerometerData() {
     if (bleConnection != null) {
       bleConnection.ExReadFloatValues(ACCELEROMETER_SERVICE_UUID,
-          ACCELEROMETER_DATA_CHARACTERISTIC_UUID, false, accelerometerDataHandler);
+                                      ACCELEROMETER_DATA_CHARACTERISTIC_UUID,
+                                      false,
+                                      accelerometerDataHandler);
     }
   }
 
@@ -84,7 +86,9 @@ public class MT7697Accelerometer extends MT7697ExtensionBase {
   public void RequestAccelerometerDataUpdates() {
     if (bleConnection != null) {
       bleConnection.ExRegisterForFloatValues(ACCELEROMETER_SERVICE_UUID,
-          ACCELEROMETER_DATA_CHARACTERISTIC_UUID, false, accelerometerDataHandler);
+                                             ACCELEROMETER_DATA_CHARACTERISTIC_UUID,
+                                             false,
+                                             accelerometerDataHandler);
     }
   }
 
@@ -97,7 +101,8 @@ public class MT7697Accelerometer extends MT7697ExtensionBase {
   public void StopAccelerometerDataUpdates() {
     if (bleConnection != null) {
       bleConnection.ExUnregisterForValues(ACCELEROMETER_SERVICE_UUID,
-          ACCELEROMETER_DATA_CHARACTERISTIC_UUID, accelerometerDataHandler);
+                                          ACCELEROMETER_DATA_CHARACTERISTIC_UUID,
+                                          accelerometerDataHandler);
     }
   }
 
@@ -121,7 +126,10 @@ public class MT7697Accelerometer extends MT7697ExtensionBase {
   @SimpleEvent
   public void AccelerometerDataReceived(final float Accelerometer_X, final float Accelerometer_Y,
                                         final float Accelerometer_Z) {
-    EventDispatcher.dispatchEvent(this, "AccelerometerDataReceived", Accelerometer_X,
-        Accelerometer_Y, Accelerometer_Z);
+    EventDispatcher.dispatchEvent(this,
+                                  "AccelerometerDataReceived",
+                                  Accelerometer_X,
+                                  Accelerometer_Y,
+                                  Accelerometer_Z);
   }
 }

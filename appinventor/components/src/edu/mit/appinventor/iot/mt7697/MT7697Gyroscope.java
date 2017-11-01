@@ -20,28 +20,28 @@ import java.util.List;
  * @author jerry73204@gmail.com (Hsiang-Jui Lin)
  */
 @DesignerComponent(version = 1,
-    description = "The MT7697Gyroscope component lets users configure the MT7697's " +
-        "on-board gyroscope and receive one or more gyroscope samples via the appropriate methods." +
-        "<br>\n\n<strong>More links:</strong><ul><li>View the <a " +
-        "href='http://iot.appinventor.mit.edu/assets/samples/MT7697Gyroscope.aia' " +
-        "target='_blank'>sample project</a> for the MT7697 Gyroscope.</li><li>View the <a " +
-        "href='http://iot.appinventor.mit.edu/assets/howtos/MIT_App_Inventor_IoT_Gyroscope.pdf' " +
-        "target='_blank'>how to instructions</a> for the MT7697 Gyroscope.</li></ul>",
-    category = ComponentCategory.EXTENSION,
-    nonVisible = true,
-    iconName = "aiwebres/mt7697.png")
+                   description = "The MT7697Gyroscope component lets users configure the MT7697's " +
+                                 "on-board gyroscope and receive one or more gyroscope samples via the appropriate methods." +
+                                 "<br>\n\n<strong>More links:</strong><ul><li>View the <a " +
+                                 "href='http://iot.appinventor.mit.edu/assets/samples/MT7697Gyroscope.aia' " +
+                                 "target='_blank'>sample project</a> for the MT7697 Gyroscope.</li><li>View the <a " +
+                                 "href='http://iot.appinventor.mit.edu/assets/howtos/MIT_App_Inventor_IoT_Gyroscope.pdf' " +
+                                 "target='_blank'>how to instructions</a> for the MT7697 Gyroscope.</li></ul>",
+                   category = ComponentCategory.EXTENSION,
+                   nonVisible = true,
+                   iconName = "aiwebres/mt7697.png")
 @SimpleObject(external = true)
 public class MT7697Gyroscope extends MT7697ExtensionBase {
   private static final String GYROSCOPE_SERVICE_UUID = "E95D0500-251D-470A-A062-FA1922DFA9A7";
   private static final String GYROSCOPE_DATA_CHARACTERISTIC_UUID = "E95D0501-251D-470A-A062-FA1922DFA9A7";
 
   private final BluetoothLE.BLEResponseHandler<Float> gyroscopeDataHandler =
-      new BluetoothLE.BLEResponseHandler<Float>() {
-        @Override
-        public void onReceive(String serviceUuid, String characteristicUuid, List<Float> values) {
-          GyroscopeDataReceived(values.get(0), values.get(1));
-        }
-      };
+    new BluetoothLE.BLEResponseHandler<Float>() {
+      @Override
+      public void onReceive(String serviceUuid, String characteristicUuid, List<Float> values) {
+        GyroscopeDataReceived(values.get(0), values.get(1));
+      }
+    };
 
   public MT7697Gyroscope(Form form) {
     super(form);
@@ -58,8 +58,7 @@ public class MT7697Gyroscope extends MT7697ExtensionBase {
   @SimpleFunction
   public boolean IsSupported() {
     return bleConnection != null &&
-        bleConnection.isCharacteristicPublished(GYROSCOPE_SERVICE_UUID,
-            GYROSCOPE_DATA_CHARACTERISTIC_UUID);
+      bleConnection.isCharacteristicPublished(GYROSCOPE_SERVICE_UUID, GYROSCOPE_DATA_CHARACTERISTIC_UUID);
   }
 
   /**
@@ -69,8 +68,10 @@ public class MT7697Gyroscope extends MT7697ExtensionBase {
   @SimpleFunction
   public void ReadGyroscopeData() {
     if (bleConnection != null) {
-      bleConnection.ExReadFloatValues(GYROSCOPE_SERVICE_UUID, GYROSCOPE_DATA_CHARACTERISTIC_UUID,
-          false, gyroscopeDataHandler);
+      bleConnection.ExReadFloatValues(GYROSCOPE_SERVICE_UUID,
+                                      GYROSCOPE_DATA_CHARACTERISTIC_UUID,
+                                      false,
+                                      gyroscopeDataHandler);
     }
   }
 
@@ -82,7 +83,9 @@ public class MT7697Gyroscope extends MT7697ExtensionBase {
   public void RequestGyroscopeDataUpdates() {
     if (bleConnection != null) {
       bleConnection.ExRegisterForFloatValues(GYROSCOPE_SERVICE_UUID,
-          GYROSCOPE_DATA_CHARACTERISTIC_UUID, false, gyroscopeDataHandler);
+                                             GYROSCOPE_DATA_CHARACTERISTIC_UUID,
+                                             false,
+                                             gyroscopeDataHandler);
     }
   }
 
@@ -97,7 +100,8 @@ public class MT7697Gyroscope extends MT7697ExtensionBase {
   public void StopGyroscopeDataUpdates() {
     if (bleConnection != null) {
       bleConnection.ExUnregisterForValues(GYROSCOPE_SERVICE_UUID,
-          GYROSCOPE_DATA_CHARACTERISTIC_UUID, gyroscopeDataHandler);
+                                          GYROSCOPE_DATA_CHARACTERISTIC_UUID,
+                                          gyroscopeDataHandler);
     }
   }
 

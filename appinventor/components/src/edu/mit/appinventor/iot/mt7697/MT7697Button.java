@@ -20,18 +20,18 @@ import java.util.List;
  * @author jerry73204@gmail.com (Hsiang-Jui Lin)
  */
 @DesignerComponent(version = 1,
-    description = "The MT7697Button component lets users listen to events triggered by a " +
-        "button connected to a digital pin on the Arduino. The extension responds to voltage " +
-        "changes on the specified digital <code>Pin</code> and so can be used to respond to any " +
-        "hardware component that signals high/low based on some external phenomenon, such as a " +
-        "motion detector.<br>\n\n<strong>More links:</strong><ul><li>Download a <a " +
-        "href='http://iot.appinventor.mit.edu/assets/samples/MT7697Button.aia' " +
-        "target='_blank'>sample project</a> for the MT7697 Button.</li><li>View the <a " +
-        "href='http://iot.appinventor.mit.edu/assets/howtos/MIT_App_Inventor_IoT_Button.pdf' " +
-        "target='_blank'>how to instructions</a> for the MT7697 Button.</li></ul>",
-    category = ComponentCategory.EXTENSION,
-    nonVisible = true,
-    iconName = "aiwebres/mt7697.png")
+                   description = "The MT7697Button component lets users listen to events triggered by a " +
+                                 "button connected to a digital pin on the Arduino. The extension responds to voltage " +
+                                 "changes on the specified digital <code>Pin</code> and so can be used to respond to any " +
+                                 "hardware component that signals high/low based on some external phenomenon, such as a " +
+                                 "motion detector.<br>\n\n<strong>More links:</strong><ul><li>Download a <a " +
+                                 "href='http://iot.appinventor.mit.edu/assets/samples/MT7697Button.aia' " +
+                                 "target='_blank'>sample project</a> for the MT7697 Button.</li><li>View the <a " +
+                                 "href='http://iot.appinventor.mit.edu/assets/howtos/MIT_App_Inventor_IoT_Button.pdf' " +
+                                 "target='_blank'>how to instructions</a> for the MT7697 Button.</li></ul>",
+                   category = ComponentCategory.EXTENSION,
+                   nonVisible = true,
+                   iconName = "aiwebres/mt7697.png")
 @SimpleObject(external = true)
 public class MT7697Button extends MT7697ExtensionWithPin<MT7697Button> {
   private static final String BUTTON_SERVICE_UUID = "E95D0200-251D-470A-A062-FA1922DFA9A7";
@@ -43,25 +43,25 @@ public class MT7697Button extends MT7697ExtensionWithPin<MT7697Button> {
   };
 
   private final BluetoothLE.BLEResponseHandler<Integer> buttonDataHandler =
-      new BluetoothLE.BLEResponseHandler<Integer>() {
-        private boolean lastKnownState = false;
+    new BluetoothLE.BLEResponseHandler<Integer>() {
+      private boolean lastKnownState = false;
 
-        @Override
-        public void onReceive(String serviceUuid, String characteristicUuid, List<Integer> values) {
-          ButtonStateReceived(values.get(0));
-          int pin = Pin();
-          int i = pin / 8, j = pin % 8;
-          if ((values.get(i).intValue() & BITS[j]) == BITS[j]) {
-            if (!lastKnownState) {
-              lastKnownState = true;
-              Pressed();
-            }
-          } else if (lastKnownState) {
-            lastKnownState = false;
-            Released();
+      @Override
+      public void onReceive(String serviceUuid, String characteristicUuid, List<Integer> values) {
+        ButtonStateReceived(values.get(0));
+        int pin = Pin();
+        int i = pin / 8, j = pin % 8;
+        if ((values.get(i).intValue() & BITS[j]) == BITS[j]) {
+          if (!lastKnownState) {
+            lastKnownState = true;
+            Pressed();
           }
+        } else if (lastKnownState) {
+          lastKnownState = false;
+          Released();
         }
-      };
+      }
+    };
 
   public MT7697Button(Form form) {
     super(form, DIGITAL);
@@ -75,8 +75,10 @@ public class MT7697Button extends MT7697ExtensionWithPin<MT7697Button> {
    */
   @SimpleFunction
   public void ReadButtonState() {
-    bleConnection.ExReadByteValues(BUTTON_SERVICE_UUID, BUTTON_DATA_CHARACTERISTIC_UUID, false,
-        buttonDataHandler);
+    bleConnection.ExReadByteValues(BUTTON_SERVICE_UUID,
+                                   BUTTON_DATA_CHARACTERISTIC_UUID,
+                                   false,
+                                   buttonDataHandler);
   }
 
   /**
@@ -88,8 +90,10 @@ public class MT7697Button extends MT7697ExtensionWithPin<MT7697Button> {
    */
   @SimpleFunction
   public void RequestButtonStateUpdates() {
-    bleConnection.ExRegisterForByteValues(BUTTON_SERVICE_UUID, BUTTON_DATA_CHARACTERISTIC_UUID,
-        false, buttonDataHandler);
+    bleConnection.ExRegisterForByteValues(BUTTON_SERVICE_UUID,
+                                          BUTTON_DATA_CHARACTERISTIC_UUID,
+                                          false,
+                                          buttonDataHandler);
   }
 
   /**
@@ -102,8 +106,9 @@ public class MT7697Button extends MT7697ExtensionWithPin<MT7697Button> {
    */
   @SimpleFunction
   public void StopButtonStateUpdates() {
-    bleConnection.ExUnregisterForValues(BUTTON_SERVICE_UUID, BUTTON_DATA_CHARACTERISTIC_UUID,
-        buttonDataHandler);
+    bleConnection.ExUnregisterForValues(BUTTON_SERVICE_UUID,
+                                        BUTTON_DATA_CHARACTERISTIC_UUID,
+                                        buttonDataHandler);
   }
 
   /**

@@ -25,31 +25,31 @@ import java.util.List;
  * @author jerry73204@gmail.com (Hsiang-Jui Lin)
  */
 @DesignerComponent(version = 1,
-    description = "The MT7697 Servo extension lets users remotely control servos connected to" +
-        "an MT7697.<br>\n\n<strong>More Links</strong><ul><li>Download a <a " +
-        "href='http://iot.appinventor.mit.edu/assets/samples/MT7697Servo.aia' " +
-        "target='_blank'>sample project</a> for the MT7697 Servo.</li><!--<li>View the <a " +
-        "href='http://iot.appinventor.mit.edu/assets/howtos/MIT_App_Inventor_IoT_Servo.pdf' " +
-        "target='_blank'>how to instructions</a> for the MT7697 Servo.</li>--></ul>",
-    category = ComponentCategory.EXTENSION,
-    helpUrl = "http://iot.appinventor.mit.edu/#/arduino101/arduinoservo",
-    nonVisible = true,
-    iconName = "aiwebres/mt7697.png")
+                   description = "The MT7697 Servo extension lets users remotely control servos connected to" +
+                                 "an MT7697.<br>\n\n<strong>More Links</strong><ul><li>Download a <a " +
+                                 "href='http://iot.appinventor.mit.edu/assets/samples/MT7697Servo.aia' " +
+                                 "target='_blank'>sample project</a> for the MT7697 Servo.</li><!--<li>View the <a " +
+                                 "href='http://iot.appinventor.mit.edu/assets/howtos/MIT_App_Inventor_IoT_Servo.pdf' " +
+                                 "target='_blank'>how to instructions</a> for the MT7697 Servo.</li>--></ul>",
+                   category = ComponentCategory.EXTENSION,
+                   helpUrl = "http://iot.appinventor.mit.edu/#/arduino101/arduinoservo",
+                   nonVisible = true,
+                   iconName = "aiwebres/mt7697.png")
 @SimpleObject(external = true)
 public class MT7697Servo extends MT7697ExtensionBase {
   private static final String SERVO_SERVICE_UUID = "E95D0C00-251D-470A-A062-FA1922DFA9A7";
   private static final String SERVO_POSITION_CHARACTERISTIC_UUID =
-      "E95D0C01-251D-470A-A062-FA1922DFA9A7";
+    "E95D0C01-251D-470A-A062-FA1922DFA9A7";
   private static final String SERVO_POSITION_MICROS_CHARACTERISTIC_UUID =
-      "E95D0C02-251D-470A-A062-FA1922DFA9A7";
+    "E95D0C02-251D-470A-A062-FA1922DFA9A7";
 
   private final BLEResponseHandler<Integer> positionWritten =
-      new BLEResponseHandler<Integer>() {
-        @Override
-        public void onWrite(String serviceUuid, String characteristicUuid, List<Integer> values) {
-          PositionWritten(values.get(0));
-        }
-      };
+    new BLEResponseHandler<Integer>() {
+      @Override
+      public void onWrite(String serviceUuid, String characteristicUuid, List<Integer> values) {
+        PositionWritten(values.get(0));
+      }
+    };
 
   private int pin;
 
@@ -65,12 +65,12 @@ public class MT7697Servo extends MT7697ExtensionBase {
   @Override
   @SimpleFunction
   public boolean IsSupported() {
-    return bleConnection != null && bleConnection.isCharacteristicPublished(SERVO_SERVICE_UUID,
-        SERVO_POSITION_CHARACTERISTIC_UUID);
+    return bleConnection != null &&
+      bleConnection.isCharacteristicPublished(SERVO_SERVICE_UUID, SERVO_POSITION_CHARACTERISTIC_UUID);
   }
 
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_NON_NEGATIVE_INTEGER,
-      defaultValue = "0")
+                    defaultValue = "0")
   @SimpleProperty
   public void Pin(int pin) {
     this.pin = pin;
@@ -136,7 +136,10 @@ public class MT7697Servo extends MT7697ExtensionBase {
       values.add(pin);
       values.add(position);
       bleConnection.ExWriteShortValuesWithResponse(SERVO_SERVICE_UUID,
-          characteristicUuid, true, values, positionWritten);
+                                                   characteristicUuid,
+                                                   true,
+                                                   values,
+                                                   positionWritten);
     }
   }
 }

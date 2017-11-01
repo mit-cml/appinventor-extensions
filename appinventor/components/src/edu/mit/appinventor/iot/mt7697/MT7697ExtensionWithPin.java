@@ -29,39 +29,17 @@ public abstract class MT7697ExtensionWithPin<T extends MT7697ExtensionWithPin> e
 
   // This is an ugly way of managing multiple instantiations of the extension. We may need to
   // significantly redesign the BLE services to make this work well.
-  private static final Map<Class<?>, Map<BluetoothLE, ActivePinSet<MT7697ExtensionWithPin>>> pinSets =
-      new WeakHashMap<Class<?>, Map<BluetoothLE, ActivePinSet<MT7697ExtensionWithPin>>>();
 
   public MT7697ExtensionWithPin(Form form, int pinBytes) {
     super(form);
     this.pinBytes = pinBytes;
-    Map<BluetoothLE, ActivePinSet<MT7697ExtensionWithPin>> connectionMap = pinSets.get(getClass());
-    if (connectionMap == null) {
-      pinSets.put(getClass(), new WeakHashMap<BluetoothLE, ActivePinSet<MT7697ExtensionWithPin>>());
-    }
   }
 
-  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_COMPONENT +
-      ":edu.mit.appinventor.ble.BluetoothLE")
+  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_COMPONENT + ":edu.mit.appinventor.ble.BluetoothLE")
   @SimpleProperty
   public void BluetoothDevice(BluetoothLE bluetoothLE) {
     Log.d("MT7697ExtensionWithPin", "BluetoothDevice");
-    if (bleConnection != null) {
-      ActivePinSet pinSet = pinSets.get(getClass()).get(bluetoothLE);
-      if (pinSet != null) {
-        pinSet.remove(this);
-      }
-    }
     bleConnection = bluetoothLE;
-    if (bleConnection != null) {
-      ActivePinSet<MT7697ExtensionWithPin> pinSet = pinSets.get(getClass()).get(bluetoothLE);
-      if (pinSet == null) {
-        pinSet = new ActivePinSet<MT7697ExtensionWithPin>(bluetoothLE, pinBytes, this);
-        pinSets.get(getClass()).put(bluetoothLE, pinSet);
-      } else {
-        pinSet.add(this);
-      }
-    }
   }
 
   @SimpleProperty
@@ -70,22 +48,10 @@ public abstract class MT7697ExtensionWithPin<T extends MT7697ExtensionWithPin> e
   }
 
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_NON_NEGATIVE_INTEGER,
-      defaultValue = "0")
+                    defaultValue = "0")
   @SimpleProperty
   public void Pin(int pin) {
-    if (this.pin != pin) {
-      int oldPin = this.pin;
-      this.pin = pin;
-      if (bleConnection != null) {
-        ActivePinSet<MT7697ExtensionWithPin> pinSet = pinSets.get(this.getClass()).get(bleConnection);
-        if (pinSet == null) {
-          pinSet = new ActivePinSet<MT7697ExtensionWithPin>(bleConnection, pinBytes, this);
-          pinSets.get(getClass()).put(bleConnection, pinSet);
-        } else {
-          pinSet.update(this, oldPin);
-        }
-      }
-    }
+    this.pin = pin;
   }
 
   @SimpleProperty(description = "The Pin on the Arduino board that the device is wired in to.")
@@ -101,8 +67,8 @@ public abstract class MT7697ExtensionWithPin<T extends MT7697ExtensionWithPin> e
   @Override
   @SimpleFunction
   public boolean IsSupported() {
-    return bleConnection != null && bleConnection.isCharacteristicPublished(getPinServiceUuid(),
-        getPinCharacteristicUuid());
+    return bleConnection != null &&
+      bleConnection.isCharacteristicPublished(getPinServiceUuid(), getPinCharacteristicUuid());
   }
 
   public abstract String getPinServiceUuid();
