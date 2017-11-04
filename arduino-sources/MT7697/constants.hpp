@@ -1,128 +1,86 @@
-#ifndef __MT7497_CONSTANTS_HPP__
-#define __MT7497_CONSTANTS_HPP__
+#ifndef __MT7697_CONSTANTS_HPP__
+#define __MT7697_CONSTANTS_HPP__
 
-const char *DEVICE_NAME = "MT7697 for AI2";
+#define GPIO_UUID_PROFILES_SIZE 15
 
-const char *I2C_SERVICE = "00f81600-1db7-4f22-a187-b25005f98dcd";
-const char *I2C_READ_CHARACTERISTIC = "00f81600-1db7-4f22-a187-b25005f98dcd";
-const char *I2C_WRITE_CHARACTERISTIC = "00f81601-1db7-4f22-a187-b25005f98dcd";
+// The MT7697 compiler creates seperate static linked libraries
+// and link to together.
+// We need to "extern" every thing to make the compiler happy.
 
-const char *GPIO00_SERVICE = "b8b1b700-6422-4d6d-bf79-b76e47e9ac86";
-const char *GPIO00_MODE_CHARACTERISTIC = "b8b1b700-6422-4d6d-bf79-b76e47e9ac86";
-const char *GPIO00_DATA_CHARACTERISTIC = "b8b1b701-6422-4d6d-bf79-b76e47e9ac86";
-
-const char *GPIO02_SERVICE = "682e2900-cd85-4578-b0ac-37c89b1c8c3a";
-const char *GPIO02_MODE_CHARACTERISTIC = "682e2900-cd85-4578-b0ac-37c89b1c8c3a";
-const char *GPIO02_DATA_CHARACTERISTIC = "682e2901-cd85-4578-b0ac-37c89b1c8c3a";
-
-const char *GPIO03_SERVICE = "56b16f00-2193-4cde-8e09-c3ee4c72dc78";
-const char *GPIO03_MODE_CHARACTERISTIC = "56b16f00-2193-4cde-8e09-c3ee4c72dc78";
-const char *GPIO03_DATA_CHARACTERISTIC = "56b16f01-2193-4cde-8e09-c3ee4c72dc78";
-
-const char *GPIO29_SERVICE = "b053a500-8e23-4bfd-8f88-4af09fd9040b";
-const char *GPIO29_MODE_CHARACTERISTIC = "b053a500-8e23-4bfd-8f88-4af09fd9040b";
-const char *GPIO29_DATA_CHARACTERISTIC = "b053a501-8e23-4bfd-8f88-4af09fd9040b";
-
-const char *GPIO30_SERVICE = "9aa1fa00-ebc3-4fb6-ba4a-1bb79b8a9d78";
-const char *GPIO30_MODE_CHARACTERISTIC = "9aa1fa00-ebc3-4fb6-ba4a-1bb79b8a9d78";
-const char *GPIO30_DATA_CHARACTERISTIC = "9aa1fa01-ebc3-4fb6-ba4a-1bb79b8a9d78";
-
-const char *GPIO31_SERVICE = "981a6300-c513-40dc-ad0c-c873e06ff18b";
-const char *GPIO31_MODE_CHARACTERISTIC = "981a6300-c513-40dc-ad0c-c873e06ff18b";
-const char *GPIO31_DATA_CHARACTERISTIC = "981a6301-c513-40dc-ad0c-c873e06ff18b";
-
-const char *GPIO32_SERVICE = "9126b700-1a1e-48df-82f7-4100a9fb687b";
-const char *GPIO32_MODE_CHARACTERISTIC = "9126b700-1a1e-48df-82f7-4100a9fb687b";
-const char *GPIO32_DATA_CHARACTERISTIC = "9126b701-1a1e-48df-82f7-4100a9fb687b";
-
-const char *GPIO33_SERVICE = "7ed8d200-6a9f-4d8b-b50f-e8f4b78667b2";
-const char *GPIO33_MODE_CHARACTERISTIC = "7ed8d200-6a9f-4d8b-b50f-e8f4b78667b2";
-const char *GPIO33_DATA_CHARACTERISTIC = "7ed8d201-6a9f-4d8b-b50f-e8f4b78667b2";
-
-const char *GPIO34_SERVICE = "525d9c00-3995-480c-80d6-98cf3a8420e9";
-const char *GPIO34_MODE_CHARACTERISTIC = "525d9c00-3995-480c-80d6-98cf3a8420e9";
-const char *GPIO34_DATA_CHARACTERISTIC = "525d9c01-3995-480c-80d6-98cf3a8420e9";
-
-const char *GPIO38_SERVICE = "756bd900-81b9-4565-9ce2-f6f2dfabbbec";
-const char *GPIO38_MODE_CHARACTERISTIC = "756bd900-81b9-4565-9ce2-f6f2dfabbbec";
-const char *GPIO38_DATA_CHARACTERISTIC = "756bd901-81b9-4565-9ce2-f6f2dfabbbec";
-
-const char *GPIO39_SERVICE = "b6d08900-99e4-4c53-89ef-4039b61ffb19";
-const char *GPIO39_MODE_CHARACTERISTIC = "b6d08900-99e4-4c53-89ef-4039b61ffb19";
-const char *GPIO39_DATA_CHARACTERISTIC = "b6d08901-99e4-4c53-89ef-4039b61ffb19";
-
-const char *GPIO57_SERVICE = "cd893c00-de11-4cb7-9436-b9f129f5c249";
-const char *GPIO57_MODE_CHARACTERISTIC = "cd893c00-de11-4cb7-9436-b9f129f5c249";
-const char *GPIO57_DATA_CHARACTERISTIC = "cd893c01-de11-4cb7-9436-b9f129f5c249";
-
-const char *GPIO58_SERVICE = "42b07000-ce29-4feb-9fc1-5ed55cf9f3af";
-const char *GPIO58_MODE_CHARACTERISTIC = "42b07000-ce29-4feb-9fc1-5ed55cf9f3af";
-const char *GPIO58_DATA_CHARACTERISTIC = "42b07001-ce29-4feb-9fc1-5ed55cf9f3af";
-
-const char *GPIO59_SERVICE = "4433a600-40eb-462a-8a98-22e326f87eca";
-const char *GPIO59_MODE_CHARACTERISTIC = "4433a600-40eb-462a-8a98-22e326f87eca";
-const char *GPIO59_DATA_CHARACTERISTIC = "4433a601-40eb-462a-8a98-22e326f87eca";
-
-const char *GPIO60_SERVICE = "6dce9900-d064-4c5d-ae39-9380f52712d6";
-const char *GPIO60_MODE_CHARACTERISTIC = "6dce9900-d064-4c5d-ae39-9380f52712d6";
-const char *GPIO60_DATA_CHARACTERISTIC = "6dce9901-d064-4c5d-ae39-9380f52712d6";
-
-struct gpio_profile
+struct gpio_uuid_profile
 {
+    int pin;
     const char *service_uuid;
-    const char *mode_characteristic;
-    const char *data_characteristic;
+    const char *mode_char_uuid;
+    const char *data_char_uuid;
 };
 
-struct gpio_profile GPIO_PROFILE_ARRAY[] = {
-    { GPIO00_SERVICE,
-      GPIO00_MODE_CHARACTERISTIC,
-      GPIO00_DATA_CHARACTERISTIC },
-    { GPIO02_SERVICE,
-      GPIO02_MODE_CHARACTERISTIC,
-      GPIO02_DATA_CHARACTERISTIC },
-    { GPIO03_SERVICE,
-      GPIO03_MODE_CHARACTERISTIC,
-      GPIO03_DATA_CHARACTERISTIC },
-    { GPIO29_SERVICE,
-      GPIO29_MODE_CHARACTERISTIC,
-      GPIO29_DATA_CHARACTERISTIC },
-    { GPIO30_SERVICE,
-      GPIO30_MODE_CHARACTERISTIC,
-      GPIO30_DATA_CHARACTERISTIC },
-    { GPIO31_SERVICE,
-      GPIO31_MODE_CHARACTERISTIC,
-      GPIO31_DATA_CHARACTERISTIC },
-    { GPIO32_SERVICE,
-      GPIO32_MODE_CHARACTERISTIC,
-      GPIO32_DATA_CHARACTERISTIC },
-    { GPIO33_SERVICE,
-      GPIO33_MODE_CHARACTERISTIC,
-      GPIO33_DATA_CHARACTERISTIC },
-    { GPIO34_SERVICE,
-      GPIO34_MODE_CHARACTERISTIC,
-      GPIO34_DATA_CHARACTERISTIC },
-    { GPIO38_SERVICE,
-      GPIO38_MODE_CHARACTERISTIC,
-      GPIO38_DATA_CHARACTERISTIC },
-    { GPIO39_SERVICE,
-      GPIO39_MODE_CHARACTERISTIC,
-      GPIO39_DATA_CHARACTERISTIC },
-    { GPIO57_SERVICE,
-      GPIO57_MODE_CHARACTERISTIC,
-      GPIO57_DATA_CHARACTERISTIC },
-    { GPIO58_SERVICE,
-      GPIO58_MODE_CHARACTERISTIC,
-      GPIO58_DATA_CHARACTERISTIC },
-    { GPIO59_SERVICE,
-      GPIO59_MODE_CHARACTERISTIC,
-      GPIO59_DATA_CHARACTERISTIC },
-    { GPIO60_SERVICE,
-      GPIO60_MODE_CHARACTERISTIC,
-      GPIO60_DATA_CHARACTERISTIC },
-};
+extern const char *DEVICE_NAME;
 
-int GPIO_PROFILE_ARRAY_SIZE =                                         \
-    sizeof(GPIO_PROFILE_ARRAY) / sizeof(struct gpio_profile);
+extern const char *I2C_SERVICE;
+extern const char *I2C_READ_CHARACTERISTIC;
+extern const char *I2C_WRITE_CHARACTERISTIC;
+
+extern const char *GPIO00_SERVICE;
+extern const char *GPIO00_MODE_CHARACTERISTIC;
+extern const char *GPIO00_DATA_CHARACTERISTIC;
+
+extern const char *GPIO02_SERVICE;
+extern const char *GPIO02_MODE_CHARACTERISTIC;
+extern const char *GPIO02_DATA_CHARACTERISTIC;
+
+extern const char *GPIO03_SERVICE;
+extern const char *GPIO03_MODE_CHARACTERISTIC;
+extern const char *GPIO03_DATA_CHARACTERISTIC;
+
+extern const char *GPIO29_SERVICE;
+extern const char *GPIO29_MODE_CHARACTERISTIC;
+extern const char *GPIO29_DATA_CHARACTERISTIC;
+
+extern const char *GPIO30_SERVICE;
+extern const char *GPIO30_MODE_CHARACTERISTIC;
+extern const char *GPIO30_DATA_CHARACTERISTIC;
+
+extern const char *GPIO31_SERVICE;
+extern const char *GPIO31_MODE_CHARACTERISTIC;
+extern const char *GPIO31_DATA_CHARACTERISTIC;
+
+extern const char *GPIO32_SERVICE;
+extern const char *GPIO32_MODE_CHARACTERISTIC;
+extern const char *GPIO32_DATA_CHARACTERISTIC;
+
+extern const char *GPIO33_SERVICE;
+extern const char *GPIO33_MODE_CHARACTERISTIC;
+extern const char *GPIO33_DATA_CHARACTERISTIC;
+
+extern const char *GPIO34_SERVICE;
+extern const char *GPIO34_MODE_CHARACTERISTIC;
+extern const char *GPIO34_DATA_CHARACTERISTIC;
+
+extern const char *GPIO38_SERVICE;
+extern const char *GPIO38_MODE_CHARACTERISTIC;
+extern const char *GPIO38_DATA_CHARACTERISTIC;
+
+extern const char *GPIO39_SERVICE;
+extern const char *GPIO39_MODE_CHARACTERISTIC;
+extern const char *GPIO39_DATA_CHARACTERISTIC;
+
+extern const char *GPIO57_SERVICE;
+extern const char *GPIO57_MODE_CHARACTERISTIC;
+extern const char *GPIO57_DATA_CHARACTERISTIC;
+
+extern const char *GPIO58_SERVICE;
+extern const char *GPIO58_MODE_CHARACTERISTIC;
+extern const char *GPIO58_DATA_CHARACTERISTIC;
+
+extern const char *GPIO59_SERVICE;
+extern const char *GPIO59_MODE_CHARACTERISTIC;
+extern const char *GPIO59_DATA_CHARACTERISTIC;
+
+extern const char *GPIO60_SERVICE;
+extern const char *GPIO60_MODE_CHARACTERISTIC;
+extern const char *GPIO60_DATA_CHARACTERISTIC;
+
+extern struct gpio_uuid_profile GPIO_UUID_PROFILES[GPIO_UUID_PROFILES_SIZE];
 
 #endif
