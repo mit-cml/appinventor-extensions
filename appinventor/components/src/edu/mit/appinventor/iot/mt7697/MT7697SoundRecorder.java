@@ -51,20 +51,20 @@ public class MT7697SoundRecorder extends MT7697ExtensionWithSerialTTL {
   }
 
   @SimpleProperty(description = "The digital pin used to trigger the recording. If using the Grove " +
-      "connector, this is one number higher than the digital pin port (D4 becomes 5).")
+                                "connector, this is one number higher than the digital pin port (D4 becomes 5).")
   public int RecordPin() {
     return getPin1();
   }
 
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_NON_NEGATIVE_INTEGER,
-      defaultValue = "0")
+                    defaultValue = "0")
   @SimpleProperty
   public void PlayPin(int pin) {
     setPin2(pin);
   }
 
   @SimpleProperty(description = "The digital pin used to trigger playback. If using the Grove " +
-      "connector, this is the same number as the digital pin port (D4 becomes 4).")
+                                "connector, this is the same number as the digital pin port (D4 becomes 4).")
   public int PlayPin() {
     return getPin2();
   }

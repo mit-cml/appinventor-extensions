@@ -60,24 +60,24 @@ public class MT7697RgbLcd extends MT7697ExtensionBase {
   private String line1 = "";
 
   private final BluetoothLE.BLEResponseHandler<Long> rgbLcdBackgroundHandler =
-      new BluetoothLE.BLEResponseHandler<Long>() {
-        @Override
-        public void onReceive(String serviceUuid, String characteristicUuid, List<Long> values) {
-          BackgroundColorReceived(values.get(0).intValue());
-        }
-      };
+    new BluetoothLE.BLEResponseHandler<Long>() {
+      @Override
+      public void onReceive(String serviceUuid, String characteristicUuid, List<Long> values) {
+        BackgroundColorReceived(values.get(0).intValue());
+      }
+    };
 
   private final BluetoothLE.BLEResponseHandler<String> rgbLcdTextHandler =
-      new BluetoothLE.BLEResponseHandler<String>() {
-        @Override
-        public void onReceive(String serviceUuid, String characteristicUuid, List<String> values) {
-          if (RGBLCD_TEXT1_UUID.equalsIgnoreCase(characteristicUuid)) {
-            line1 = values.get(0);
-          } else if (RGBLCD_TEXT2_UUID.equalsIgnoreCase(characteristicUuid)) {
-            TextReceived(line1 + "\n" + values.get(0));
-          }
+    new BluetoothLE.BLEResponseHandler<String>() {
+      @Override
+      public void onReceive(String serviceUuid, String characteristicUuid, List<String> values) {
+        if (RGBLCD_TEXT1_UUID.equalsIgnoreCase(characteristicUuid)) {
+          line1 = values.get(0);
+        } else if (RGBLCD_TEXT2_UUID.equalsIgnoreCase(characteristicUuid)) {
+          TextReceived(line1 + "\n" + values.get(0));
         }
-      };
+      }
+    };
 
   public MT7697RgbLcd(Form form) {
     super(form);
