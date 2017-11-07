@@ -51,7 +51,7 @@ import java.util.Set;
  * @author William Byrne (will2596@gmail.com) (minor bugfixes)
  */
 
-@DesignerComponent(version = 20170818,
+@DesignerComponent(version = 20171107,
     description = "Bluetooth Low Energy, also referred to as Bluetooth LE " +
         "or simply BLE, is a new communication protocol similar to classic Bluetooth except " +
         "that it is designed to consume less power while maintaining comparable " +
@@ -62,6 +62,7 @@ import java.util.Set;
         "issues with Google's Bluetooth LE support prior to Android 5.0.",
     category = ComponentCategory.EXTENSION,
     nonVisible = true,
+    helpUrl = "http://iot.appinventor.mit.edu/#/bluetoothle/bluetoothleintro",
     iconName = "images/bluetooth.png")
 @SimpleObject(external = true)
 @UsesPermissions(permissionNames = "android.permission.BLUETOOTH, " + "android.permission.BLUETOOTH_ADMIN,"
@@ -1705,7 +1706,8 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
   public void ExWriteByteValues(String serviceUuid, String characteristicUuid, boolean signed,
                                 List<Integer> values) {
     if (inner != null) {
-      inner.WriteByteValues(serviceUuid, characteristicUuid, signed, values);
+      inner.WriteByteValues(serviceUuid, characteristicUuid, signed,
+          toList(Integer.class, values, 1));
     }
   }
 
@@ -1859,7 +1861,8 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
   public void ExWriteShortValues(String serviceUuid, String characteristicUuid, boolean signed,
                                  List<Integer> values) {
     if (inner != null) {
-      inner.WriteShortValues(serviceUuid, characteristicUuid, signed, values);
+      inner.WriteShortValues(serviceUuid, characteristicUuid, signed,
+          toList(Integer.class, values, 2));
     }
   }
 
@@ -1973,7 +1976,8 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
   public void ExWriteIntegerValues(String serviceUuid, String characteristicUuid, boolean signed,
                                    List<Long> values) {
     if (inner != null) {
-      inner.WriteIntegerValues(serviceUuid, characteristicUuid, signed, values);
+      inner.WriteIntegerValues(serviceUuid, characteristicUuid, signed,
+          toList(Long.class, values, 4));
     }
   }
 
@@ -2090,7 +2094,8 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
   public void ExWriteFloatValues(String serviceUuid, String characteristicUuid, boolean shortFloats,
                                  List<Float> values) {
     if (inner != null) {
-      inner.WriteFloatValues(serviceUuid, characteristicUuid, shortFloats, values);
+      inner.WriteFloatValues(serviceUuid, characteristicUuid, shortFloats,
+          toList(Float.class, values, shortFloats ? 2 : 4));
     }
   }
 
@@ -2207,7 +2212,8 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
   public void ExWriteStringValues(String serviceUuid, String characteristicUuid, boolean utf16,
                                   List<String> values) {
     if (inner != null) {
-      inner.WriteStringValues(serviceUuid, characteristicUuid, utf16, values);
+      inner.WriteStringValues(serviceUuid, characteristicUuid, utf16,
+          toList(String.class, values, utf16 ? 2 : 1));
     }
   }
 
