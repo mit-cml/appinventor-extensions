@@ -19,7 +19,7 @@ import edu.mit.appinventor.ble.BluetoothLE;
 
 import java.util.List;
 
-@DesignerComponent(version = 1,
+@DesignerComponent(version = 2,
     description = "The <code>Microbit_Button</code> extension provides App Inventor with information about " +
         "the state of the BBC micro:bit's buttons. Developers can use this extension to request " +
         "updates for when a user presses a button or read the current state of the buttons. The " +
@@ -91,7 +91,7 @@ public class Microbit_Button extends AndroidNonvisibleComponent {
   @SimpleFunction
   public void ReadButtonAState() {
     if (bleConnection != null) {
-      bleConnection.ExReadShortValues(BUTTON_SERVICE_UUID, BUTTON_A_STATE_CHARACTERISTIC_UUID, false, buttonAStateHandler);
+      bleConnection.ExReadByteValues(BUTTON_SERVICE_UUID, BUTTON_A_STATE_CHARACTERISTIC_UUID, false, buttonAStateHandler);
     } else {
       reportNullConnection("ReadButtonAState");
     }
@@ -106,7 +106,7 @@ public class Microbit_Button extends AndroidNonvisibleComponent {
   @SimpleFunction
   public void RequestButtonAStateUpdates() {
     if (bleConnection != null) {
-      bleConnection.ExRegisterForShortValues(BUTTON_SERVICE_UUID, BUTTON_A_STATE_CHARACTERISTIC_UUID, false, buttonAStateHandler);
+      bleConnection.ExRegisterForByteValues(BUTTON_SERVICE_UUID, BUTTON_A_STATE_CHARACTERISTIC_UUID, false, buttonAStateHandler);
     } else {
       reportNullConnection("RequestButtonAStateUpdates");
     }
@@ -147,9 +147,9 @@ public class Microbit_Button extends AndroidNonvisibleComponent {
   @SimpleFunction
   public void ReadButtonBState() {
     if (bleConnection != null) {
-      bleConnection.ExReadShortValues(BUTTON_SERVICE_UUID, BUTTON_B_STATE_CHARACTERISTIC_UUID, false, buttonBStateHandler);
+      bleConnection.ExReadByteValues(BUTTON_SERVICE_UUID, BUTTON_B_STATE_CHARACTERISTIC_UUID, false, buttonBStateHandler);
     } else {
-      reportNullConnection("REadButtonBState");
+      reportNullConnection("ReadButtonBState");
     }
 
   }
@@ -163,7 +163,7 @@ public class Microbit_Button extends AndroidNonvisibleComponent {
   @SimpleFunction
   public void RequestButtonBStateUpdates() {
     if (bleConnection != null) {
-      bleConnection.ExRegisterForShortValues(BUTTON_SERVICE_UUID, BUTTON_B_STATE_CHARACTERISTIC_UUID, false, buttonBStateHandler);
+      bleConnection.ExRegisterForByteValues(BUTTON_SERVICE_UUID, BUTTON_B_STATE_CHARACTERISTIC_UUID, false, buttonBStateHandler);
     } else {
       reportNullConnection("RequestButtonBStateUpdates");
     }
