@@ -51,7 +51,7 @@ import java.util.Set;
  * @author William Byrne (will2596@gmail.com) (minor bugfixes)
  */
 
-@DesignerComponent(version = 20171107,
+@DesignerComponent(version = 20171108,
     description = "Bluetooth Low Energy, also referred to as Bluetooth LE " +
         "or simply BLE, is a new communication protocol similar to classic Bluetooth except " +
         "that it is designed to consume less power while maintaining comparable " +
@@ -1762,7 +1762,8 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
                                             boolean signed, List<Integer> values,
                                             BLEResponseHandler<Integer> callback) {
     if (inner != null) {
-      inner.WriteByteValuesWithResponse(serviceUuid, characteristicUuid, signed, values, callback);
+      inner.WriteByteValuesWithResponse(serviceUuid, characteristicUuid, signed,
+          toList(Integer.class, values, 1), callback);
     }
   }
 
@@ -1899,7 +1900,8 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
                                              boolean signed, List<Integer> values,
                                              BLEResponseHandler<Integer> callback) {
     if (inner != null) {
-      inner.WriteShortValuesWithResponse(serviceUuid, characteristicUuid, signed, values, callback);
+      inner.WriteShortValuesWithResponse(serviceUuid, characteristicUuid, signed,
+          toList(Integer.class, values, 2), callback);
     }
   }
 
@@ -2015,7 +2017,8 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
                                                boolean signed, List<Long> values,
                                                BLEResponseHandler<Long> callback) {
     if (inner != null) {
-      inner.WriteIntegerValuesWithResponse(serviceUuid, characteristicUuid, signed, values, callback);
+      inner.WriteIntegerValuesWithResponse(serviceUuid, characteristicUuid, signed,
+          toList(Long.class, values, 4), callback);
     }
   }
 
@@ -2132,7 +2135,8 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
                                              boolean shortFloats, List<Float> values,
                                              BLEResponseHandler<Float> callback) {
     if (inner != null) {
-      inner.WriteFloatValuesWithResponse(serviceUuid, characteristicUuid, shortFloats, values, callback);
+      inner.WriteFloatValuesWithResponse(serviceUuid, characteristicUuid, shortFloats,
+          toList(Float.class, values, shortFloats ? 2 : 4), callback);
     }
   }
 
@@ -2251,7 +2255,8 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
                                               boolean utf16, List<String> values,
                                               BLEResponseHandler<String> callback) {
     if (inner != null) {
-      inner.WriteStringValuesWithResponse(serviceUuid, characteristicUuid, utf16, values, callback);
+      inner.WriteStringValuesWithResponse(serviceUuid, characteristicUuid, utf16,
+          toList(String.class, values, utf16 ? 2 : 1), callback);
     }
   }
 
