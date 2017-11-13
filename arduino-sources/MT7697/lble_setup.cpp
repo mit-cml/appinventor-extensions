@@ -3,19 +3,68 @@
 #include "constants.hpp"
 #include "lble_setup.hpp"
 
-std::vector<struct gpio_lble_profile> GPIO_LBLE_PROFILES;
-
 void setup_lble()
 {
-    // setup for GPIO
-    for (int idx = 0; idx < GPIO_UUID_PROFILES_SIZE; idx += 1)
-    {
-        // Note that services and characteristics are registered
-        // in the ctor of vector elements
+    // setup services and characteristics
+    GPIO00_SERVICE.addAttribute(GPIO00_MODE_CHARACTERISTIC);
+    GPIO00_SERVICE.addAttribute(GPIO00_DATA_CHARACTERISTIC);
+    LBLEPeripheral.addService(GPIO00_SERVICE);
 
-        auto *uuid_ptr = &GPIO_UUID_PROFILES[idx];
-        GPIO_LBLE_PROFILES.emplace(GPIO_LBLE_PROFILES.end(), uuid_ptr);
-    }
+    GPIO02_SERVICE.addAttribute(GPIO02_MODE_CHARACTERISTIC);
+    GPIO02_SERVICE.addAttribute(GPIO02_DATA_CHARACTERISTIC);
+    LBLEPeripheral.addService(GPIO02_SERVICE);
+
+    GPIO03_SERVICE.addAttribute(GPIO03_MODE_CHARACTERISTIC);
+    GPIO03_SERVICE.addAttribute(GPIO03_DATA_CHARACTERISTIC);
+    LBLEPeripheral.addService(GPIO03_SERVICE);
+
+    GPIO29_SERVICE.addAttribute(GPIO29_MODE_CHARACTERISTIC);
+    GPIO29_SERVICE.addAttribute(GPIO29_DATA_CHARACTERISTIC);
+    LBLEPeripheral.addService(GPIO29_SERVICE);
+
+    GPIO30_SERVICE.addAttribute(GPIO30_MODE_CHARACTERISTIC);
+    GPIO30_SERVICE.addAttribute(GPIO30_DATA_CHARACTERISTIC);
+    LBLEPeripheral.addService(GPIO30_SERVICE);
+
+    GPIO31_SERVICE.addAttribute(GPIO31_MODE_CHARACTERISTIC);
+    GPIO31_SERVICE.addAttribute(GPIO31_DATA_CHARACTERISTIC);
+    LBLEPeripheral.addService(GPIO31_SERVICE);
+
+    GPIO32_SERVICE.addAttribute(GPIO32_MODE_CHARACTERISTIC);
+    GPIO32_SERVICE.addAttribute(GPIO32_DATA_CHARACTERISTIC);
+    LBLEPeripheral.addService(GPIO32_SERVICE);
+
+    GPIO33_SERVICE.addAttribute(GPIO33_MODE_CHARACTERISTIC);
+    GPIO33_SERVICE.addAttribute(GPIO33_DATA_CHARACTERISTIC);
+    LBLEPeripheral.addService(GPIO33_SERVICE);
+
+    GPIO34_SERVICE.addAttribute(GPIO34_MODE_CHARACTERISTIC);
+    GPIO34_SERVICE.addAttribute(GPIO34_DATA_CHARACTERISTIC);
+    LBLEPeripheral.addService(GPIO34_SERVICE);
+
+    GPIO38_SERVICE.addAttribute(GPIO38_MODE_CHARACTERISTIC);
+    GPIO38_SERVICE.addAttribute(GPIO38_DATA_CHARACTERISTIC);
+    LBLEPeripheral.addService(GPIO38_SERVICE);
+
+    GPIO39_SERVICE.addAttribute(GPIO39_MODE_CHARACTERISTIC);
+    GPIO39_SERVICE.addAttribute(GPIO39_DATA_CHARACTERISTIC);
+    LBLEPeripheral.addService(GPIO39_SERVICE);
+
+    GPIO57_SERVICE.addAttribute(GPIO57_MODE_CHARACTERISTIC);
+    GPIO57_SERVICE.addAttribute(GPIO57_DATA_CHARACTERISTIC);
+    LBLEPeripheral.addService(GPIO57_SERVICE);
+
+    GPIO58_SERVICE.addAttribute(GPIO58_MODE_CHARACTERISTIC);
+    GPIO58_SERVICE.addAttribute(GPIO58_DATA_CHARACTERISTIC);
+    LBLEPeripheral.addService(GPIO58_SERVICE);
+
+    GPIO59_SERVICE.addAttribute(GPIO59_MODE_CHARACTERISTIC);
+    GPIO59_SERVICE.addAttribute(GPIO59_DATA_CHARACTERISTIC);
+    LBLEPeripheral.addService(GPIO59_SERVICE);
+
+    GPIO60_SERVICE.addAttribute(GPIO60_MODE_CHARACTERISTIC);
+    GPIO60_SERVICE.addAttribute(GPIO60_DATA_CHARACTERISTIC);
+    LBLEPeripheral.addService(GPIO60_SERVICE);
 
     // advertise
     LBLEAdvertisementData advertisement;

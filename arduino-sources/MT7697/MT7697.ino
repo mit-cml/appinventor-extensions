@@ -15,12 +15,12 @@ void loop()
     for (int idx = 0; idx < GPIO_UUID_PROFILES_SIZE; idx += 1)
     {
         auto& lble_ref = GPIO_LBLE_PROFILES[idx];
-        const int pin = lble_ref.uuid_profile->pin;
+        const int pin = lble_ref.pin;
 
         // set pin mode if requested
-        if (lble_ref.mode_char.isWritten())
+        if (lble_ref.mode_char->isWritten())
         {
-            const int value = lble_ref.mode_char.getValue();
+            const int value = lble_ref.mode_char->getValue();
             lble_ref.mode = value;
 
             switch (value)
