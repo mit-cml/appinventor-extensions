@@ -208,6 +208,7 @@ public final class MockForm extends MockContainer {
   private static final String PROPERTY_NAME_VNAME = "VersionName";
   private static final String PROPERTY_NAME_ANAME = "AppName";
   private static final String PROPERTY_NAME_SIZING = "Sizing"; // Don't show except on screen1
+  private static final String PROPERTY_NAME_TITLEVISIBLE = "TitleVisible";
   // Don't show except on screen1
   private static final String PROPERTY_NAME_SHOW_LISTS_AS_JSON = "ShowListsAsJson";
   private static final String PROPERTY_NAME_TUTORIAL_URL = "TutorialURL";
@@ -626,6 +627,11 @@ public final class MockForm extends MockContainer {
           SettingsConstants.YOUNG_ANDROID_SETTINGS_APP_NAME, aname);
     }
   }
+  
+  private void setTitleVisibleProperty(String text) {
+    boolean visible = Boolean.parseBoolean(text);
+    titleBar.setVisible(visible);
+  }
 
   private void setActionBarProperty(String actionBar) {
     if (editor.isScreen1()) {
@@ -966,6 +972,9 @@ public final class MockForm extends MockContainer {
       refreshForm();
     } else if (propertyName.equals(PROPERTY_NAME_VERTICAL_ALIGNMENT)) {
       myLayout.setVAlignmentFlags(newValue);
+      refreshForm();
+    } else if (propertyName.equals(PROPERTY_NAME_TITLEVISIBLE)) {
+      setTitleVisibleProperty(newValue);
       refreshForm();
     }
   }
