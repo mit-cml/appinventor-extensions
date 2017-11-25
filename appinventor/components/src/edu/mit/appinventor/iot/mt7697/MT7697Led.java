@@ -12,9 +12,6 @@ import com.google.appinventor.components.common.ComponentCategory;
 import com.google.appinventor.components.common.PropertyTypeConstants;
 import com.google.appinventor.components.runtime.Form;
 
-import static edu.mit.appinventor.iot.mt7697.Constants.LED_SERVICE_UUID;
-import static edu.mit.appinventor.iot.mt7697.Constants.LED_CHARACTERISTIC_UUID;
-
 /**
  * Extension for MT7697 that allows the user to manipulate attached LEDs.
  *
@@ -34,40 +31,22 @@ import static edu.mit.appinventor.iot.mt7697.Constants.LED_CHARACTERISTIC_UUID;
                    nonVisible = true,
                    iconName = "aiwebres/mt7697.png")
 @SimpleObject(external = true)
-public class MT7697Led extends MT7697ExtensionWithIntensity {
+public class MT7697Led extends MT7697ExtensionBase {
   public MT7697Led(Form form) {
     super(form);
-    super.Pin(13);
-    super.Intensity(100);
   }
-
-  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_NON_NEGATIVE_INTEGER,
-                    defaultValue = "13")
-  @SimpleProperty
-  public void Pin(int pin) {
-    super.Pin(pin);
-  }
-
-  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_NON_NEGATIVE_INTEGER,
-                    defaultValue = "100")
-  @SimpleProperty
-  public void Intensity(int intensity) {
-    super.Intensity(intensity);
-  }
-
-  @SimpleProperty(description = "The Intensity of the LED valued from 1-100. Intensity will only " +
-                                "affect the brightness of the LED if it is plugged into a pin supporting pulse width " +
-                                "modulation (PWM). For the MT7697, the PWM pins are 3, 5, 6, and 9. For all other " +
-                                "pins the LED will either turn on or off with no change in intensity.")
-  public int Intensity() {
-    return super.Intensity();
-  }
-
-  protected String getService() {
-    return LED_SERVICE_UUID;
-  }
-
-  protected String getCharacteristic() {
-    return LED_CHARACTERISTIC_UUID;
+  
+  /**
+   * Tests whether the Bluetooth low energy device is broadcasting support for the service. If true,
+   * calls to TurnOn and TurnOff should work correctly. Otherwise an error will be reported through
+   * the Screen's ErrorOccurred event.
+   */
+  @Override
+  @SimpleFunction
+  public boolean IsSupported() {
+    // TODO
+    return bleConnection != null;//  &&
+      // bleConnection.isCharacteristicPublished(getPinServiceUUID(), getPinModeCharUUID()) &&
+      // bleConnection.isCharacteristicPublished(getPinServiceUUID(), getPinDataCharUUID());
   }
 }
