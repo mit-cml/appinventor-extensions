@@ -40,18 +40,24 @@ public abstract class MT7697Pin extends MT7697ExtensionBase {
   //     }
   //   };
 
-  private static final String STRING_ANALOG  = "analog";
-  private static final String STRING_DIGITAL = "digital";
-  private static final int MODE_ANALOG  = 0;
-  private static final int MODE_DIGITAL = 1;
+  private static final String STRING_ANALOG_INPUT   = "analog input";
+  private static final String STRING_ANALOG_OUTPUT  = "analog output";
+  private static final String STRING_DIGITAL_INPUT  = "digital input";
+  private static final String STRING_DIGITAL_OUTPUT = "digital output";
+  private static final int MODE_ANALOG_INPUT   = 0;
+  private static final int MODE_ANALOG_OUTPUT  = 1;
+  private static final int MODE_DIGITAL_INPUT  = 2;
+  private static final int MODE_DIGITAL_OUTPUT = 3;
 
   private static final String DEFAULT_PIN = "0";
 
   private String mPin = DEFAULT_PIN;
   private int mMode;
   private String mServiceUuid;
-  private String mDigitalCharUuid;
-  private String mAnalogCharUuid;
+  private String mAnalogInputCharUuid;
+  private String mAnalogOutputCharUuid;
+  private String mDigitalInputCharUuid;
+  private String mDigitalOutputCharUuid;
 
   public MT7697Pin(Form form) {
     super(form);
@@ -59,13 +65,15 @@ public abstract class MT7697Pin extends MT7697ExtensionBase {
 
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_CHOICES,
                     defaultValue = DEFAULT_PIN,
-                    editorArgs = {"0", "1", "2", "3", "4", "5", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17"})
+                    editorArgs = {"2", "3", "4", "5", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17"})
   @SimpleProperty
   public void Pin(String pin) {
     mPin = pin;
-    mServiceUuid     = PIN_UUID_LOOKUP.get(mPin).mServiceUuid;
-    mAnalogCharUuid  = PIN_UUID_LOOKUP.get(mPin).mAnalogCharUuid;
-    mDigitalCharUuid = PIN_UUID_LOOKUP.get(mPin).mDigitalCharUuid;
+    mServiceUuid           = PIN_UUID_LOOKUP.get(mPin).mServiceUuid;
+    mAnalogInputCharUuid   = PIN_UUID_LOOKUP.get(mPin).mAnalogInputCharUuid;
+    mDigitalOutputCharUuid = PIN_UUID_LOOKUP.get(mPin).mDigitalOutputCharUuid;
+    mAnalogInputCharUuid   = PIN_UUID_LOOKUP.get(mPin).mAnalogInputCharUuid;
+    mDigitalOutputCharUuid = PIN_UUID_LOOKUP.get(mPin).mDigitalOutputCharUuid;
   }
 
   @SimpleProperty(description = "The pin mode on the MT7697 board that the device is wired in to.")
@@ -74,22 +82,38 @@ public abstract class MT7697Pin extends MT7697ExtensionBase {
   }
 
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_CHOICES,
-                    defaultValue = STRING_ANALOG,
-                    editorArgs = { STRING_ANALOG, STRING_DIGITAL })
+                    defaultValue = STRING_ANALOG_INPUT,
+                    editorArgs = { STRING_ANALOG_INPUT, STRING_ANALOG_OUTPUT, STRING_DIGITAL_INPUT, STRING_DIGITAL_OUTPUT })
   @SimpleProperty
   public void Mode(String mode) {
-    if (mode.equals(STRING_ANALOG))
-      mMode = MODE_ANALOG;
+    if (mode.equals(STRING_ANALOG_INPUT))
+      mMode = MODE_ANALOG_INPUT;
+    else if (mode.equals(STRING_ANALOG_OUTPUT))
+      mMode = MODE_ANALOG_OUTPUT;
+    else if (mode.equals(STRING_DIGITAL_INPUT))
+      mMode = MODE_DIGITAL_INPUT;
+    else if (mode.equals(STRING_DIGITAL_OUTPUT))
+      mMode = MODE_DIGITAL_OUTPUT;
     else
-      mMode = MODE_DIGITAL;
+      assert false;
   }
 
   @SimpleProperty(description = "The pin mode on the MT7697 board that the device is wired in to.")
   public String Mode() {
-    if (mMode == MODE_ANALOG)
-      return STRING_ANALOG;
-    else
-      return STRING_DIGITAL;
+    switch (mMode) {
+    case MODE_ANALOG_INPUT:
+      return STRING_ANALOG_INPUT;
+
+    case MODE_ANALOG_OUTPUT:
+      return STRING_ANALOG_OUTPUT;
+
+    case MODE_DIGITAL_INPUT:
+      return STRING_DIGITAL_INPUT;
+
+    default:
+      assert mMode == MODE_DIGITAL_OUTPUT;
+      return STRING_DIGITAL_OUTPUT;
+    }
   }
 
   /**
@@ -102,7 +126,20 @@ public abstract class MT7697Pin extends MT7697ExtensionBase {
     if (!IsSupported())
       return;
 
-    String charUuid = (mMode == MODE_ANALOG) ? mAnalogCharUuid : mDigitalCharUuid;
+    String charUuid;
+    switch (mMode) {
+    case MODE_ANALOG_INPUT:
+      charUuid = mAnalogInputCharUuid;
+      break;
+
+    case MODE_DIGITAL_INPUT:
+      charUuid = mDigitalInputCharUuid;
+      break;
+
+    default:
+      return;
+    }
+
     bleConnection.ExReadByteValues(
       mServiceUuid,
       charUuid,
@@ -123,7 +160,20 @@ public abstract class MT7697Pin extends MT7697ExtensionBase {
 
     // TODO check if value is in [0, 255]
 
-    String charUuid = (mMode == MODE_ANALOG) ? mAnalogCharUuid : mDigitalCharUuid;
+    String charUuid;
+    switch (mMode) {
+    case MODE_ANALOG_OUTPUT:
+      charUuid = mAnalogOutputCharUuid;
+      break;
+
+    case MODE_DIGITAL_OUTPUT:
+      charUuid = mDigitalOutputCharUuid;
+      break;
+
+    default:
+      return;
+    }
+
     bleConnection.ExWriteByteValues(
       mServiceUuid,
       charUuid,
@@ -142,7 +192,20 @@ public abstract class MT7697Pin extends MT7697ExtensionBase {
     if (!IsSupported())
       return;
 
-    String charUuid = (mMode == MODE_ANALOG) ? mAnalogCharUuid : mDigitalCharUuid;
+    String charUuid;
+    switch (mMode) {
+    case MODE_ANALOG_INPUT:
+      charUuid = mAnalogInputCharUuid;
+      break;
+
+    case MODE_DIGITAL_INPUT:
+      charUuid = mDigitalInputCharUuid;
+      break;
+
+    default:
+      return;
+    }
+
     bleConnection.ExRegisterForByteValues(mServiceUuid,
                                           charUuid,
                                           false,
@@ -160,7 +223,19 @@ public abstract class MT7697Pin extends MT7697ExtensionBase {
     if (!IsSupported())
       return;
 
-    String charUuid = (mMode == MODE_ANALOG) ? mAnalogCharUuid : mDigitalCharUuid;
+    String charUuid;
+    switch (mMode) {
+    case MODE_ANALOG_INPUT:
+      charUuid = mAnalogInputCharUuid;
+      break;
+
+    case MODE_DIGITAL_INPUT:
+      charUuid = mDigitalInputCharUuid;
+      break;
+
+    default:
+      return;
+    }
     bleConnection.ExUnregisterForValues(mServiceUuid,
                                         charUuid,
                                         this.inputUpdateCallback);
@@ -175,8 +250,10 @@ public abstract class MT7697Pin extends MT7697ExtensionBase {
   @SimpleFunction
   public boolean IsSupported() {
     return bleConnection != null &&
-      bleConnection.isCharacteristicPublished(mServiceUuid, mAnalogCharUuid) &&
-      bleConnection.isCharacteristicPublished(mServiceUuid, mDigitalCharUuid);
+      bleConnection.isCharacteristicPublished(mServiceUuid, mAnalogInputCharUuid) &&
+      bleConnection.isCharacteristicPublished(mServiceUuid, mAnalogOutputCharUuid) &&
+      bleConnection.isCharacteristicPublished(mServiceUuid, mDigitalInputCharUuid) &&
+      bleConnection.isCharacteristicPublished(mServiceUuid, mDigitalOutputCharUuid);
   }
 
   /**
