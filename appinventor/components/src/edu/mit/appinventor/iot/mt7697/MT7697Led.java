@@ -17,7 +17,7 @@ import com.google.appinventor.components.runtime.Form;
  *
  * @author jerry73204@gmail.com (Hsiang-Jui Lin)
  */
-@DesignerComponent(version = 1,
+@DesignerComponent(version = 2,
                    description = "The Arduino LED component lets users control light-emitting diodes (LEDs) from" +
                                  " their App Inventor projects. If the LED is plugged into a pin supporting pulse width " +
                                  "modulation (PWM), then the LED's brightness can be controlled by varying the Intensity " +

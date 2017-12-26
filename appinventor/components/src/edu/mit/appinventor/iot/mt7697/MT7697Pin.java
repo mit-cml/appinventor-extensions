@@ -24,7 +24,7 @@ import static edu.mit.appinventor.iot.mt7697.Constants.PIN_UUID_LOOKUP;
  *
  * @author jerry73204@gmail.com (Hsiang-Jui Lin)
  */
-@DesignerComponent(version = 1,
+@DesignerComponent(version = 2,
                    description = "The Arduino LED component lets users control light-emitting diodes (LEDs) from" +
                                  " their App Inventor projects. If the LED is plugged into a pin supporting pulse width " +
                                  "modulation (PWM), then the LED's brightness can be controlled by varying the Intensity " +
@@ -38,7 +38,7 @@ import static edu.mit.appinventor.iot.mt7697.Constants.PIN_UUID_LOOKUP;
                    nonVisible = true,
                    iconName = "aiwebres/mt7697.png")
 @SimpleObject(external = true)
-public abstract class MT7697Pin extends MT7697ExtensionBase {
+public class MT7697Pin extends MT7697ExtensionBase {
   private final BluetoothLE.BLEResponseHandler<Integer> inputUpdateCallback =
     new BluetoothLE.BLEResponseHandler<Integer>() {
       @Override
