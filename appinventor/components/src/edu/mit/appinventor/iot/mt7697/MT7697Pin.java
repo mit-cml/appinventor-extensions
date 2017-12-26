@@ -5,12 +5,14 @@ package edu.mit.appinventor.iot.mt7697;
 
 import java.util.List;
 import android.util.Log;
+import com.google.appinventor.components.annotations.DesignerComponent;
 import com.google.appinventor.components.annotations.DesignerProperty;
 import com.google.appinventor.components.annotations.SimpleFunction;
 import com.google.appinventor.components.annotations.SimpleObject;
 import com.google.appinventor.components.annotations.SimpleProperty;
 import com.google.appinventor.components.annotations.SimpleEvent;
 import com.google.appinventor.components.common.PropertyTypeConstants;
+import com.google.appinventor.components.common.ComponentCategory;
 import com.google.appinventor.components.runtime.Form;
 import com.google.appinventor.components.runtime.EventDispatcher;
 import edu.mit.appinventor.ble.BluetoothLE;
@@ -22,7 +24,20 @@ import static edu.mit.appinventor.iot.mt7697.Constants.PIN_UUID_LOOKUP;
  *
  * @author jerry73204@gmail.com (Hsiang-Jui Lin)
  */
-@SimpleObject
+@DesignerComponent(version = 1,
+                   description = "The Arduino LED component lets users control light-emitting diodes (LEDs) from" +
+                                 " their App Inventor projects. If the LED is plugged into a pin supporting pulse width " +
+                                 "modulation (PWM), then the LED's brightness can be controlled by varying the Intensity " +
+                                 "property. TurnOn and TurnOff methods are used to control the power state of the LED." +
+                                 "<br>\n\n<strong>More Links:</strong><ul><li>Download a <a " +
+                                 "href='http://iot.appinventor.mit.edu/assets/samples/MT7697LED.aia' " +
+                                 "target='_blank'>sample project</a> for the MT7697 LED.</li><li>View the <a " +
+                                 "href='http://iot.appinventor.mit.edu/assets/howtos/MIT_App_Inventor_LED_Control.pdf' " +
+                                 "target='_blank'>how to instructions</a> for the MT7697 LED.</li></ul>",
+                   category = ComponentCategory.EXTENSION,
+                   nonVisible = true,
+                   iconName = "aiwebres/mt7697.png")
+@SimpleObject(external = true)
 public abstract class MT7697Pin extends MT7697ExtensionBase {
   private final BluetoothLE.BLEResponseHandler<Integer> inputUpdateCallback =
     new BluetoothLE.BLEResponseHandler<Integer>() {
@@ -65,7 +80,7 @@ public abstract class MT7697Pin extends MT7697ExtensionBase {
 
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_CHOICES,
                     defaultValue = DEFAULT_PIN,
-                    editorArgs = {"2", "3", "4", "5", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17"})
+                    editorArgs = {"2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17"})
   @SimpleProperty
   public void Pin(String pin) {
     mPin = pin;
