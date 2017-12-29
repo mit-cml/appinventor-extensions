@@ -1,0 +1,86 @@
+#include <LBLE.h>
+#include <LBLEPeriphral.h>
+
+LBLEService pin7_service("ccb7be00-77bd-4349-86a6-14cc7673ca07");
+LBLECharacteristicInt pin7_char("ccb7be04-77bd-4349-86a6-14cc7673ca07", LBLE_READ | LBLE_WRITE);
+
+void setup() {
+
+    pinMode(LED_BUILTIN, OUTPUT);
+    digitalWrite(LED_BUILTIN, LOW);
+    Serial.begin(9600);
+
+    pinMode(6, INPUT);
+
+    LBLE.begin();
+    while (!LBLE.ready()) {
+        delay(100);
+    }
+    Serial.println("BLE ready");
+
+    Serial.print("Device Address = [");
+    Serial.print(LBLE.getDeviceAddress());
+    Serial.println("]");
+
+    LBLEAdvertisementData advertisement;
+    advertisement.configAsConnectableDevice("BLE LED");
+
+    LBLEPeripheral.setName("BLE LED");
+
+    pin7_service.addAttribute(pin7_char);
+
+    LBLEPeripheral.addService(pin7_service);
+
+    LBLEPeripheral.begin();
+
+    LBLEPeripheral.advertise(advertisement);
+}
+
+void loop() {
+
+    if(LBLEPeripheral.connected() >= 1)
+    {
+        Serial.println("Conneted");
+        digitalWrite(7, LOW);
+        while(LBLEPeripheral.connected() >= 1)
+        {
+            if (digitalRead(6))
+            {
+                Serial.println("disconnect all!");
+                LBLEPeripheral.disconnectAll();
+                break;
+            }
+            if (pin7_char.isWritten()) 
+            {
+                const char value = pin7_char.getValue();
+                Serial.print("value: ");
+                Serial.println(value);
+                switch (value) {
+                    case 1:
+                        digitalWrite(LED_BUILTIN, HIGH);
+                        break;
+                    case 0:
+                        digitalWrite(LED_BUILTIN, LOW);
+                        break;
+                    default:
+                        Serial.println("Unknown value written");
+                        break;
+                }
+            }
+        }
+    }
+    else
+    {
+        Serial.println("No connected device");
+        blink();
+    }
+
+}
+
+void blink()
+{
+    digitalWrite(7, HIGH);
+    delay(500);
+    digitalWrite(7, LOW);
+    delay(500);
+}
