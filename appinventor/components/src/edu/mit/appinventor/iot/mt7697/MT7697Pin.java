@@ -11,10 +11,12 @@ import com.google.appinventor.components.annotations.SimpleFunction;
 import com.google.appinventor.components.annotations.SimpleObject;
 import com.google.appinventor.components.annotations.SimpleProperty;
 import com.google.appinventor.components.annotations.SimpleEvent;
+import com.google.appinventor.components.annotations.PropertyCategory;
 import com.google.appinventor.components.common.PropertyTypeConstants;
 import com.google.appinventor.components.common.ComponentCategory;
 import com.google.appinventor.components.runtime.Form;
 import com.google.appinventor.components.runtime.EventDispatcher;
+import com.google.appinventor.components.runtime.util.ErrorMessages;
 import edu.mit.appinventor.ble.BluetoothLE;
 
 import static edu.mit.appinventor.iot.mt7697.Constants.PIN_UUID_LOOKUP;
@@ -55,6 +57,11 @@ public class MT7697Pin extends MT7697ExtensionBase {
   //     }
   //   };
 
+  public static final int ERROR_INVALID_PIN_ARGUMENT  = 9101;
+  public static final int ERROR_INVALID_MODE_ARGUMENT = 9102;
+
+  private static final String LOG_TAG = "MT7697Pin";
+
   private static final String STRING_ANALOG_INPUT   = "analog input";
   private static final String STRING_ANALOG_OUTPUT  = "analog output";
   private static final String STRING_DIGITAL_INPUT  = "digital input";
@@ -78,11 +85,29 @@ public class MT7697Pin extends MT7697ExtensionBase {
     super(form);
   }
 
+
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_CHOICES,
                     defaultValue = DEFAULT_PIN,
                     editorArgs = {"2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17"})
   @SimpleProperty
   public void Pin(String pin) {
+    String[] validPins = {"2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17"};
+    boolean isValidPin = false;
+
+    for (int ind = 0; ind < validPins.length; ind += 1)
+      if (validPins[ind].equals(pin))
+        isValidPin = true;
+
+    if (!isValidPin) {
+      form.dispatchErrorOccurredEvent(this,
+                                      "Pin",
+                                      ErrorMessages.ERROR_EXTENSION_ERROR,
+                                      ERROR_INVALID_PIN_ARGUMENT,
+                                      LOG_TAG,
+                                      "Invalid pin value");
+      return;
+    }
+
     mPin = pin;
     mServiceUuid           = PIN_UUID_LOOKUP.get(mPin).mServiceUuid;
     mAnalogInputCharUuid   = PIN_UUID_LOOKUP.get(mPin).mAnalogInputCharUuid;
@@ -91,7 +116,8 @@ public class MT7697Pin extends MT7697ExtensionBase {
     mDigitalOutputCharUuid = PIN_UUID_LOOKUP.get(mPin).mDigitalOutputCharUuid;
   }
 
-  @SimpleProperty(description = "The pin mode on the MT7697 board that the device is wired in to.")
+  @SimpleProperty(category = PropertyCategory.BEHAVIOR,
+                  description = "The pin mode on the MT7697 board that the device is wired in to.")
   public String Pin() {
     return mPin;
   }
@@ -110,10 +136,16 @@ public class MT7697Pin extends MT7697ExtensionBase {
     else if (mode.equals(STRING_DIGITAL_OUTPUT))
       mMode = MODE_DIGITAL_OUTPUT;
     else
-      assert false;
+      form.dispatchErrorOccurredEvent(this,
+                                      "Mode",
+                                      ErrorMessages.ERROR_EXTENSION_ERROR,
+                                      ERROR_INVALID_MODE_ARGUMENT,
+                                      LOG_TAG,
+                                      "Invalid mode value");
   }
 
-  @SimpleProperty(description = "The pin mode on the MT7697 board that the device is wired in to.")
+  @SimpleProperty(category = PropertyCategory.BEHAVIOR,
+                  description = "The pin mode on the MT7697 board that the device is wired in to.")
   public String Mode() {
     switch (mMode) {
     case MODE_ANALOG_INPUT:
@@ -265,6 +297,10 @@ public class MT7697Pin extends MT7697ExtensionBase {
   @SimpleFunction
   public boolean IsSupported() {
     return bleConnection != null &&
+      mAnalogInputCharUuid != null &&
+      mAnalogOutputCharUuid != null &&
+      mDigitalInputCharUuid != null &&
+      mDigitalOutputCharUuid != null &&
       bleConnection.isCharacteristicPublished(mServiceUuid, mAnalogInputCharUuid) &&
       bleConnection.isCharacteristicPublished(mServiceUuid, mAnalogOutputCharUuid) &&
       bleConnection.isCharacteristicPublished(mServiceUuid, mDigitalInputCharUuid) &&
