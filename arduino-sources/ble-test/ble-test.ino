@@ -1,8 +1,11 @@
 #include <LBLE.h>
 #include <LBLEPeriphral.h>
 
-LBLEService pin7_service("ccb7be00-77bd-4349-86a6-14cc7673ca07");
-LBLECharacteristicInt pin7_char("ccb7be04-77bd-4349-86a6-14cc7673ca07", LBLE_READ | LBLE_WRITE);
+LBLEService           pin7_service("ccb7be00-77bd-4349-86a6-14cc7673ca07");
+LBLECharacteristicInt pin7_ana_inp_char("ccb7be01-77bd-4349-86a6-14cc7673ca07", LBLE_READ | LBLE_WRITE);
+LBLECharacteristicInt pin7_ana_out_char("ccb7be02-77bd-4349-86a6-14cc7673ca07", LBLE_READ | LBLE_WRITE);
+LBLECharacteristicInt pin7_dig_inp_char("ccb7be03-77bd-4349-86a6-14cc7673ca07", LBLE_READ | LBLE_WRITE);
+LBLECharacteristicInt pin7_dig_out_char("ccb7be04-77bd-4349-86a6-14cc7673ca07", LBLE_READ | LBLE_WRITE);
 
 void setup() {
 
@@ -27,7 +30,10 @@ void setup() {
 
     LBLEPeripheral.setName("BLE LED");
 
-    pin7_service.addAttribute(pin7_char);
+    pin7_service.addAttribute(pin7_ana_inp_char);
+    pin7_service.addAttribute(pin7_ana_out_char);
+    pin7_service.addAttribute(pin7_dig_inp_char);
+    pin7_service.addAttribute(pin7_dig_out_char);
 
     LBLEPeripheral.addService(pin7_service);
 
@@ -50,9 +56,9 @@ void loop() {
                 LBLEPeripheral.disconnectAll();
                 break;
             }
-            if (pin7_char.isWritten()) 
+            if (pin7_dig_out_char.isWritten()) 
             {
-                const char value = pin7_char.getValue();
+                const int value = pin7_dig_out_char.getValue();
                 Serial.print("value: ");
                 Serial.println(value);
                 switch (value) {
