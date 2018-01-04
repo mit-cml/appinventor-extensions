@@ -111,8 +111,8 @@ public class MT7697Pin extends MT7697ExtensionBase {
     mPin = pin;
     mServiceUuid           = PIN_UUID_LOOKUP.get(mPin).mServiceUuid;
     mAnalogInputCharUuid   = PIN_UUID_LOOKUP.get(mPin).mAnalogInputCharUuid;
-    mDigitalOutputCharUuid = PIN_UUID_LOOKUP.get(mPin).mDigitalOutputCharUuid;
-    mAnalogInputCharUuid   = PIN_UUID_LOOKUP.get(mPin).mAnalogInputCharUuid;
+    mDigitalInputCharUuid = PIN_UUID_LOOKUP.get(mPin).mDigitalInputCharUuid;
+    mAnalogOutputCharUuid   = PIN_UUID_LOOKUP.get(mPin).mAnalogOutputCharUuid;
     mDigitalOutputCharUuid = PIN_UUID_LOOKUP.get(mPin).mDigitalOutputCharUuid;
   }
 
