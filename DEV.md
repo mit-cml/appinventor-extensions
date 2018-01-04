@@ -24,12 +24,23 @@ We'll create it from scratch under `arduino-sources`. The Arduino 101 code in `a
 
 Android phone communicates with MT7697 over GATT protocol. MT7697 behaves as a peripheral device, while the Android phone, the central device, connects to it to retrieve data.
 
+## Milestones
+
+* Communication Protocol
+One service and four characters for each pin, responsable to analog input, analog output, digital input and digital output. There's 16 pins in total.
+
+* Pin I/O
+So far pin input is tested and is working properly, while pin output is still under testing.
+
+* Documention
+Not done yet.
+
 ## Build & Test
 
 ### Get sources
 If it's the first time you download the source code, follow the steps:
-1. Install dependencies: JDK >= 1.8, Apache ant, Google AppEngine for Java
-2. Clone the repository ([jerry73204/appinventor-extensions](https://github.com/jerry73204/appinventor-extensions))
+1. Install dependencies: JDK >= 1.7, Apache ant, Google AppEngine for Java
+2. Clone the repository ([jerry73204/appinventor-extensions](https://github.com/jerry73204/appinventor-extensions)), and checkout to branch "7697-dev".
 3. Download submodules.
 ```sh
 git submodule init
@@ -38,13 +49,13 @@ git submodule update --recursive --remote
 
 ### Build and Run Server
 1. Compile project by `cd appinventor; ant clean && ant`.
-2. Run `dev_appserver.sh --address=0.0.0.0 --port=8888` to start server. 0.0.0.0 is a special address making the server listen to outer connections.
+2. Run `dev_appserver.sh --address=0.0.0.0 --port=8888 appengine/build/war` to start AppInventor server. You may modify the address or port.
 3. Run `ant RunLocalBuildServer` in another console to enable APK compilation.
-4. Go to link `http://wtf.csie.org:8888/` (or addrs other than wtf.csie.org)
+4. Go to link `http://localhost:8888/`.
 
 ### Build Extensions only
 1. Compile extensions by `cd appinventor; ant clean && ant extensions`.
-2. The .aix file should be located at `appinventor/components/build/extensions/YOUR.EXTENSION.aix`.
+2. The .aix file is located at `appinventor/components/build/extensions/YOUR.EXTENSION.aix`.
 
 ### Flash MT7697
 1. Clone repository `git clone git@github.com:MediaTek-Labs/mt76x7-uploader.git`.
