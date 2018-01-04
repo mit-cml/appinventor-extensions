@@ -27,12 +27,15 @@ Android phone communicates with MT7697 over GATT protocol. MT7697 behaves as a p
 ## Milestones
 
 * Communication Protocol
+
 One service and four characters for each pin, responsable to analog input, analog output, digital input and digital output. There's 16 pins in total.
 
 * Pin I/O
+
 So far pin input is tested and is working properly, while pin output is still under testing.
 
 * Documention
+
 Not done yet.
 
 ## Build & Test
