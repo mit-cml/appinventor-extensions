@@ -47,7 +47,7 @@ If it's the first time you download the source code, follow the steps:
 3. Download submodules.
 ```sh
 git submodule init
-git submodule update --recursive --remote
+git submodule update
 ```
 
 ### Build and Run Server
