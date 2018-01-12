@@ -27,7 +27,7 @@ import java.util.List;
         "href='http://iot.appinventor.mit.edu/assets/howtos/MIT_App_Inventor_IoT_Microbit_IO_Pins.pdf' " +
         "target='_blank'>how to instructions</a> for the micro:bit IO pins.</li></ul>-->"
         */,
-    category = ComponentCategory.EXTENSION,
+    category = ComponentCategory.INTERNAL,
     nonVisible = true,
     helpUrl = "http://iot.appinventor.mit.edu/#/microbit/microbitiopin",
     iconName = "aiwebres/microbit.png")

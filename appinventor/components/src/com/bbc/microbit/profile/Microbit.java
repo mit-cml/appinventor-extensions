@@ -18,7 +18,7 @@ import java.util.List;
 
 @DesignerComponent(version = 1,
     description = "",
-    category = ComponentCategory.EXTENSION,
+    category = ComponentCategory.INTERNAL,
     nonVisible = true,
     iconName = "aiwebres/microbit.png")
 @SimpleObject(external = true)

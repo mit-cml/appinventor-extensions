@@ -22,7 +22,7 @@ import java.util.List;
 @DesignerComponent(version = 1,
     description = "The <code>Microbit_Uart</code> sensor provides the ability " +
         "to read from and write strings to the BBC micro:bit's serial UART port.",
-    category = ComponentCategory.INTERNAL,
+    category = ComponentCategory.EXTENSION,
     nonVisible = true,
     helpUrl = "http://iot.appinventor.mit.edu/#/microbit/microbituart",
     iconName = "aiwebres/microbit.png")
