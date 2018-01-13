@@ -1,66 +1,14 @@
-#include <cassert>
 #include <LBLEPeriphral.h>
 #include <LBLE.h>
 
 #include "constants.hpp"
-// #include "lble_setup.hpp"
-
-static LBLEService           PIN02_SERVICE(PIN02_SERVICE_UUID);
-static LBLECharacteristicInt PIN02_ANA_INP_CHAR(PIN02_ANA_INP_CHAR_UUID, LBLE_READ | LBLE_WRITE);
-static LBLECharacteristicInt PIN02_ANA_OUT_CHAR(PIN02_ANA_OUT_CHAR_UUID, LBLE_READ | LBLE_WRITE);
-static LBLECharacteristicInt PIN02_DIG_INP_CHAR(PIN02_DIG_INP_CHAR_UUID, LBLE_READ | LBLE_WRITE);
-static LBLECharacteristicInt PIN02_DIG_OUT_CHAR(PIN02_DIG_OUT_CHAR_UUID, LBLE_READ | LBLE_WRITE);
-
-struct pin_lble_profile
-{
-    int pin;
-    LBLEService *service;
-    LBLECharacteristicInt *ana_inp_char;
-    LBLECharacteristicInt *ana_out_char;
-    LBLECharacteristicInt *dig_inp_char;
-    LBLECharacteristicInt *dig_out_char;
-};
-
-static pin_lble_profile PIN_LBLE_PROFILES[] = {
-    { 2,
-      &PIN02_SERVICE, 
-      &PIN02_ANA_INP_CHAR,
-      &PIN02_ANA_OUT_CHAR, 
-      &PIN02_DIG_INP_CHAR, 
-      &PIN02_DIG_OUT_CHAR }
-};
+#include "lble_setup.hpp"
 
 void setup()
 {
     // setup_lble();
     pinMode(6, INPUT);
     pinMode(7, OUTPUT);
-
-    Serial.begin(9600);
-
-
-    LBLE.begin();
-    while(!LBLE.ready())
-        delay(100);
-    Serial.println("BLE ready.");
-
-    Serial.print("MAC address: ");
-    Serial.println(LBLE.getDeviceAddress());
-
-    // advertise
-    LBLEAdvertisementData advertisement;
-    advertisement.configAsConnectableDevice(DEVICE_NAME);
-    LBLEPeripheral.setName(DEVICE_NAME);
-
-    // setup services and characteristics
-    PIN02_SERVICE.addAttribute(PIN02_ANA_INP_CHAR);
-    PIN02_SERVICE.addAttribute(PIN02_ANA_OUT_CHAR);
-    PIN02_SERVICE.addAttribute(PIN02_DIG_INP_CHAR);
-    PIN02_SERVICE.addAttribute(PIN02_DIG_OUT_CHAR);
-    LBLEPeripheral.addService(PIN02_SERVICE);
-
-    LBLEPeripheral.begin();
-    LBLEPeripheral.advertise(advertisement);
 }
 
 void loop()
@@ -96,7 +44,7 @@ void loop()
         // Serial.println(lble_ref.pin);
         for (int idx = 0; idx < PIN_UUID_PROFILES_SIZE; idx += 1)
         {
-            auto& lble_ref = PIN_LBLE_PROFILES[idx];
+            auto& lble_ref = PIN_SETUP.PIN_LBLE_PROFILES[idx];
             const int pin = lble_ref.pin;
             if (lble_ref.ana_inp_char->isWritten())
                 Serial.println("ana_inp written!!!");
