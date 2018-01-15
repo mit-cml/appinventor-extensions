@@ -3,132 +3,92 @@
 
 #include "constants.hpp"
 #include "lble_setup.hpp"
+LBLEPinSetup PIN_SETUP;
 
 void setup()
 {
-    // setup_lble();
-    pinMode(6, INPUT);
-    pinMode(7, OUTPUT);
+    pinMode(BTN_PIN, INPUT);
+    pinMode(LED_PIN, OUTPUT);
+    PIN_SETUP.begin();
 }
 
 void loop()
 {
-    if(digitalRead(6))
+    delay(500);
+
+    if (digitalRead(BTN_PIN))
     {
         Serial.println("disconnect all!");
         LBLEPeripheral.disconnectAll();
     }
-    if(LBLEPeripheral.connected() == 0)
+    if (LBLEPeripheral.connected() == 0)
     {
         Serial.println("No connected device");
         while(LBLEPeripheral.connected() == 0)
         {
-            digitalWrite(7, HIGH);
+            digitalWrite(LED_PIN, HIGH);
             delay(100);
-            digitalWrite(7, LOW);
+            digitalWrite(LED_PIN, LOW);
             delay(100);
         }
         Serial.println("Connected, press USR BTN to disconnect");
-        digitalWrite(7, LOW);
+        digitalWrite(LED_PIN, LOW);
     }
     else
     {
-        // if (PIN02_ANA_INP_CHAR.isWritten())
-        // {
-        //     Serial.println("ana_inp written!!!");
-        //     Serial.println(PIN02_ANA_INP_CHAR.getValue());
-        // }
-        // auto& lble_ref = PIN_LBLE_PROFILES[5];
-        // const int pin = lble_ref.pin;
-        // Serial.print("Pin: ");
-        // Serial.println(lble_ref.pin);
         for (int idx = 0; idx < PIN_UUID_PROFILES_SIZE; idx += 1)
         {
             auto& lble_ref = PIN_SETUP.PIN_LBLE_PROFILES[idx];
             const int pin = lble_ref.pin;
-            if (lble_ref.ana_inp_char->isWritten())
-                Serial.println("ana_inp written!!!");
-            if (lble_ref.ana_out_char->isWritten())
-                Serial.println("ana_out written!!!");
-            if (lble_ref.dig_inp_char->isWritten())
-                Serial.println("dig_inp written!!!");
-            if (lble_ref.dig_out_char->isWritten())
-                Serial.println("dig_out written!!!");
-        }
-        // for (int idx = 0; idx < PIN_UUID_PROFILES_SIZE; idx += 1)
-        // {
-        //     auto& lble_ref = PIN_LBLE_PROFILES[idx];
-        //     const int pin = lble_ref.pin;
-        //
-        //     // set pin mode if requested
-            // {
-                // const int value = lble_ref.dig_out_char->getValue();
-                //
-                // Serial.print("Pin: ");
+
+
+            if (pin != LED_PIN && pin == 14)
+            {
+                pinMode(pin, INPUT);
+                if (pin >= 14 && pin <= 17)
+                {
+                    int value = analogRead(pin);
+                    Serial.print("ana_inp_char ");
+                    Serial.print(pin);
+                    Serial.print(" write value: ");
+                    Serial.println(value);
+                    lble_ref.ana_inp_char->setValue(value);
+                }
+                // int value = digitalRead(pin);
+                // Serial.print("dig_inp_char ");
                 // Serial.print(pin);
-                // Serial.print(" is written with value:  ");
+                // Serial.print(" write value: ");
                 // Serial.println(value);
+                // lble_ref.dig_inp_char->setValue(value);
+            }
 
-                // lble_ref.mode = value;
-                //
-                // switch (value)
-                // {
-                //     case PIN_MODE_NONE:
-                //         break;
-                //     case PIN_MODE_ANALOG_READ:
-                //     case PIN_MODE_DIGITAL_READ:
-                //         {
-                //             pinMode(pin, INPUT);
-                //             break;
-                //         }
-                //     case PIN_MODE_ANALOG_WRITE:
-                //     case PIN_MODE_DIGITAL_WRITE:
-                //         {
-                //             pinMode(pin, OUTPUT);
-                //             break;
-                //         }
-                //     case PIN_MODE_SERVO:
-                //         {
-                //             // TODO
-                //             break;
-                //         }
-                //     default:
-                //         assert(0);
-                // }
-            // }
-
-            // execute I/O according to its mode
-            // const int mode = lble_ref.mode;
-            // switch (mode)
+            // if (pin == BTN_PIN)
             // {
-            //     case PIN_MODE_ANALOG_READ:
-            //         {
-            //             // TODO
-            //             break;
-            //         }
-            //     case PIN_MODE_ANALOG_WRITE:
-            //         {
-            //             // TODO
-            //             break;
-            //         }
-            //     case PIN_MODE_DIGITAL_READ:
-            //         {
-            //             // TODO
-            //             break;
-            //         }
-            //     case PIN_MODE_DIGITAL_WRITE:
-            //         {
-            //             // TODO
-            //             break;
-            //         }
-            //     case PIN_MODE_SERVO:
-            //         {
-            //             // TODO
-            //             break;
-            //         }
-            //     default:
-            //         assert(mode == PIN_MODE_NONE);
+            //     continue;
             // }
-        // }
+            // else
+            // {
+            //     if (lble_ref.ana_out_char->isWritten())
+            //     {
+            //         pinMode(pin, OUTPUT);
+            //         int value = lble_ref.ana_out_char->getValue();
+            //         Serial.print("ana_out_char");
+            //         Serial.print(pin);
+            //         Serial.print(" get value: ");
+            //         Serial.println(value);
+            //         analogWrite(pin, value);
+            //     }
+            //     else if (lble_ref.dig_out_char->isWritten())
+            //     {
+            //         pinMode(pin, OUTPUT);
+            //         int value = lble_ref.dig_out_char->getValue();
+            //         Serial.print("dig_out_char ");
+            //         Serial.print(pin);
+            //         Serial.print(" get value: ");
+            //         Serial.println(value);
+            //         digitalWrite(pin, value);
+            //     }
+            // }
+        }
     }
 }

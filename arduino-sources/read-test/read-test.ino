@@ -15,7 +15,7 @@ void setup() {
     Serial.begin(9600);
 
     pinMode(6, INPUT);
-    pinMode(A0, INPUT);
+    pinMode(14, INPUT);
 
     LBLE.begin();
     while (!LBLE.ready()) {

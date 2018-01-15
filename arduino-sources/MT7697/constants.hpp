@@ -1,7 +1,9 @@
 #ifndef __MT7697_CONSTANTS_HPP__
 #define __MT7697_CONSTANTS_HPP__
 
-#define PIN_UUID_PROFILES_SIZE 1
+#define PIN_UUID_PROFILES_SIZE 16
+#define BTN_PIN 6
+#define LED_PIN 7
 
 // The MT7697 compiler creates seperate static linked libraries
 // and link to together.
