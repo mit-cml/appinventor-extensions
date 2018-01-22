@@ -5,6 +5,8 @@ package edu.mit.appinventor.iot.mt7697;
 
 import java.util.List;
 import android.util.Log;
+import android.os.Handler;
+
 import com.google.appinventor.components.annotations.DesignerComponent;
 import com.google.appinventor.components.annotations.DesignerProperty;
 import com.google.appinventor.components.annotations.SimpleFunction;
@@ -17,9 +19,12 @@ import com.google.appinventor.components.common.ComponentCategory;
 import com.google.appinventor.components.runtime.Form;
 import com.google.appinventor.components.runtime.EventDispatcher;
 import com.google.appinventor.components.runtime.util.ErrorMessages;
+import com.google.appinventor.components.runtime.util.TimerInternal;
+import com.google.appinventor.components.runtime.AlarmHandler;
 import edu.mit.appinventor.ble.BluetoothLE;
 
 import static edu.mit.appinventor.iot.mt7697.Constants.PIN_UUID_LOOKUP;
+import static edu.mit.appinventor.iot.mt7697.Constants.PIN_SERVICE_UUID;
 
 /**
  * Base class for MT7697 extensions that require a pin configuration.
@@ -41,24 +46,12 @@ import static edu.mit.appinventor.iot.mt7697.Constants.PIN_UUID_LOOKUP;
                    iconName = "aiwebres/mt7697.png")
 @SimpleObject(external = true)
 public class MT7697Pin extends MT7697ExtensionBase {
-  private final BluetoothLE.BLEResponseHandler<Integer> inputUpdateCallback =
-    new BluetoothLE.BLEResponseHandler<Integer>() {
-      @Override
-      public void onReceive(String serviceUUID, String characteristicUUID, List<Integer> values) {
-        InputUpdated(values.get(0));
-      }
-    };
+  // constants
+  private static final int ERROR_INVALID_PIN_ARGUMENT  = 9101;
+  private static final int ERROR_INVALID_MODE_ARGUMENT = 9102;
+  private static final int ERROR_INVALID_WRITE_VALUE   = 9103;
 
-  // private final BluetoothLE.BLEResponseHandler<Integer> pinSetupCallback =
-  //   new BLEResponseHandler<Integer>() {
-  //     @Override
-  //     public void onReceive(String serviceUuid, String characteristicUuid, List<Integer> values) {
-  //       this.isModeUpdated = true;
-  //     }
-  //   };
-
-  public static final int ERROR_INVALID_PIN_ARGUMENT  = 9101;
-  public static final int ERROR_INVALID_MODE_ARGUMENT = 9102;
+  private static final int TIMER_INTERVAL = 80; // ms
 
   private static final String LOG_TAG = "MT7697Pin";
 
@@ -66,23 +59,68 @@ public class MT7697Pin extends MT7697ExtensionBase {
   private static final String STRING_ANALOG_OUTPUT  = "analog output";
   private static final String STRING_DIGITAL_INPUT  = "digital input";
   private static final String STRING_DIGITAL_OUTPUT = "digital output";
-  private static final int MODE_ANALOG_INPUT   = 0;
-  private static final int MODE_ANALOG_OUTPUT  = 1;
-  private static final int MODE_DIGITAL_INPUT  = 2;
-  private static final int MODE_DIGITAL_OUTPUT = 3;
+  private static final int MODE_UNSET          = 0;
+  private static final int MODE_ANALOG_INPUT   = 1;
+  private static final int MODE_ANALOG_OUTPUT  = 2;
+  private static final int MODE_DIGITAL_INPUT  = 3;
+  private static final int MODE_DIGITAL_OUTPUT = 4;
 
-  private static final String DEFAULT_PIN = "0";
+  private static final String DEFAULT_PIN = "2";
+  private final String mServiceUuid = PIN_SERVICE_UUID; // always unchanged
 
-  private String mPin = DEFAULT_PIN;
+  // variable
+  private String mPin;
   private int mMode;
-  private String mServiceUuid;
-  private String mAnalogInputCharUuid;
-  private String mAnalogOutputCharUuid;
-  private String mDigitalInputCharUuid;
-  private String mDigitalOutputCharUuid;
+  private String mModeCharUuid;
+  private String mDataCharUuid;
+  private int mData;
+
+  private TimerInternal mTimerInternal;
 
   public MT7697Pin(Form form) {
     super(form);
+
+    // setup timer
+    final BluetoothLE.BLEResponseHandler<Integer> inputUpdateCallback =
+      new BluetoothLE.BLEResponseHandler<Integer>() {
+        @Override
+        public void onReceive(String serviceUUID, String characteristicUUID, List<Integer> values) {
+          int receivedValue = values.get(0);
+
+          if (mMode == MODE_DIGITAL_INPUT) {
+            mData = receivedValue == 0 ? 0 : 1;
+            InputUpdated(receivedValue);
+          } else if (mMode == MODE_ANALOG_INPUT) {
+            mData = receivedValue;
+            InputUpdated(receivedValue);
+          }
+        }
+      };
+
+    AlarmHandler handler = new AlarmHandler() {
+      public void alarm() {
+        if (!IsSupported())
+          return;
+
+        if (mMode == MODE_ANALOG_INPUT || mMode == MODE_DIGITAL_INPUT) {
+          bleConnection.ExWriteByteValues(mServiceUuid, mModeCharUuid, false, 0);
+          bleConnection.ExReadByteValues(mServiceUuid, mDataCharUuid, false, inputUpdateCallback);
+
+        } else if (mMode == MODE_ANALOG_OUTPUT || mMode == MODE_DIGITAL_OUTPUT) {
+          bleConnection.ExWriteByteValues(mServiceUuid, mModeCharUuid, false, 1);
+
+          if (mData <= 0) {
+            int dataToSend = -mData;
+            if (mMode == MODE_DIGITAL_OUTPUT && dataToSend != 0)
+              dataToSend = 255;
+
+            bleConnection.ExWriteByteValues(mServiceUuid, mDataCharUuid, false, dataToSend);
+          }
+        }
+      }
+    };
+
+    mTimerInternal = new TimerInternal(handler, true, TIMER_INTERVAL);
   }
 
 
@@ -94,6 +132,7 @@ public class MT7697Pin extends MT7697ExtensionBase {
     String[] validPins = {"2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17"};
     boolean isValidPin = false;
 
+    // sanity check
     for (int ind = 0; ind < validPins.length; ind += 1)
       if (validPins[ind].equals(pin))
         isValidPin = true;
@@ -108,12 +147,10 @@ public class MT7697Pin extends MT7697ExtensionBase {
       return;
     }
 
+    // assign values
     mPin = pin;
-    mServiceUuid           = PIN_UUID_LOOKUP.get(mPin).mServiceUuid;
-    mAnalogInputCharUuid   = PIN_UUID_LOOKUP.get(mPin).mAnalogInputCharUuid;
-    mDigitalInputCharUuid = PIN_UUID_LOOKUP.get(mPin).mDigitalInputCharUuid;
-    mAnalogOutputCharUuid   = PIN_UUID_LOOKUP.get(mPin).mAnalogOutputCharUuid;
-    mDigitalOutputCharUuid = PIN_UUID_LOOKUP.get(mPin).mDigitalOutputCharUuid;
+    mModeCharUuid = PIN_UUID_LOOKUP.get(mPin).mModeCharUuid;
+    mDataCharUuid = PIN_UUID_LOOKUP.get(mPin).mDataCharUuid;
   }
 
   @SimpleProperty(category = PropertyCategory.BEHAVIOR,
@@ -127,14 +164,22 @@ public class MT7697Pin extends MT7697ExtensionBase {
                     editorArgs = { STRING_ANALOG_INPUT, STRING_ANALOG_OUTPUT, STRING_DIGITAL_INPUT, STRING_DIGITAL_OUTPUT })
   @SimpleProperty
   public void Mode(String mode) {
-    if (mode.equals(STRING_ANALOG_INPUT))
+    if (mode.equals(STRING_ANALOG_INPUT)) {
       mMode = MODE_ANALOG_INPUT;
-    else if (mode.equals(STRING_ANALOG_OUTPUT))
+      mData = -1;
+    }
+    else if (mode.equals(STRING_ANALOG_OUTPUT)) {
       mMode = MODE_ANALOG_OUTPUT;
-    else if (mode.equals(STRING_DIGITAL_INPUT))
+      mData = 1;
+    }
+    else if (mode.equals(STRING_DIGITAL_INPUT)) {
       mMode = MODE_DIGITAL_INPUT;
-    else if (mode.equals(STRING_DIGITAL_OUTPUT))
+      mData = -1;
+    }
+    else if (mode.equals(STRING_DIGITAL_OUTPUT)) {
       mMode = MODE_DIGITAL_OUTPUT;
+      mData = 1;
+    }
     else
       form.dispatchErrorOccurredEvent(this,
                                       "Mode",
@@ -169,30 +214,14 @@ public class MT7697Pin extends MT7697ExtensionBase {
    * run.
    */
   @SimpleFunction
-  public void Read() {
+  public int Read() {
     if (!IsSupported())
-      return;
+      return -1;
 
-    String charUuid;
-    switch (mMode) {
-    case MODE_ANALOG_INPUT:
-      charUuid = mAnalogInputCharUuid;
-      break;
-
-    case MODE_DIGITAL_INPUT:
-      charUuid = mDigitalInputCharUuid;
-      break;
-
-    default:
-      return;
-    }
-
-    bleConnection.ExReadByteValues(
-      mServiceUuid,
-      charUuid,
-      false,
-      inputUpdateCallback
-      );
+    if (mData < 0)
+      return -1;
+    else
+      return mData;
   }
 
   /**
@@ -205,87 +234,15 @@ public class MT7697Pin extends MT7697ExtensionBase {
     if (!IsSupported())
       return;
 
-    // TODO check if value is in [0, 255]
+    if (value < 0 || value > 255)
+    form.dispatchErrorOccurredEvent(this,
+                                    "Pin",
+                                    ErrorMessages.ERROR_EXTENSION_ERROR,
+                                    ERROR_INVALID_WRITE_VALUE,
+                                    LOG_TAG,
+                                    "Invalid write value");
 
-    String charUuid;
-    switch (mMode) {
-    case MODE_ANALOG_OUTPUT:
-      charUuid = mAnalogOutputCharUuid;
-      break;
-
-    case MODE_DIGITAL_OUTPUT:
-      charUuid = mDigitalOutputCharUuid;
-      break;
-
-    default:
-      return;
-    }
-
-    bleConnection.ExWriteByteValues(
-      mServiceUuid,
-      charUuid,
-      false,
-      value
-      );
-  }
-
-  /**
-   * Request notification of updates for the light sensor attached to the MT7697. The <a
-   * href="#LightSensorDataReceived"><code>LightSensorDataReceived</code></a> event will be run as
-   * light sensor readings are received from the Arduino.
-   */
-  @SimpleFunction
-  public void RequestInputUpdates() {
-    if (!IsSupported())
-      return;
-
-    String charUuid;
-    switch (mMode) {
-    case MODE_ANALOG_INPUT:
-      charUuid = mAnalogInputCharUuid;
-      break;
-
-    case MODE_DIGITAL_INPUT:
-      charUuid = mDigitalInputCharUuid;
-      break;
-
-    default:
-      return;
-    }
-
-    bleConnection.ExRegisterForByteValues(mServiceUuid,
-                                          charUuid,
-                                          false,
-                                          this.inputUpdateCallback);
-  }
-
-  /**
-   * Stop listening for notifications of light sensor readings from the Arduino. This only has an
-   * effect if there was a previous call to <a
-   * href="#RequestLightSensorUpdates"><code>RequestLightSensorUpdates</code></a>. There may be
-   * additional pending messages that will be processed after this call.
-   */
-  @SimpleFunction
-  public void StopInputUpdates() {
-    if (!IsSupported())
-      return;
-
-    String charUuid;
-    switch (mMode) {
-    case MODE_ANALOG_INPUT:
-      charUuid = mAnalogInputCharUuid;
-      break;
-
-    case MODE_DIGITAL_INPUT:
-      charUuid = mDigitalInputCharUuid;
-      break;
-
-    default:
-      return;
-    }
-    bleConnection.ExUnregisterForValues(mServiceUuid,
-                                        charUuid,
-                                        this.inputUpdateCallback);
+    mData = -value;
   }
 
   /**
@@ -296,15 +253,13 @@ public class MT7697Pin extends MT7697ExtensionBase {
   @Override
   @SimpleFunction
   public boolean IsSupported() {
-    return bleConnection != null &&
-      mAnalogInputCharUuid != null &&
-      mAnalogOutputCharUuid != null &&
-      mDigitalInputCharUuid != null &&
-      mDigitalOutputCharUuid != null &&
-      bleConnection.isCharacteristicPublished(mServiceUuid, mAnalogInputCharUuid) &&
-      bleConnection.isCharacteristicPublished(mServiceUuid, mAnalogOutputCharUuid) &&
-      bleConnection.isCharacteristicPublished(mServiceUuid, mDigitalInputCharUuid) &&
-      bleConnection.isCharacteristicPublished(mServiceUuid, mDigitalOutputCharUuid);
+    return mMode != MODE_UNSET &&
+      mPin != null &&
+      bleConnection != null &&
+      mModeCharUuid != null &&
+      mDataCharUuid != null &&
+      bleConnection.isCharacteristicPublished(mServiceUuid, mModeCharUuid) &&
+      bleConnection.isCharacteristicPublished(mServiceUuid, mDataCharUuid);
   }
 
   /**
