@@ -40,55 +40,67 @@ void loop()
         {
             auto& lble_ref = PIN_SETUP.PIN_LBLE_PROFILES[idx];
             const int pin = lble_ref.pin;
-
-
-            if (pin != LED_PIN && pin == 14)
+            if (lble_ref.mode_char->isWritten())
             {
-                pinMode(pin, INPUT);
-                if (pin >= 14 && pin <= 17)
-                {
-                    int value = analogRead(pin);
-                    Serial.print("ana_inp_char ");
-                    Serial.print(pin);
-                    Serial.print(" write value: ");
-                    Serial.println(value);
-                    lble_ref.ana_inp_char->setValue(value);
+                lble_ref.mode = lble_ref.mode_char->getValue();
+                switch (lble_ref.mode) {
+                    case MODE_ANALOG_INPUT:
+                    case MODE_DIGITAL_INPUT:
+                        pinMode(pin, INPUT);
+                        break;
+                    case MODE_ANALOG_OUTPUT:
+                    case MODE_DIGITAL_OUTPUT:
+                        pinMode(pin, OUTPUT);
+                        break;
+                    case MODE_UNSET:
+                        Serial.println("Mode unset");
+                        break;
+                    default:
+                        Serial.println("Invalid mode!!!");
+                        break;
                 }
-                // int value = digitalRead(pin);
-                // Serial.print("dig_inp_char ");
-                // Serial.print(pin);
-                // Serial.print(" write value: ");
-                // Serial.println(value);
-                // lble_ref.dig_inp_char->setValue(value);
             }
 
-            // if (pin == BTN_PIN)
-            // {
-            //     continue;
-            // }
-            // else
-            // {
-            //     if (lble_ref.ana_out_char->isWritten())
-            //     {
-            //         pinMode(pin, OUTPUT);
-            //         int value = lble_ref.ana_out_char->getValue();
-            //         Serial.print("ana_out_char");
-            //         Serial.print(pin);
-            //         Serial.print(" get value: ");
-            //         Serial.println(value);
-            //         analogWrite(pin, value);
-            //     }
-            //     else if (lble_ref.dig_out_char->isWritten())
-            //     {
-            //         pinMode(pin, OUTPUT);
-            //         int value = lble_ref.dig_out_char->getValue();
-            //         Serial.print("dig_out_char ");
-            //         Serial.print(pin);
-            //         Serial.print(" get value: ");
-            //         Serial.println(value);
-            //         digitalWrite(pin, value);
-            //     }
-            // }
+            switch (lble_ref.mode) {
+                case MODE_ANALOG_INPUT:
+                {
+                    int data = analogRead(pin);
+                    lble_ref.data_char->setValue(data);
+                    Serial.print("Send analog data: ");
+                    Serial.println(data);
+                    break;
+                }
+                case MODE_DIGITAL_INPUT:
+                {
+                    int data = digitalRead(pin);
+                    lble_ref.data_char->setValue(data);
+                    Serial.print("Send digital data: ");
+                    Serial.println(data);
+                    break;
+                }
+                case MODE_ANALOG_OUTPUT:
+                    if (lble_ref.data_char->isWritten())
+                    {
+                        int data = lble_ref.data_char->getValue();
+                        data *= -1;
+                        analogWrite(pin, data);
+                        Serial.print("Receive analog data: ");
+                        Serial.println(data);
+                    }
+                    break;
+                case MODE_DIGITAL_OUTPUT:
+                    if (lble_ref.data_char->isWritten())
+                    {
+                        int data = lble_ref.data_char->getValue();
+                        data *= -1;
+                        analogWrite(pin, data);
+                        Serial.print("Receive digital data: ");
+                        Serial.println(data);
+                    }
+                    break;
+                default:
+                    break;
+            }
         }
     }
 }
