@@ -64,6 +64,7 @@ public class MT7697Pin extends MT7697ExtensionBase {
   private static final int MODE_SERVO          = 5;
 
   private static final String DEFAULT_PIN = "2";
+  private static final String DEFAULT_MODE = STRING_ANALOG_INPUT;
   private final String mServiceUuid = PIN_SERVICE_UUID; // always unchanged
 
   // variable
@@ -125,6 +126,10 @@ public class MT7697Pin extends MT7697ExtensionBase {
     };
 
     mTimerInternal = new TimerInternal(handler, true, TIMER_INTERVAL);
+
+    // initialize properties
+    Pin(DEFAULT_PIN);
+    Mode(DEFAULT_MODE);
   }
 
 
@@ -192,7 +197,7 @@ public class MT7697Pin extends MT7697ExtensionBase {
    * @param The mode description set on the target pin.
    */
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_CHOICES,
-                    defaultValue = STRING_ANALOG_INPUT,
+                    defaultValue = DEFAULT_MODE,
                     editorArgs = { STRING_ANALOG_INPUT, STRING_ANALOG_OUTPUT, STRING_DIGITAL_INPUT, STRING_DIGITAL_OUTPUT, STRING_SERVO })
   @SimpleProperty
   public void Mode(String mode) {
