@@ -50,6 +50,7 @@ public class MT7697Pin extends MT7697ExtensionBase {
   private static final int ERROR_INVALID_PIN_ARGUMENT  = 9101;
   private static final int ERROR_INVALID_MODE_ARGUMENT = 9102;
   private static final int ERROR_INVALID_WRITE_VALUE   = 9103;
+  private static final int ERROR_INVALID_STATE         = 9104;
 
   private static final int TIMER_INTERVAL = 80; // ms
 
@@ -59,21 +60,24 @@ public class MT7697Pin extends MT7697ExtensionBase {
   private static final String STRING_ANALOG_OUTPUT  = "analog output";
   private static final String STRING_DIGITAL_INPUT  = "digital input";
   private static final String STRING_DIGITAL_OUTPUT = "digital output";
+  private static final String STRING_SERVO          = "servo";
   private static final int MODE_UNSET          = 0;
   private static final int MODE_ANALOG_INPUT   = 1;
   private static final int MODE_ANALOG_OUTPUT  = 2;
   private static final int MODE_DIGITAL_INPUT  = 3;
   private static final int MODE_DIGITAL_OUTPUT = 4;
+  private static final int MODE_SERVO          = 5;
 
   private static final String DEFAULT_PIN = "2";
   private final String mServiceUuid = PIN_SERVICE_UUID; // always unchanged
 
   // variable
-  private String mPin;
-  private int mMode;
+  private String mPin = DEFAULT_PIN;
+  private int mMode = MODE_UNSET;
   private String mModeCharUuid;
   private String mDataCharUuid;
   private int mData;
+  private boolean mInputUpdate = false;
 
   private TimerInternal mTimerInternal;
 
@@ -89,10 +93,15 @@ public class MT7697Pin extends MT7697ExtensionBase {
 
           if (mMode == MODE_DIGITAL_INPUT) {
             mData = receivedValue == 0 ? 0 : 1;
-            InputUpdated(receivedValue);
+
+            if (mInputUpdate)
+              InputUpdated(receivedValue);
+
           } else if (mMode == MODE_ANALOG_INPUT) {
             mData = receivedValue;
-            InputUpdated(receivedValue);
+
+            if (mInputUpdate)
+              InputUpdated(receivedValue);
           }
         }
       };
@@ -106,13 +115,13 @@ public class MT7697Pin extends MT7697ExtensionBase {
           bleConnection.ExWriteByteValues(mServiceUuid, mModeCharUuid, false, 0);
           bleConnection.ExReadByteValues(mServiceUuid, mDataCharUuid, false, inputUpdateCallback);
 
-        } else if (mMode == MODE_ANALOG_OUTPUT || mMode == MODE_DIGITAL_OUTPUT) {
+        } else if (mMode == MODE_ANALOG_OUTPUT || mMode == MODE_DIGITAL_OUTPUT || mMode == MODE_SERVO) {
           bleConnection.ExWriteByteValues(mServiceUuid, mModeCharUuid, false, 1);
 
           if (mData <= 0) {
-            int dataToSend = -mData;
+            int dataToSend = mData;
             if (mMode == MODE_DIGITAL_OUTPUT && dataToSend != 0)
-              dataToSend = 255;
+              dataToSend = -255;
 
             bleConnection.ExWriteByteValues(mServiceUuid, mDataCharUuid, false, dataToSend);
           }
@@ -126,16 +135,20 @@ public class MT7697Pin extends MT7697ExtensionBase {
 
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_CHOICES,
                     defaultValue = DEFAULT_PIN,
-                    editorArgs = {"2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17"})
+                    editorArgs = {"2", "3", "4", "5", "6", "7", "10", "11", "12", "13", "14", "15", "16", "17"})
   @SimpleProperty
   public void Pin(String pin) {
-    String[] validPins = {"2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17"};
+    // duplicated with editorArgs, but we have to make compiler happy
+    String[] validPins = {"2", "3", "4", "5", "6", "7", "10", "11", "12", "13", "14", "15", "16", "17"};
     boolean isValidPin = false;
 
     // sanity check
-    for (int ind = 0; ind < validPins.length; ind += 1)
-      if (validPins[ind].equals(pin))
+    for (int ind = 0; ind < validPins.length; ind += 1) {
+      if (validPins[ind].equals(pin)) {
         isValidPin = true;
+        break;
+      }
+    }
 
     if (!isValidPin) {
       form.dispatchErrorOccurredEvent(this,
@@ -161,7 +174,7 @@ public class MT7697Pin extends MT7697ExtensionBase {
 
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_CHOICES,
                     defaultValue = STRING_ANALOG_INPUT,
-                    editorArgs = { STRING_ANALOG_INPUT, STRING_ANALOG_OUTPUT, STRING_DIGITAL_INPUT, STRING_DIGITAL_OUTPUT })
+                    editorArgs = { STRING_ANALOG_INPUT, STRING_ANALOG_OUTPUT, STRING_DIGITAL_INPUT, STRING_DIGITAL_OUTPUT, STRING_SERVO })
   @SimpleProperty
   public void Mode(String mode) {
     if (mode.equals(STRING_ANALOG_INPUT)) {
@@ -178,6 +191,10 @@ public class MT7697Pin extends MT7697ExtensionBase {
     }
     else if (mode.equals(STRING_DIGITAL_OUTPUT)) {
       mMode = MODE_DIGITAL_OUTPUT;
+      mData = 1;
+    }
+    else if (mode.equals(STRING_SERVO)) {
+      mMode = MODE_SERVO;
       mData = 1;
     }
     else
@@ -202,53 +219,93 @@ public class MT7697Pin extends MT7697ExtensionBase {
     case MODE_DIGITAL_INPUT:
       return STRING_DIGITAL_INPUT;
 
-    default:
-      assert mMode == MODE_DIGITAL_OUTPUT;
+    case MODE_DIGITAL_OUTPUT:
       return STRING_DIGITAL_OUTPUT;
+
+    case MODE_SERVO:
+      return STRING_SERVO;
     }
+    assert false;
+    return null;
   }
 
   /**
-   * Obtain the most recent reading from the light sensor as reported by the Arduino. On success,
-   * the <a href="#LightSensorDataReceived"><code>LightSensorDataReceived</code></a> event will be
-   * run.
+   * Obtain the most recent reading from the input pin on MT7697. This function returns the value from
+   * 0 to 255 under analog input mode, or returns 0 or 1 under digital input mode. If the mode is neither
+   * the analog or digital input mode, it will raise an error.
    */
   @SimpleFunction
   public int Read() {
     if (!IsSupported())
       return -1;
 
-    if (mData < 0)
+    if (mMode == MODE_ANALOG_INPUT || mMode == MODE_DIGITAL_INPUT) {
+      if (mData >= 0)
+        return mData;
+      else
+        return -1;
+    }
+    else {
+      form.dispatchErrorOccurredEvent(this,
+                                      "Read",
+                                      ErrorMessages.ERROR_EXTENSION_ERROR,
+                                      ERROR_INVALID_STATE,
+                                      LOG_TAG,
+                                      "Call Read() on non-input mode");
       return -1;
-    else
-      return mData;
+    }
   }
 
   /**
-   * Obtain the most recent reading from the light sensor as reported by the Arduino. On success,
-   * the <a href="#LightSensorDataReceived"><code>LightSensorDataReceived</code></a> event will be
-   * run.
+   * Set the output intensity of a pin on MT7697. In analog output mode, the argument should be
+   * non-negative and not exceed 255, otherwise it will be trimmed. In digital output mode, zero
+   * and non-zero argument are respectively treated as LOW and HIGH outputs. In servo mode, the
+   * argument should be in range from 0 to 180.
    */
   @SimpleFunction
   public void Write(int value) {
     if (!IsSupported())
       return;
 
-    if (value < 0 || value > 255)
-    form.dispatchErrorOccurredEvent(this,
-                                    "Pin",
-                                    ErrorMessages.ERROR_EXTENSION_ERROR,
-                                    ERROR_INVALID_WRITE_VALUE,
-                                    LOG_TAG,
-                                    "Invalid write value");
-
-    mData = -value;
+    if (mMode == MODE_ANALOG_OUTPUT || mMode == MODE_DIGITAL_OUTPUT) {
+      // trim value
+      value = value >= 0 ? value : 0;
+      value = value <= 255 ? value : 255;
+      mData = -value;
+    }
+    else if (mMode == MODE_SERVO) {
+      value = value >= 0 ? value : 0;
+      value = value <= 180 ? value : 180;
+      mData = -value;
+    }
+    else {
+      form.dispatchErrorOccurredEvent(this,
+                                      "Write",
+                                      ErrorMessages.ERROR_EXTENSION_ERROR,
+                                      ERROR_INVALID_STATE,
+                                      LOG_TAG,
+                                      "Call Write() on non-output or non-servo mode");
+    }
   }
 
   /**
-   * Tests whether the Bluetooth low energy device is broadcasting support for the service. If true,
-   * calls to TurnOn and TurnOff should work correctly. Otherwise an error will be reported through
-   * the Screen's ErrorOccurred event.
+   * Enable the InputUpdated event.
+   */
+  @SimpleFunction
+  public void RequestInputUpdates() {
+    mInputUpdate = true;
+  }
+
+  /**
+   * Disable the previously requested InputUpdated event.
+   */
+  @SimpleFunction
+  public void StopInputUpdates() {
+    mInputUpdate = false;
+  }
+
+  /**
+   * Tests whether the Bluetooth low energy device is broadcasting support for the service.
    */
   @Override
   @SimpleFunction
@@ -263,14 +320,13 @@ public class MT7697Pin extends MT7697ExtensionBase {
   }
 
   /**
-   * The <code>LightSensorDataReceived</code> event is run when a sample is received from the light
-   * sensor attached to the MT7697.
+   * The InputUpdated event is triggered when a value is received from the input pin of MT7697.
    *
    * __Parameters__:
    *
-   *     * <code>intensity</code> (<a href="http://appinventor.mit.edu/explore/ai2/support/blocks/math.html#number">_number_</a>) &mdash; The intensity of the light received from the sensor, linear in the voltage provided by the light sensor.
+   *     * value (_number_); The intensity which is read from the input pin.
    *
-   * @param intensity The intensity of the light received from the sensor, linear in the voltage provided by the light sensor.
+   * @param The intensity which is read from the input pin.
    */
   @SimpleEvent
   public void InputUpdated(final int value) {
