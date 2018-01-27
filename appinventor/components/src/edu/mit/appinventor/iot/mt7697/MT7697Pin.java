@@ -1,5 +1,7 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright © 2017 Massachusetts Institute of Technology, All rights reserved.
+// Copyright 2011-2012 MIT, All rights reserved
+// Released under the Apache License, Version 2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 
 package edu.mit.appinventor.iot.mt7697;
 
@@ -27,20 +29,13 @@ import static edu.mit.appinventor.iot.mt7697.Constants.PIN_UUID_LOOKUP;
 import static edu.mit.appinventor.iot.mt7697.Constants.PIN_SERVICE_UUID;
 
 /**
- * Base class for MT7697 extensions that require a pin configuration.
+ * The class controls a pin I/O on a MT7697 board.
  *
- * @author jerry73204@gmail.com (Hsiang-Jui Lin)
+ * @author jerry73204@gmail.com (Lin, Hsiang-Jui)
+ * @author az6980522@gmail.com (Yuan, Yu-Yuan)
  */
 @DesignerComponent(version = 2,
-                   description = "The Arduino LED component lets users control light-emitting diodes (LEDs) from" +
-                                 " their App Inventor projects. If the LED is plugged into a pin supporting pulse width " +
-                                 "modulation (PWM), then the LED's brightness can be controlled by varying the Intensity " +
-                                 "property. TurnOn and TurnOff methods are used to control the power state of the LED." +
-                                 "<br>\n\n<strong>More Links:</strong><ul><li>Download a <a " +
-                                 "href='http://iot.appinventor.mit.edu/assets/samples/MT7697LED.aia' " +
-                                 "target='_blank'>sample project</a> for the MT7697 LED.</li><li>View the <a " +
-                                 "href='http://iot.appinventor.mit.edu/assets/howtos/MIT_App_Inventor_LED_Control.pdf' " +
-                                 "target='_blank'>how to instructions</a> for the MT7697 LED.</li></ul>",
+                   description = "The MT7697Pin component lets users control the pin from their App Inventor projects.",
                    category = ComponentCategory.EXTENSION,
                    nonVisible = true,
                    iconName = "aiwebres/mt7697.png")
@@ -133,6 +128,16 @@ public class MT7697Pin extends MT7697ExtensionBase {
   }
 
 
+  /**
+   * Set the target pin by pin number. To set this property in blocky editor, assign text value
+   * in either one of "2", "3", "4", "5", "6", "7", "10", "11", "12", "13", "14", "15", "16" or "17".
+   *
+   * __Parameters__:
+   *
+   *     * pin (_text_); The target pin number.
+   *
+   * @param The target pin number.
+   */
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_CHOICES,
                     defaultValue = DEFAULT_PIN,
                     editorArgs = {"2", "3", "4", "5", "6", "7", "10", "11", "12", "13", "14", "15", "16", "17"})
@@ -166,12 +171,26 @@ public class MT7697Pin extends MT7697ExtensionBase {
     mDataCharUuid = PIN_UUID_LOOKUP.get(mPin).mDataCharUuid;
   }
 
+  /**
+   * Get the target pin number.
+   */
   @SimpleProperty(category = PropertyCategory.BEHAVIOR,
                   description = "The pin mode on the MT7697 board that the device is wired in to.")
   public String Pin() {
     return mPin;
   }
 
+  /**
+   * Set the target pin mode. To set this property in blocky editor, assign text value
+   * in either one of "analog input", "analog output", "ditital input", "ditigal output",
+   * or "servo".
+   *
+   * __Parameters__:
+   *
+   *     * mode (_text_); The mode description set on the target pin.
+   *
+   * @param The mode description set on the target pin.
+   */
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_CHOICES,
                     defaultValue = STRING_ANALOG_INPUT,
                     editorArgs = { STRING_ANALOG_INPUT, STRING_ANALOG_OUTPUT, STRING_DIGITAL_INPUT, STRING_DIGITAL_OUTPUT, STRING_SERVO })
@@ -206,6 +225,9 @@ public class MT7697Pin extends MT7697ExtensionBase {
                                       "Invalid mode value");
   }
 
+  /**
+   * Get the target pin mode.
+   */
   @SimpleProperty(category = PropertyCategory.BEHAVIOR,
                   description = "The pin mode on the MT7697 board that the device is wired in to.")
   public String Mode() {
@@ -261,6 +283,12 @@ public class MT7697Pin extends MT7697ExtensionBase {
    * non-negative and not exceed 255, otherwise it will be trimmed. In digital output mode, zero
    * and non-zero argument are respectively treated as LOW and HIGH outputs. In servo mode, the
    * argument should be in range from 0 to 180.
+   *
+   * __Parameters__:
+   *
+   *     * value (_number_); The output intensity of the target pin.
+   *
+   * @param The output intensity of the target pin.
    */
   @SimpleFunction
   public void Write(int value) {

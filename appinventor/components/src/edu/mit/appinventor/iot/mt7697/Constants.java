@@ -1,5 +1,7 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright © 2017 Massachusetts Institute of Technology, All rights reserved.
+// Copyright 2011-2012 MIT, All rights reserved
+// Released under the Apache License, Version 2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 
 package edu.mit.appinventor.iot.mt7697;
 
@@ -16,6 +18,12 @@ class UuidOfPin {
   }
 }
 
+/**
+ * The class stores UUID constants for BLE connections to MT7697 boards.
+ *
+ * @author jerry73204@gmail.com (Lin, Hsiang-Jui)
+ * @author az6980522@gmail.com (Yuan, Yu-Yuan)
+ */
 class Constants {
   public static final HashMap<String, UuidOfPin> PIN_UUID_LOOKUP;
   public static final String PIN_SERVICE_UUID = "ccb7be00-77bd-4349-86a6-14cc7673ca00";
@@ -39,12 +47,6 @@ class Constants {
 
     PIN_UUID_LOOKUP.put("7", new UuidOfPin("ccb7be00-77bd-4349-86a6-14cc7673ca07",
                                            "ccb7be01-77bd-4349-86a6-14cc7673ca07"));
-
-    PIN_UUID_LOOKUP.put("8", new UuidOfPin("ccb7be00-77bd-4349-86a6-14cc7673ca08",
-                                           "ccb7be01-77bd-4349-86a6-14cc7673ca08"));
-
-    PIN_UUID_LOOKUP.put("9", new UuidOfPin("ccb7be00-77bd-4349-86a6-14cc7673ca09",
-                                           "ccb7be01-77bd-4349-86a6-14cc7673ca09"));
 
     PIN_UUID_LOOKUP.put("10", new UuidOfPin("ccb7be00-77bd-4349-86a6-14cc7673ca10",
                                             "ccb7be01-77bd-4349-86a6-14cc7673ca10"));
