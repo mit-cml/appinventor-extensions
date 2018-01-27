@@ -10,6 +10,7 @@
 #define MODE_ANALOG_OUTPUT  2
 #define MODE_DIGITAL_INPUT  3
 #define MODE_DIGITAL_OUTPUT 4
+#define MODE_SERVO          5
 
 // The MT7697 compiler creates seperate static linked libraries
 // and link to together.

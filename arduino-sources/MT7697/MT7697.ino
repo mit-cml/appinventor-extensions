@@ -1,5 +1,6 @@
 #include <LBLEPeriphral.h>
 #include <LBLE.h>
+#include <Servo.h>
 
 #include "constants.hpp"
 #include "lble_setup.hpp"
@@ -43,6 +44,8 @@ void loop()
             if (lble_ref.mode_char->isWritten())
             {
                 lble_ref.mode = lble_ref.mode_char->getValue();
+                Serial.print("Mode: ");
+                Serial.println(lble_ref.mode);
                 switch (lble_ref.mode) {
                     case MODE_ANALOG_INPUT:
                     case MODE_DIGITAL_INPUT:
@@ -64,7 +67,8 @@ void loop()
             switch (lble_ref.mode) {
                 case MODE_ANALOG_INPUT:
                 {
-                    int data = analogRead(pin);
+                    // int data = analogRead(pin);
+                    int data = 123;
                     lble_ref.data_char->setValue(data);
                     Serial.print("Send analog data: ");
                     Serial.println(data);
@@ -72,7 +76,8 @@ void loop()
                 }
                 case MODE_DIGITAL_INPUT:
                 {
-                    int data = digitalRead(pin);
+                    // int data = digitalRead(pin);
+                    int data = 1;
                     lble_ref.data_char->setValue(data);
                     Serial.print("Send digital data: ");
                     Serial.println(data);
