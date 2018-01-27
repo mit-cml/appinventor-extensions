@@ -1,3 +1,10 @@
+// -*- mode: java; c-basic-offset: 2; -*-
+// Copyright 2011-2012 MIT, All rights reserved
+// Released under the Apache License, Version 2.0
+// http://www.apache.org/licenses/LICENSE-2.0
+// author jerry73204@gmail.com (Lin, Hsiang-Jui)
+// author az6980522@gmail.com (Yuan, Yu-Yuan)
+
 #ifndef __MT7697_CONSTANTS_HPP__
 #define __MT7697_CONSTANTS_HPP__
 
