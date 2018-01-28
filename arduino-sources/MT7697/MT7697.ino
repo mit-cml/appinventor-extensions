@@ -90,7 +90,7 @@ void loop()
                         if (lble_ref.data_char->isWritten())
                         {
                             int data = lble_ref.data_char->getValue();
-                            // data *= -1;
+                            data *= -1;
                             analogWrite(pin, data);
                             sprintf(info, "Pin %d in analog output mode, receive data %d", pin, data);
                             Serial.println(info);
@@ -103,7 +103,7 @@ void loop()
                         if (lble_ref.data_char->isWritten())
                         {
                             int data = lble_ref.data_char->getValue();
-                            // data *= -1;
+                            data *= -1;
                             analogWrite(pin, data);
                             sprintf(info, "Pin %d in digital output mode, receive data %d", pin, data);
                             Serial.println(info);
@@ -115,7 +115,7 @@ void loop()
                         if (lble_ref.data_char->isWritten())
                         {
                             int data = lble_ref.data_char->getValue();
-                            // data *= -1;
+                            data *= -1;
                             servo[pin].write(data);
                             sprintf(info, "Pin %d in servo mode, receive data %d", pin, data);
                             Serial.println(info);

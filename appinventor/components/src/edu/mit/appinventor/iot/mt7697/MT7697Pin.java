@@ -108,11 +108,11 @@ public class MT7697Pin extends MT7697ExtensionBase {
           return;
 
         if (mMode == MODE_ANALOG_INPUT || mMode == MODE_DIGITAL_INPUT) {
-          bleConnection.ExWriteIntegerValues(mServiceUuid, mModeCharUuid, false, 0);
+          bleConnection.ExWriteIntegerValues(mServiceUuid, mModeCharUuid, false, mMode);
           bleConnection.ExReadIntegerValues(mServiceUuid, mDataCharUuid, false, inputUpdateCallback);
 
         } else if (mMode == MODE_ANALOG_OUTPUT || mMode == MODE_DIGITAL_OUTPUT || mMode == MODE_SERVO) {
-          bleConnection.ExWriteIntegerValues(mServiceUuid, mModeCharUuid, false, 1);
+          bleConnection.ExWriteIntegerValues(mServiceUuid, mModeCharUuid, false, mMode);
 
           if (mData <= 0) {
             int dataToSend = mData;
