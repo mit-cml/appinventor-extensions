@@ -9,6 +9,7 @@
 #define __MT7697_CONSTANTS_HPP__
 
 #define PIN_UUID_PROFILES_SIZE 14
+#define SERVO_SIZE 14
 #define BTN_PIN 6
 #define LED_PIN 7
 
@@ -18,10 +19,6 @@
 #define MODE_DIGITAL_INPUT  3
 #define MODE_DIGITAL_OUTPUT 4
 #define MODE_SERVO          5
-
-// The MT7697 compiler creates seperate static linked libraries
-// and link to together.
-// We need to "extern" every thing to make the compiler happy.
 
 
 static const char DEVICE_NAME[] = "MT7697 for AI2";

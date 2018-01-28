@@ -12,6 +12,7 @@
 #include "constants.hpp"
 #include "lble_setup.hpp"
 LBLEPinSetup PIN_SETUP;
+Servo servo[SERVO_SIZE];
 
 void setup()
 {
@@ -22,8 +23,6 @@ void setup()
 
 void loop()
 {
-    delay(500);
-
     if (digitalRead(BTN_PIN))
     {
         Serial.println("disconnect all!");
@@ -32,6 +31,8 @@ void loop()
     if (LBLEPeripheral.connected() == 0)
     {
         Serial.println("No connected device");
+        for(int pin = 0; pin < SERVO_SIZE; pin++)
+            servo[pin].detach();
         while(LBLEPeripheral.connected() == 0)
         {
             digitalWrite(LED_PIN, HIGH);
@@ -48,71 +49,86 @@ void loop()
         {
             auto& lble_ref = PIN_SETUP.PIN_LBLE_PROFILES[idx];
             const int pin = lble_ref.pin;
+            char info[64];
+
             if (lble_ref.mode_char->isWritten())
             {
                 lble_ref.mode = lble_ref.mode_char->getValue();
-                Serial.print("Mode: ");
-                Serial.println(lble_ref.mode);
-                switch (lble_ref.mode) {
+
+                switch (lble_ref.mode) 
+                {
                     case MODE_ANALOG_INPUT:
-                    case MODE_DIGITAL_INPUT:
+                    {
                         pinMode(pin, INPUT);
+                        servo[pin].detach();
+                        
+                        // int data = analogRead(pin);
+                        int data = 123;
+                        lble_ref.data_char->setValue(data);
+
+                        sprintf(info, "Pin %d in analog input mode, send data %d", pin, data);
+                        Serial.println(info);
                         break;
+                    }
+                    case MODE_DIGITAL_INPUT:
+                    {
+                        pinMode(pin, INPUT);
+                        servo[pin].detach();
+
+                        // int data = digitalRead(pin);
+                        int data = 1;
+                        lble_ref.data_char->setValue(data);
+
+                        sprintf(info, "Pin %d in digital input mode, send data %d", pin, data);
+                        Serial.println(info);
+                        break;
+                    }
                     case MODE_ANALOG_OUTPUT:
+                        pinMode(pin, OUTPUT);
+                        servo[pin].detach();
+
+                        if (lble_ref.data_char->isWritten())
+                        {
+                            int data = lble_ref.data_char->getValue();
+                            // data *= -1;
+                            analogWrite(pin, data);
+                            sprintf(info, "Pin %d in analog output mode, receive data %d", pin, data);
+                            Serial.println(info);
+                        }
+                        break;
                     case MODE_DIGITAL_OUTPUT:
                         pinMode(pin, OUTPUT);
+                        servo[pin].detach();
+                        
+                        if (lble_ref.data_char->isWritten())
+                        {
+                            int data = lble_ref.data_char->getValue();
+                            // data *= -1;
+                            analogWrite(pin, data);
+                            sprintf(info, "Pin %d in digital output mode, receive data %d", pin, data);
+                            Serial.println(info);
+                        }
                         break;
-                    case MODE_UNSET:
-                        Serial.println("Mode unset");
+                    case MODE_SERVO:
+                        servo[pin].attach(pin);
+
+                        if (lble_ref.data_char->isWritten())
+                        {
+                            int data = lble_ref.data_char->getValue();
+                            // data *= -1;
+                            servo[pin].write(data);
+                            sprintf(info, "Pin %d in servo mode, receive data %d", pin, data);
+                            Serial.println(info);
+                        }
                         break;
                     default:
-                        Serial.println("Invalid mode!!!");
+                        sprintf(info, "Pin %d in invalid mode", pin);
+                        Serial.println(info);
                         break;
                 }
             }
 
-            switch (lble_ref.mode) {
-                case MODE_ANALOG_INPUT:
-                {
-                    // int data = analogRead(pin);
-                    int data = 123;
-                    lble_ref.data_char->setValue(data);
-                    Serial.print("Send analog data: ");
-                    Serial.println(data);
-                    break;
-                }
-                case MODE_DIGITAL_INPUT:
-                {
-                    // int data = digitalRead(pin);
-                    int data = 1;
-                    lble_ref.data_char->setValue(data);
-                    Serial.print("Send digital data: ");
-                    Serial.println(data);
-                    break;
-                }
-                case MODE_ANALOG_OUTPUT:
-                    if (lble_ref.data_char->isWritten())
-                    {
-                        int data = lble_ref.data_char->getValue();
-                        data *= -1;
-                        analogWrite(pin, data);
-                        Serial.print("Receive analog data: ");
-                        Serial.println(data);
-                    }
-                    break;
-                case MODE_DIGITAL_OUTPUT:
-                    if (lble_ref.data_char->isWritten())
-                    {
-                        int data = lble_ref.data_char->getValue();
-                        data *= -1;
-                        analogWrite(pin, data);
-                        Serial.print("Receive digital data: ");
-                        Serial.println(data);
-                    }
-                    break;
-                default:
-                    break;
-            }
         }
     }
 }
+
