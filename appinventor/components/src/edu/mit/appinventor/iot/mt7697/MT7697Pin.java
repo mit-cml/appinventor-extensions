@@ -47,7 +47,7 @@ public class MT7697Pin extends MT7697ExtensionBase {
   private static final int ERROR_INVALID_WRITE_VALUE   = 9103;
   private static final int ERROR_INVALID_STATE         = 9104;
 
-  private static final int TIMER_INTERVAL = 80; // ms
+  private static final int TIMER_INTERVAL = 100; // ms
 
   private static final String LOG_TAG = "MT7697Pin";
 
@@ -81,11 +81,11 @@ public class MT7697Pin extends MT7697ExtensionBase {
     super(form);
 
     // setup timer
-    final BluetoothLE.BLEResponseHandler<Integer> inputUpdateCallback =
-      new BluetoothLE.BLEResponseHandler<Integer>() {
+    final BluetoothLE.BLEResponseHandler<Long> inputUpdateCallback =
+      new BluetoothLE.BLEResponseHandler<Long>() {
         @Override
-        public void onReceive(String serviceUUID, String characteristicUUID, List<Integer> values) {
-          int receivedValue = values.get(0);
+        public void onReceive(String serviceUUID, String characteristicUUID, List<Long> values) {
+          int receivedValue = values.get(0).intValue();
 
           if (mMode == MODE_DIGITAL_INPUT) {
             mData = receivedValue == 0 ? 0 : 1;
@@ -108,18 +108,18 @@ public class MT7697Pin extends MT7697ExtensionBase {
           return;
 
         if (mMode == MODE_ANALOG_INPUT || mMode == MODE_DIGITAL_INPUT) {
-          bleConnection.ExWriteByteValues(mServiceUuid, mModeCharUuid, false, 0);
-          bleConnection.ExReadByteValues(mServiceUuid, mDataCharUuid, false, inputUpdateCallback);
+          bleConnection.ExWriteIntegerValues(mServiceUuid, mModeCharUuid, false, 0);
+          bleConnection.ExReadIntegerValues(mServiceUuid, mDataCharUuid, false, inputUpdateCallback);
 
         } else if (mMode == MODE_ANALOG_OUTPUT || mMode == MODE_DIGITAL_OUTPUT || mMode == MODE_SERVO) {
-          bleConnection.ExWriteByteValues(mServiceUuid, mModeCharUuid, false, 1);
+          bleConnection.ExWriteIntegerValues(mServiceUuid, mModeCharUuid, false, 1);
 
           if (mData <= 0) {
             int dataToSend = mData;
             if (mMode == MODE_DIGITAL_OUTPUT && dataToSend != 0)
               dataToSend = -255;
 
-            bleConnection.ExWriteByteValues(mServiceUuid, mDataCharUuid, false, dataToSend);
+            bleConnection.ExWriteIntegerValues(mServiceUuid, mDataCharUuid, false, dataToSend);
           }
         }
       }
