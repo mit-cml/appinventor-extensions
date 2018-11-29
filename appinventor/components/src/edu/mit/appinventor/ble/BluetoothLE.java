@@ -51,7 +51,7 @@ import java.util.Set;
  * @author William Byrne (will2596@gmail.com) (minor bugfixes)
  */
 
-@DesignerComponent(version = 20171109,
+@DesignerComponent(version = 20181124,
     description = "Bluetooth Low Energy, also referred to as Bluetooth LE " +
         "or simply BLE, is a new communication protocol similar to classic Bluetooth except " +
         "that it is designed to consume less power while maintaining comparable " +
@@ -176,7 +176,15 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
   @SimpleFunction
   public void StartScanning() {
     if (inner != null) {
-      inner.StartScanning();
+      if (SDK26Helper.shouldAskForPermission(form)) {
+        SDK26Helper.askForPermission(this, new Runnable() {
+          public void run() {
+            inner.StartScanning();
+          }
+        });
+      } else {
+        inner.StartScanning();
+      }
     }
   }
 
