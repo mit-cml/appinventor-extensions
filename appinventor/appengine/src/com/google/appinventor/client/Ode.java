@@ -55,6 +55,8 @@ import com.google.appinventor.client.wizards.NewProjectWizard.NewProjectCommand;
 import com.google.appinventor.client.wizards.TemplateUploadWizard;
 import com.google.appinventor.common.version.AppInventorFeatures;
 import com.google.appinventor.components.common.YaVersion;
+import com.google.appinventor.shared.rpc.cloudDB.CloudDBAuthService;
+import com.google.appinventor.shared.rpc.cloudDB.CloudDBAuthServiceAsync;
 import com.google.appinventor.shared.rpc.component.ComponentService;
 import com.google.appinventor.shared.rpc.component.ComponentServiceAsync;
 import com.google.appinventor.shared.rpc.GetMotdService;
@@ -266,6 +268,9 @@ public class Ode implements EntryPoint {
   private final ComponentServiceAsync componentService = GWT.create(ComponentService.class);
   private final AdminInfoServiceAsync adminInfoService = GWT.create(AdminInfoService.class);
 
+  //Web service for CloudDB authentication operations
+  private final CloudDBAuthServiceAsync cloudDBAuthService = GWT.create(CloudDBAuthService.class);
+
   private boolean windowClosing;
 
   private boolean screensLocked;
@@ -290,6 +295,19 @@ public class Ode implements EntryPoint {
   private boolean didShowSplash = false;
 
   private SplashConfig splashConfig; // Splash Screen Configuration
+
+  private boolean secondBuildserver = false; // True if we have a second
+                                             // buildserver.
+
+  // The flags below are used by the Build menus. Because we have two
+  // different buildservers, we have two sets of build menu items, one
+  // for each buildserver.  The first time one is selected, we put up
+  // a warning/notice dialog box explaining its purpose. We don't show
+  // it again during the same session, and keeping track of that is
+  // the purpose of these two flags.
+
+  private boolean warnedBuild1 = false;
+  private boolean warnedBuild2 = false;
 
   /**
    * Returns global instance of Ode.
@@ -732,6 +750,18 @@ public class Ode implements EntryPoint {
         user = result.getUser();
         isReadOnly = user.isReadOnly();
 
+        // load the user's backpack if we are not using a shared
+        // backpack
+
+        String backPackId = user.getBackpackId();
+        if (backPackId == null || backPackId.isEmpty()) {
+          loadBackpack();
+          OdeLog.log("backpack: No shared backpack");
+        } else {
+          BlocklyPanel.setSharedBackpackId(backPackId);
+          OdeLog.log("Have a shared backpack backPackId = " + backPackId);
+        }
+
         // Setup noop timer (if enabled)
         int noop = config.getNoop();
         if (noop > 0) {
@@ -762,6 +792,15 @@ public class Ode implements EntryPoint {
         }
 
         splashConfig = result.getSplashConfig();
+        secondBuildserver = result.getSecondBuildserver();
+        // The code below is invoked if we do not have a second buildserver
+        // configured. It sets the warnedBuild1 flag to true which inhibits
+        // the display of the dialog box used when building. This means that
+        // if no second buildserver is configured, there is no dialog box
+        // displayed when the build menu items are invoked.
+        if (!secondBuildserver) {
+          warnedBuild1 = true;
+        }
 
         if (result.getRendezvousServer() != null) {
           setRendezvousServer(result.getRendezvousServer());
@@ -871,20 +910,6 @@ public class Ode implements EntryPoint {
     // Newer sessions invalidate older sessions.
 
     userInfoService.getSystemConfig(sessionId, callback);
-
-    // We fetch the user's backpack here. This runs asynchronously with the rest
-    // of the system initialization.
-
-    userInfoService.getUserBackpack(new AsyncCallback<String>() {
-        @Override
-        public void onSuccess(String backpack) {
-          BlocklyPanel.setInitialBackpack(backpack);
-        }
-        @Override
-        public void onFailure(Throwable caught) {
-          OdeLog.log("Fetching backpack failed");
-        }
-      });
 
     History.addValueChangeHandler(new ValueChangeHandler<String>() {
       @Override
@@ -1355,6 +1380,15 @@ public class Ode implements EntryPoint {
   }
 
   /**
+   * Get an instance of the CloudDBAuth web service.
+   *
+   * @return CloudDBAuth web service instance
+   */
+  public CloudDBAuthServiceAsync getCloudDBAuthService(){
+    return cloudDBAuthService;
+  }
+
+  /**
    * Set the current file editor.
    *
    * @param fileEditor  the file editor, can be null.
@@ -1521,7 +1555,7 @@ public class Ode implements EntryPoint {
         HasHorizontalAlignment.ALIGN_RIGHT,
         HasVerticalAlignment.ALIGN_MIDDLE);
 
-    Image dialogImage = new Image(Ode.getImageBundle().androidGreenSmall());
+    Image dialogImage = new Image(Ode.getImageBundle().codiVert());
 
     Grid messageGrid = new Grid(2, 1);
     messageGrid.getCellFormatter().setAlignment(0,
@@ -2403,6 +2437,37 @@ public class Ode implements EntryPoint {
       tutorialPanel.setUrl(newURL);
       designToolbar.setTutorialToggleVisible(true);
       setTutorialVisible(true);
+    }
+  }
+
+  // Load the user's backpack. This is not called if we are using
+  // a shared backpack
+  private void loadBackpack() {
+    userInfoService.getUserBackpack(new AsyncCallback<String>() {
+        @Override
+        public void onSuccess(String backpack) {
+          BlocklyPanel.setInitialBackpack(backpack);
+        }
+        @Override
+        public void onFailure(Throwable caught) {
+          OdeLog.log("Fetching backpack failed");
+        }
+      });
+  }
+
+  public boolean hasSecondBuildserver() {
+    return secondBuildserver;
+  }
+
+  public boolean getWarnBuild(boolean secondBuildserver) {
+    return secondBuildserver ? warnedBuild2 : warnedBuild1;
+  }
+
+  public void setWarnBuild(boolean secondBuildserver, boolean value) {
+    if (secondBuildserver) {
+      warnedBuild2 = value;
+    } else {
+      warnedBuild1 = value;
     }
   }
 

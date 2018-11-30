@@ -51,7 +51,7 @@ import java.util.Set;
  * @author William Byrne (will2596@gmail.com) (minor bugfixes)
  */
 
-@DesignerComponent(version = 20171108,
+@DesignerComponent(version = 20181124,
     description = "Bluetooth Low Energy, also referred to as Bluetooth LE " +
         "or simply BLE, is a new communication protocol similar to classic Bluetooth except " +
         "that it is designed to consume less power while maintaining comparable " +
@@ -176,7 +176,15 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
   @SimpleFunction
   public void StartScanning() {
     if (inner != null) {
-      inner.StartScanning();
+      if (SDK26Helper.shouldAskForPermission(form)) {
+        SDK26Helper.askForPermission(this, new Runnable() {
+          public void run() {
+            inner.StartScanning();
+          }
+        });
+      } else {
+        inner.StartScanning();
+      }
     }
   }
 
@@ -2341,8 +2349,14 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
       i.next();  // skip *list* symbol
       return listFromIterator(tClass, i);
     } else if (Number.class.isAssignableFrom(tClass)) {
-      if (value instanceof FString) {
-        return toList(tClass, stringToNumber(value.toString()), size);
+      if (value instanceof FString || value instanceof String) {
+        value = value.toString();
+        Number numval = stringToNumber((String) value);
+        if (numval == null) {
+          return stringToList(tClass, (String) value, size);
+        } else {
+          return toList(tClass, numval, size);
+        }
       } else if (! (value instanceof Collection)) {
         return toList(tClass, Collections.singletonList(value), size);
       } else {
@@ -2356,18 +2370,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
     } else if (value instanceof Collection) {
       return listFromIterator(tClass, ((Collection<?>) value).iterator());
     } else if (value instanceof String) {
-      // this assumes that the string is being cast to a list of UTF-8 bytes or UTF-16LE chars
-      try {
-        byte[] content = ((String) value).getBytes(size == 1 ? "UTF-8" : "UTF-16LE");
-        if (tClass.equals(Integer.class)) {
-          return checkedCast(tClass, toIntList(content));
-        }
-        return Collections.emptyList();
-      } catch (UnsupportedEncodingException e) {
-        // Both UTF-8 and UTF-16LE are required by JVM. This should never happen
-        Log.wtf(LOG_TAG, "No support for UTF-8 or UTF-16", e);
-        return Collections.emptyList();
-      }
+      return stringToList(tClass, (String) value, size);
     } else {
       Log.i("BLE", "Is number assignable from " + tClass + "? " + Number.class.isAssignableFrom(tClass));
       throw new ClassCastException("Unable to convert " + value + " to list");
@@ -2455,7 +2458,26 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
   }
 
   private static Number stringToNumber(String value) {
-    return Double.parseDouble(value);
+    try {
+      return Double.parseDouble(value);
+    } catch(NumberFormatException e) {
+      return null;
+    }
+  }
+
+  private static <T> List<T> stringToList(Class<T> tClass, String value, int size) {
+    // this assumes that the string is being cast to a list of UTF-8 bytes or UTF-16LE chars
+    try {
+      byte[] content = value.getBytes(size == 1 ? "UTF-8" : "UTF-16LE");
+      if (tClass.equals(Integer.class)) {
+        return checkedCast(tClass, toIntList(content));
+      }
+      return Collections.emptyList();
+    } catch (UnsupportedEncodingException e) {
+      // Both UTF-8 and UTF-16LE are required by JVM. This should never happen
+      Log.wtf(LOG_TAG, "No support for UTF-8 or UTF-16", e);
+      return Collections.emptyList();
+    }
   }
 }
 

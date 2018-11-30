@@ -1,6 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2017 MIT, All rights reserved
+// Copyright 2011-2018 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -61,7 +61,6 @@ public final class AssetManager implements ProjectChangeListener {
   private static boolean DEBUG = false;
   private static final String ASSETS_FOLDER = "assets";
   private static final String EXTERNAL_COMPS_FOLDER = "external_comps";
-
 
   private AssetManager() {
     exportMethodsToJavascript();
@@ -172,12 +171,18 @@ public final class AssetManager implements ProjectChangeListener {
         allow = false;
 
         // Filter : For files in directly in EXTERNAL_COMPS_FOLDER/COMP_FOLDER
-        if (StringUtils.countMatches(fileId, "/") == 3) {
+        int depth = StringUtils.countMatches(fileId, "/");
+        if (depth == 3) {
 
           // Filter : For classes.jar File
           if (name.equals("classes.jar")) {
             allow = true;
 
+          }
+        } else if (depth > 3) {
+          String[] parts = fileId.split("/");
+          if (ASSETS_FOLDER.equals(parts[3])) {
+            return true;
           }
         }
       }
@@ -225,20 +230,20 @@ public final class AssetManager implements ProjectChangeListener {
           progress.show();
           progress.center();
         }
-        if (a.fileContent == null) { // Need to fetch it from the server
+        if (a.fileContent == null && !useWebRTC()) { // Need to fetch it from the server
           retryCount = 3;
           if (progress != null) {
             progress.setProgress(100 * assetTransferProgress / (2 * assets.size()),
                 MESSAGES.loadingAsset(a.fileId));
           }
-          readIn(a);       // Read it in asynchronously
+          readIn(a);          // Read it in asynchronously
           break;                     // we'll resume when we have it
         } else {
           if (progress != null) {
             progress.setProgress(100 * assetTransferProgress / (2 * assets.size()),
                 MESSAGES.sendingAssetToCompanion(a.fileId));
           }
-          boolean didit = doPutAsset(a.fileId, a.fileContent);
+          boolean didit = doPutAsset(Long.toString(projectId), a.fileId, a.fileContent);
           if (didit) {
             assetTransferProgress++;
             a.loaded = true;
@@ -356,12 +361,16 @@ public final class AssetManager implements ProjectChangeListener {
       $entry(@com.google.appinventor.client.AssetManager::getExtensionsToLoad());
   }-*/;
 
-  private static native boolean doPutAsset(String filename, byte[] content) /*-{
-    return Blockly.ReplMgr.putAsset(filename, content, function() { window.parent.AssetManager_markAssetTransferred(filename) });
+  private static native boolean doPutAsset(String projectId, String filename, byte[] content) /*-{
+    return Blockly.ReplMgr.putAsset(projectId, filename, content, function() { window.parent.AssetManager_markAssetTransferred(filename) });
   }-*/;
 
   private static native void doCallBack(JavaScriptObject callback) /*-{
     if (typeof callback === 'function') callback.call(null);
+  }-*/;
+
+  private static native boolean useWebRTC() /*-{
+    return top.usewebrtc;
   }-*/;
 
 }
