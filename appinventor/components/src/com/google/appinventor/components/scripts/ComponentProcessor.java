@@ -1,6 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2016 MIT, All rights reserved
+// Copyright 2011-2017 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -36,6 +36,8 @@ import java.io.IOException;
 import java.io.Writer;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -56,7 +58,9 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.AbstractTypeVisitor7;
 import javax.lang.model.util.Elements;
+import javax.lang.model.util.SimpleTypeVisitor7;
 import javax.lang.model.util.Types;
 
 import java.lang.annotation.Annotation;
@@ -64,6 +68,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 
 import javax.tools.Diagnostic;
+import javax.tools.Diagnostic.Kind;
 import javax.tools.FileObject;
 import javax.tools.StandardLocation;
 
@@ -102,6 +107,9 @@ import javax.tools.StandardLocation;
 public abstract class ComponentProcessor extends AbstractProcessor {
   private static final String OUTPUT_PACKAGE = "";
 
+  public static final String MISSING_SIMPLE_PROPERTY_ANNOTATION =
+      "Designer property %s does not have a corresponding @SimpleProperty annotation.";
+
   // Returned by getSupportedAnnotationTypes()
   private static final Set<String> SUPPORTED_ANNOTATION_TYPES = ImmutableSet.of(
       "com.google.appinventor.components.annotations.DesignerComponent",
@@ -129,6 +137,10 @@ public abstract class ComponentProcessor extends AbstractProcessor {
 
   // Must match buildserver.compiler.ARMEABI_V7A_SUFFIX
   private static final String ARMEABI_V7A_SUFFIX = "-v7a";
+  // Must match buildserver.compiler.ARMEABI_V8A_SUFFIX
+  private static final String ARM64_V8A_SUFFIX = "-v8a";
+  // Must match buildserver.compiler.X86_64_SUFFIX
+  private static final String X86_64_SUFFIX = "-x8a";
 
   // The next two fields are set in init().
   /**
@@ -159,6 +171,13 @@ public abstract class ComponentProcessor extends AbstractProcessor {
   protected final SortedMap<String, ComponentInfo> components = Maps.newTreeMap();
 
   private final List<String> componentTypes = Lists.newArrayList();
+
+  /**
+   * A set of visited types in the class hierarchy. This is used to reduce the complexity of
+   * detecting whether a class implements {@link com.google.appinventor.components.runtime.Component}
+   * from O(n^2) to O(n) by tracking visited nodes to prevent repeat explorations of the class tree.
+   */
+  private final Set<String> visitedTypes = new HashSet<>();
 
   /**
    * Represents a parameter consisting of a name and a type.  The type is a
@@ -556,6 +575,7 @@ public abstract class ComponentProcessor extends AbstractProcessor {
     private boolean showOnPalette;
     private boolean nonVisible;
     private String iconName;
+    private int androidMinSdk;
 
     protected ComponentInfo(Element element) {
       super(element.getSimpleName().toString(),  // Short name
@@ -613,6 +633,7 @@ public abstract class ComponentProcessor extends AbstractProcessor {
           showOnPalette = designerComponentAnnotation.showOnPalette();
           nonVisible = designerComponentAnnotation.nonVisible();
           iconName = designerComponentAnnotation.iconName();
+          androidMinSdk = designerComponentAnnotation.androidMinSdk();
         }
       }
     }
@@ -710,6 +731,16 @@ public abstract class ComponentProcessor extends AbstractProcessor {
      */
     protected String getIconName() {
       return iconName;
+    }
+
+    /**
+     * Returns the minimum Android SDK required for the component to run, as specified in
+     * {@link DesignerComponent#androidMinSdk()}.
+     *
+     * @return the minimum Android sdk for the component
+     */
+    protected int getAndroidMinSdk() {
+      return androidMinSdk;
     }
 
     private String getDisplayNameForComponentType(String componentTypeName) {
@@ -887,7 +918,7 @@ public abstract class ComponentProcessor extends AbstractProcessor {
     UsesPermissions usesPermissions = element.getAnnotation(UsesPermissions.class);
     if (usesPermissions != null) {
       for (String permission : usesPermissions.permissionNames().split(",")) {
-        componentInfo.permissions.add(permission.trim());
+        updateWithNonEmptyValue(componentInfo.permissions, permission);
       }
     }
 
@@ -895,7 +926,7 @@ public abstract class ComponentProcessor extends AbstractProcessor {
     UsesLibraries usesLibraries = element.getAnnotation(UsesLibraries.class);
     if (usesLibraries != null) {
       for (String library : usesLibraries.libraries().split(",")) {
-        componentInfo.libraries.add(library.trim());
+        updateWithNonEmptyValue(componentInfo.libraries, library);
       }
     }
 
@@ -903,18 +934,25 @@ public abstract class ComponentProcessor extends AbstractProcessor {
     UsesNativeLibraries usesNativeLibraries = element.getAnnotation(UsesNativeLibraries.class);
     if (usesNativeLibraries != null) {
       for (String nativeLibrary : usesNativeLibraries.libraries().split(",")) {
-        componentInfo.nativeLibraries.add(nativeLibrary.trim());
+        updateWithNonEmptyValue(componentInfo.nativeLibraries, nativeLibrary);
       }
       for (String v7aLibrary : usesNativeLibraries.v7aLibraries().split(",")) {
-        componentInfo.nativeLibraries.add(v7aLibrary.trim() + ARMEABI_V7A_SUFFIX);
+        updateWithNonEmptyValue(componentInfo.nativeLibraries, v7aLibrary.trim() + ARMEABI_V7A_SUFFIX);
       }
+      for (String v8aLibrary : usesNativeLibraries.v8aLibraries().split(",")) {
+        updateWithNonEmptyValue(componentInfo.nativeLibraries, v8aLibrary.trim() + ARM64_V8A_SUFFIX);
+      }
+      for (String x8664Library : usesNativeLibraries.x86_64Libraries().split(",")) {
+        updateWithNonEmptyValue(componentInfo.nativeLibraries, x8664Library.trim() + X86_64_SUFFIX);
+      }
+
     }
 
     // Gather required files.
     UsesAssets usesAssets = element.getAnnotation(UsesAssets.class);
     if (usesAssets != null) {
       for (String file : usesAssets.fileNames().split(",")) {
-        componentInfo.assets.add(file.trim());
+        updateWithNonEmptyValue(componentInfo.assets, file);
       }
     }
 
@@ -923,7 +961,7 @@ public abstract class ComponentProcessor extends AbstractProcessor {
     if (usesActivities != null) {
       try {
         for (ActivityElement ae : usesActivities.activities()) {
-          componentInfo.activities.add(activityElementToString(ae));
+          updateWithNonEmptyValue(componentInfo.activities, activityElementToString(ae));
         }
       } catch (IllegalAccessException e) {
         messager.printMessage(Diagnostic.Kind.ERROR, "IllegalAccessException when gathering " +
@@ -941,7 +979,7 @@ public abstract class ComponentProcessor extends AbstractProcessor {
     if (usesBroadcastReceivers != null) {
       try {
         for (ReceiverElement re : usesBroadcastReceivers.receivers()) {
-          componentInfo.broadcastReceivers.add(receiverElementToString(re));
+          updateWithNonEmptyValue(componentInfo.broadcastReceivers, receiverElementToString(re));
         }
       } catch (IllegalAccessException e) {
         messager.printMessage(Diagnostic.Kind.ERROR, "IllegalAccessException when gathering " +
@@ -1038,6 +1076,7 @@ public abstract class ComponentProcessor extends AbstractProcessor {
     // Use typeMirror to set the property's type.
     if (!typeMirror.getKind().equals(TypeKind.VOID)) {
       property.type = typeMirror.toString();
+      updateComponentTypes(typeMirror);
     }
 
     property.componentInfoName = componentInfoName;
@@ -1206,6 +1245,8 @@ public abstract class ComponentProcessor extends AbstractProcessor {
                                  Element componentElement) {
     // We no longer support properties that use the variant type.
 
+    Map<String, Element> propertyElementsToCheck = new HashMap<>();
+
     for (Element element : componentElement.getEnclosedElements()) {
       if (!isPublicMethod(element)) {
         continue;
@@ -1218,6 +1259,7 @@ public abstract class ComponentProcessor extends AbstractProcessor {
       DesignerProperty designerProperty = element.getAnnotation(DesignerProperty.class);
       if (designerProperty != null) {
         componentInfo.designerProperties.put(propertyName, designerProperty);
+        propertyElementsToCheck.put(propertyName, element);
       }
 
       // If property is overridden without again using SimpleProperty, remove
@@ -1287,6 +1329,20 @@ public abstract class ComponentProcessor extends AbstractProcessor {
         }
       }
     }
+
+    // Verify that every DesignerComponent has a corresponding property entry. A mismatch results
+    // in App Inventor being unable to generate code for the designer since the type information
+    // is in the block property only. We check that the designer property name is also present
+    // in the block properties. If not, an error is reported and the build terminates.
+    Set<String> propertyNames = new HashSet<>(componentInfo.designerProperties.keySet());
+    propertyNames.removeAll(componentInfo.properties.keySet());
+    if (!propertyNames.isEmpty()) {
+      for (String propertyName : propertyNames) {
+        messager.printMessage(Kind.ERROR,
+            String.format(MISSING_SIMPLE_PROPERTY_ANNOTATION, propertyName),
+            propertyElementsToCheck.get(propertyName));
+      }
+    }
   }
 
   // Note: The top halves of the bodies of processEvent() and processMethods()
@@ -1338,6 +1394,7 @@ public abstract class ComponentProcessor extends AbstractProcessor {
         for (VariableElement ve : e.getParameters()) {
           event.addParameter(ve.getSimpleName().toString(),
                              ve.asType().toString());
+          updateComponentTypes(ve.asType());
         }
       }
     }
@@ -1389,11 +1446,13 @@ public abstract class ComponentProcessor extends AbstractProcessor {
         for (VariableElement ve : e.getParameters()) {
           method.addParameter(ve.getSimpleName().toString(),
                               ve.asType().toString());
+          updateComponentTypes(ve.asType());
         }
 
         // Extract the return type.
         if (e.getReturnType().getKind() != TypeKind.VOID) {
           method.returnType = e.getReturnType().toString();
+          updateComponentTypes(e.getReturnType());
         }
       }
     }
@@ -1429,10 +1488,9 @@ public abstract class ComponentProcessor extends AbstractProcessor {
     if (type.equals("java.lang.String")) {
       return "text";
     }
-    // {float, double, int, short, long} -> number
+    // {float, double, int, short, long, byte} -> number
     if (type.equals("float") || type.equals("double") || type.equals("int") ||
-        type.equals("short") || type.equals("long") || type.equals("byte") ||
-        type.equals("short")) {
+        type.equals("short") || type.equals("long") || type.equals("byte")) {
       return "number";
     }
     // YailList -> list
@@ -1451,6 +1509,10 @@ public abstract class ComponentProcessor extends AbstractProcessor {
 
     if (type.equals("java.lang.Object")) {
       return "any";
+    }
+
+    if (type.equals("com.google.appinventor.components.runtime.Component")) {
+      return "component";
     }
 
     // Check if it's a component.
@@ -1486,5 +1548,49 @@ public abstract class ComponentProcessor extends AbstractProcessor {
    */
   protected Writer getOutputWriter(String fileName) throws IOException {
     return createOutputFileObject(fileName).openWriter();
+  }
+
+  /**
+   * Tracks the superclass and superinterfaces for the given type and if the type inherits from
+   * {@link com.google.appinventor.components.runtime.Component} then it adds the class to the
+   * componentTypes list. This allows properties, methods, and events to use concrete Component
+   * types as parameters and return values.
+   *
+   * @param type a TypeMirror representing a type on the class path
+   */
+  private void updateComponentTypes(TypeMirror type) {
+    if (type.getKind() == TypeKind.DECLARED) {
+      type.accept(new SimpleTypeVisitor7<Boolean, Set<String>>(false) {
+        @Override
+        public Boolean visitDeclared(DeclaredType t, Set<String> types) {
+          final String typeName = t.asElement().toString();
+          if ("com.google.appinventor.components.runtime.Component".equals(typeName)) {
+            return true;
+          }
+          if (!types.contains(typeName)) {
+            types.add(typeName);
+            final TypeElement typeElement = (TypeElement) t.asElement();
+            if (typeElement.getSuperclass().accept(this, types)) {
+              componentTypes.add(typeName);
+              return true;
+            }
+            for (TypeMirror iface : typeElement.getInterfaces()) {
+              if (iface.accept(this, types)) {
+                componentTypes.add(typeName);
+                return true;
+              }
+            }
+          }
+          return componentTypes.contains(typeName);
+        }
+      }, visitedTypes);
+    }
+  }
+
+  private void updateWithNonEmptyValue(Set<String> collection, String value) {
+    String trimmedValue = value.trim();
+    if (!trimmedValue.isEmpty()) {
+      collection.add(trimmedValue);
+    }
   }
 }

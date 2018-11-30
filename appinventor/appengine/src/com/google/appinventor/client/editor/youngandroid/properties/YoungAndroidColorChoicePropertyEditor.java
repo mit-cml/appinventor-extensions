@@ -1,6 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2012 MIT, All rights reserved
+// Copyright 2011-2017 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -39,20 +39,20 @@ public final class YoungAndroidColorChoicePropertyEditor extends ColorChoiceProp
     new Color(MESSAGES.noneColor(), Color.ALPHA_TRANSPARENT, "FFFFFF"),
     new Color(MESSAGES.redColor(), Color.ALPHA_OPAQUE, "FF0000"),
     new Color(MESSAGES.greenColor(), Color.ALPHA_OPAQUE, "00FF00"),
-    new Color(MESSAGES.blueColor(), Color.ALPHA_OPAQUE, "0000FF"),
+    new Color(MESSAGES.blueColor(), Color.ALPHA_OPAQUE, "0000FF")
   };
 
   /**
    * Creates a new property editor for color RGB values.
    */
-  public YoungAndroidColorChoicePropertyEditor() {
-    this(YA_COLORS);
+  public YoungAndroidColorChoicePropertyEditor(String defaultValue) {
+    super(YA_COLORS, "&H", defaultValue, true);
   }
 
   /**
    * Creates a new property editor for a specific array of color RGB values.
    */
-  public YoungAndroidColorChoicePropertyEditor(Color[] colors) {
-    super(colors, "&H");
+  public YoungAndroidColorChoicePropertyEditor(Color[] colors, String defaultValue) {
+    super(colors, "&H", defaultValue);
   }
 }
