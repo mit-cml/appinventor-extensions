@@ -1312,6 +1312,8 @@ final class BluetoothLEint {
           public void run() {
             isScanning = true;
             addDevice(scanResult.getDevice(), scanResult.getRssi());
+            //Call GetScannedInfo() function to trigger an event
+            GetScannedInfo(scanResult.getDevice().getAddress(), scanResult.getRssi());
           }
         });
       }
@@ -2507,6 +2509,16 @@ final class BluetoothLEint {
         }
       }
     });
+  }
+
+  //New method for positioning, which triggers GetScannedInfo event and return the deviceID and Rssi
+  private void GetScannedInfo(final String deviceID, final int device_rssi) {
+    uiThread.postDelayed(new Runnable() {
+      @Override
+      public void run() {
+        EventDispatcher.dispatchEvent(outer, "GetScannedInfo", deviceID, device_rssi);
+      }
+    }, 1000);
   }
 
   private void RssiChanged(final int device_rssi) {
