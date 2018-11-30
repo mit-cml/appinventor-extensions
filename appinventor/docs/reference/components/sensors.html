@@ -80,8 +80,8 @@
       }
       #logo img{
       /*background: url(../images/logo_text.png) no-repeat;*/
-      width: auto;
-      height: 50px;
+      width: 180px;
+      height: 40px;
       display: block;
       }
       #logo img:hover {
@@ -417,7 +417,7 @@
         <div id="top_bar">
           <div id="branding">
             <div id="logo"><a class="active" title="Home page" href="http://appinventor.mit.edu">
-                <img alt="Explore MIT App Inventor logo" src="images/logo2.png" /></a></div>
+                <img alt="Explore MIT App Inventor logo" src="images/codi_long.png" /></a></div>
           </div>
           <div class="nav clearfix" id="menu-bar">
             <nav id="block-superfish-1" class="block block-superfish block-odd block-count-1 block-region-menu-bar menu-wrapper clearfix" role="navigation">
@@ -475,6 +475,20 @@
   <dd></dd>
   <dt><code>Enabled</code></dt>
   <dd></dd>
+  <dt><code>LegacyMode</code> (designer only)</dt>
+  <dd>Prior to the release that added this property the AccelerometerSensor
+    component passed through sensor values directly as received from the
+    Android system. However these values do not compensate for tablets
+    that default to Landscape mode, requiring the MIT App Inventor
+    programmer to compensate. However compensating would result in
+    incorrect results in Portrait mode devices such as phones.
+    We now detect Landscape mode tablets and perform the compensation.
+    However if your project is already compensating for the change, you
+    will now get incorrect results. Although our preferred solution is for
+    you to update your project, you can also just set this property to “true”
+    and our compensation code will be deactivated. Note: We recommend that
+    you update your project as we may remove this property in a future
+    release.</dd>
   <dt><code>MinimumInterval</code></dt>
   <dd>The minimum interval, in milliseconds, between phone shakes</dd>
   <dt><code>Sensitivity</code></dt>
@@ -525,7 +539,7 @@ none
  <h2 id="Clock"> Clock </h2>
   <img src="images/clock.png" alt="" />
   <p>Non-visible component that provides the instant in time using the internal clock on the phone.It can fire a timer at regularly set intervals and perform time calculations, manipulations, and conversions.</p>
-  <p>Methods to convert an instant to text are also available. Acceptable patterns are empty string, MM/DD/YYYY HH:mm:ss a, or MMM d, yyyy HH:mm. The empty string will provide the default format, which is "MMM d, yyyy HH:mm:ss a" for FormatDateTime, "MMM d, yyyy" for FormatDate. To see all possible format, please see <a href="https://docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html">here</a>. </p>
+  <p>Methods to convert an instant to text are also available. Acceptable patterns are empty string, MM/dd/YYYY HH:mm:ss a, or MMM d, yyyy HH:mm. The empty string will provide the default format, which is "MMM d, yyyy HH:mm:ss a" for FormatDateTime, "MMM d, yyyy" for FormatDate. To see all possible format, please see <a href="https://docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html">here</a>. </p>
   <p> Date and Time are formatted with InstantInTime and Duration. </p>
   <ul>
       <li> <strong> Instant </strong> : consists of Year, Month, DayOfMonth, Hour, Minute, and Second.
@@ -590,7 +604,7 @@ none
       <dt> <code> number Hour(InstantInTime instant) </code> </dt>
       <dd> Returns the hour of the day(0-23) from the instant </dd>
       <dt> <code> InstantInTime MakeInstant(text from) </code> </dt>
-      <dd> Returns an instant specified by MM/DD/YYYY hh:mm:ss or MM/DD/YYYY or hh:mm. An example text input is "06/22/2015 12:18"</dd>
+      <dd> Returns an instant specified by MM/dd/YYYY hh:mm:ss or MM/dd/YYYY or hh:mm. An example text input is "06/22/2015 12:18"</dd>
       <dt> <code> InstantInTime MakeInstantFromMillis(number millis) </code> </dt>
       <dd> Returns an instant in time specified by the milliseconds since 1970. </dd>
       <dt> <code> number Minute(InstantInTime instant) </code> </dt>

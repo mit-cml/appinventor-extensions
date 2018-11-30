@@ -1,6 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2012 MIT, All rights reserved
+// Copyright 2011-2018 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -593,6 +593,18 @@ public interface OdeMessages extends Messages {
   @Description("For importing from a URL")
   String componentImportFromURL();
 
+  @DefaultMessage("The component database in the project \"{0}\" is corrupt.")
+  @Description("Error message when the component database is not valid.")
+  String componentDatabaseCorrupt(String projectName);
+
+  @DefaultMessage("The extension description of \"{0}\" in the project \"{1}\" is corrupt.")
+  @Description("Error message when the component descriptors for an extension are not parsable.")
+  String extensionDescriptorCorrupt(String extensionName, String projectName);
+
+  @DefaultMessage("The project \"{0}\" contains an invalid extension. App Inventor will attempt to continue.")
+  @Description("Error message when an extension descriptor pathname does not have the correct structure.")
+  String invalidExtensionInProject(String projectName);
+
   //Connect
   @DefaultMessage("Connect")
   @Description("Label of the button leading to Connect related cascade items")
@@ -647,9 +659,17 @@ public interface OdeMessages extends Messages {
   @Description("Label of item for building a project and show barcode")
   String showBarcodeMenuItem();
 
+  @DefaultMessage("App for Google Play ( provide QR code for .apk )")
+  @Description("Label of item for building a project and show barcode")
+  String showBarcodeMenuItem2();
+
   @DefaultMessage("App ( save .apk to my computer )")
   @Description("Label of item for building a project and downloading")
   String downloadToComputerMenuItem();
+
+  @DefaultMessage("App for Google Play ( save .apk to my computer )")
+  @Description("Label of item for building a project and downloading")
+  String downloadToComputerMenuItem2();
 
   @DefaultMessage("Generate YAIL")
   @Description("Label of the cascade item for generating YAIL for a project")
@@ -965,12 +985,15 @@ public interface OdeMessages extends Messages {
   @Description("Error shown when a new component type would be the same as a component instance name")
   String sameAsComponentInstanceNameError();
 
-  @DefaultMessage("Component name cannot be any of the following: CsvUtil, Double, Float, " +
+  @DefaultMessage("Name cannot be any of the following: CsvUtil, Double, Float, " +
       "Integer, JavaCollection, JavaIterator, KawaEnvironment, Long, Short, SimpleForm, String, " +
-      "Pattern, YailList, YailNumberToString, YailRuntimeError")
-  @Description("Error shown when a new component name is a variable name already used in the" +
-      "Yail code")
-  String badComponentNameError();
+      "Pattern, YailList, YailNumberToString, YailRuntimeError, abstract, continue, for, new, " +
+      "switch, assert, default, goto, package, synchronized, boolean, do, if, private, this, break, " +
+      "double, implements, protected, throw, byte, else, import, public, throws, case, enum, instanceof, " +
+      "return, transient, catch, extends, int, short, try, char, final, interface, static, void, class, " +
+      "finally, long, strictfp, volatile, const, float, native, super, while")
+  @Description("Error shown when a new name is a reserved name in Yail or Java code")
+  String reservedNameError();
 
   @DefaultMessage("Deleting this component will delete all blocks associated with it in the " +
       "Blocks Editor. Are you sure you want to delete?")
@@ -1016,6 +1039,10 @@ public interface OdeMessages extends Messages {
 
   // Used in editor/simple/palette/ComponentHelpWidget.java
 
+  @DefaultMessage("Extension Version:")
+  @Description("Header for extension version information")
+  String externalComponentVersion();
+
   @DefaultMessage("More information")
   @Description("Label of the link to a component's reference docs")
   String moreInformation();
@@ -1059,6 +1086,10 @@ public interface OdeMessages extends Messages {
   @Description("Text for accelerometer sensitivity choice 'strong'")
   String strongAccelerometerSensitivity();
 
+  @DefaultMessage("LegacyMode")
+  @Description("")
+  String LegacyModeProperties();
+
   // Used in editor/youngandroid/properties/YoungAndroidSizingChoicePropertyEditor.java
 
   @DefaultMessage("Fixed")
@@ -1091,7 +1122,7 @@ public interface OdeMessages extends Messages {
   String horizontalAlignmentChoiceLeft();
 
   @DefaultMessage("Right")
-  @Description("Text for horizontal alignemt choice 'Right'")
+  @Description("Text for horizontal alignment choice 'Right'")
   String horizontalAlignmentChoiceRight();
 
   @DefaultMessage("Center")
@@ -2272,6 +2303,10 @@ public interface OdeMessages extends Messages {
   @Description("")
   String drawingAndAnimationComponentPallette();
 
+  @DefaultMessage("Maps")
+  @Description("")
+  String mapsComponentPallette();
+
   @DefaultMessage("Sensors")
   @Description("")
   String sensorsComponentPallette();
@@ -2883,6 +2918,10 @@ public interface OdeMessages extends Messages {
   @Description("")
   String LineWidthProperties();
 
+  @DefaultMessage("LoadingDialogMessage")
+  @Description("")
+  String LoadingDialogMessageProperties();
+
   @DefaultMessage("Message")
   @Description("")
   String MessageProperties();
@@ -2894,6 +2933,10 @@ public interface OdeMessages extends Messages {
   @DefaultMessage("MultiLine")
   @Description("")
   String MultiLineProperties();
+
+  @DefaultMessage("Namespace")
+  @Description("")
+  String NamespaceProperties();
 
   @DefaultMessage("NumbersOnly")
   @Description("")
@@ -2994,6 +3037,10 @@ public interface OdeMessages extends Messages {
   @DefaultMessage("ServiceURL")
   @Description("")
   String ServiceURLProperties();
+
+  @DefaultMessage("ShowLoadingDialog")
+  @Description("")
+  String ShowLoadingDialogProperties();
 
   @DefaultMessage("FirebaseURL")
   @Description("")
@@ -3455,6 +3502,10 @@ public interface OdeMessages extends Messages {
   @Description("")
   String MentionsProperties();
 
+  @DefaultMessage("PasswordVisible")
+  @Description("")
+  String PasswordVisibleProperties();
+
   @DefaultMessage("ProviderLocked")
   @Description("")
   String ProviderLockedProperties();
@@ -3574,6 +3625,10 @@ public interface OdeMessages extends Messages {
   @DefaultMessage("WebViewString")
   @Description("")
   String WebViewStringProperties();
+
+  @DefaultMessage("WebViewStringChange")
+  @Description("")
+  String WebViewStringChangeEvents();
 
   @DefaultMessage("EnableSpeedRegulation")
   @Description("")
@@ -3876,6 +3931,10 @@ public interface OdeMessages extends Messages {
   @Description("")
   String functionNameParams();
 
+  @DefaultMessage("permissionName")
+  @Description("The name of the parameter that is used to report the name of a needed permission.")
+  String permissionNameParams();
+
   @DefaultMessage("errorNumber")
   @Description("")
   String errorNumberParams();
@@ -4099,6 +4158,10 @@ public interface OdeMessages extends Messages {
   @DefaultMessage("seed")
   @Description("")
   String seedParams();
+
+  @DefaultMessage("rendezvousServer")
+  @Description("")
+  String rendezvousServerParams();
 
   @DefaultMessage("millisecs")
   @Description("")
@@ -4449,6 +4512,14 @@ public interface OdeMessages extends Messages {
   @Description("")
   String OtherScreenClosedEvents();
 
+  @DefaultMessage("PermissionDenied")
+  @Description("The name of the event handler for when the app is denied a dangerous permission by the user.")
+  String PermissionDeniedEvents();
+
+  @DefaultMessage("PermissionGranted")
+  @Description("The name of the event handler for when the app is granted a dangerous permission by the user.")
+  String PermissionGrantedEvents();
+
   @DefaultMessage("ScreenOrientationChanged")
   @Description("")
   String ScreenOrientationChangedEvents();
@@ -4528,6 +4599,14 @@ public interface OdeMessages extends Messages {
   @DefaultMessage("AfterTextInput")
   @Description("")
   String AfterTextInputEvents();
+
+  @DefaultMessage("ChoosingCanceled")
+  @Description("")
+  String ChoosingCanceledEvents();
+
+  @DefaultMessage("TextInputCanceled")
+  @Description("")
+  String TextInputCanceledEvents();
 
   @DefaultMessage("AboveRange")
   @Description("")
@@ -5330,6 +5409,10 @@ public interface OdeMessages extends Messages {
   @Description("")
   String HideKeyboardMethods();
 
+  @DefaultMessage("AskForPermission")
+  @Description("")
+  String AskForPermissionMethods();
+
   @DefaultMessage("Speak")
   @Description("")
   String SpeakMethods();
@@ -5357,6 +5440,14 @@ public interface OdeMessages extends Messages {
   @DefaultMessage("RemoveFirst")
   @Description("")
   String RemoveFirstMethods();
+
+  @DefaultMessage("AppendValueToList")
+  @Description("")
+  String AppendValueToListMethods();
+
+  @DefaultMessage("RemoveFirstFromList")
+  @Description("")
+  String RemoveFirstFromListMethods();
 
   @DefaultMessage("FirstRemoved")
   @Description("")
@@ -5473,6 +5564,10 @@ public interface OdeMessages extends Messages {
   @DefaultMessage("UriEncode")
   @Description("")
   String UriEncodeMethods();
+  
+  @DefaultMessage("UriDecode")
+  @Description("")
+  String UriDecodeMethods();
 
   @DefaultMessage("CanGoBack")
   @Description("")
@@ -5789,9 +5884,9 @@ public interface OdeMessages extends Messages {
     + "regularly set intervals and perform time calculations, "
     + "manipulations, and conversions.</p> <p>Methods to convert an "
     + "instant to text are also available. Acceptable patterns are "
-    + "empty string, MM/DD/YYYY HH:mm:ss a, or MMM d, yyyy "
+    + "empty string, MM/dd/YYYY hh:mm:ss a, or MMM d, yyyy "
     + "HH:mm. The empty string will provide the default format, "
-    + "which is \"MMM d, yyyy HH:mm:ss a\" for FormatDateTime \"MMM "
+    + "which is \"MMM d, yyyy hh:mm:ss a\" for FormatDateTime \"MMM "
     + "d, yyyy\" for FormatDate.  To see all possible format, "
     + "please see <a "
     + "href=\"https://docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html\" "
@@ -6195,7 +6290,7 @@ public interface OdeMessages extends Messages {
 
   @DefaultMessage("<p>It appears that <b>" + "%1" +
       "</b> has had all blocks removed.</p><p>" +
-      "<ul><li>You can save the enpty screen, and then all those blocks will be " +
+      "<ul><li>You can save the empty screen, and then all those blocks will be " +
       "permanently gone from the project.</li>" +
       "<li>Alternatively, you can restore the previously saved version " +
       "of the project.</li></ul></p>")
@@ -6261,6 +6356,10 @@ public interface OdeMessages extends Messages {
   @DefaultMessage("Português do Brasil")
   @Description("")
   String switchToPortugueseBR();
+
+  @DefaultMessage("Português")
+  @Description("")
+  String switchToPortuguese();
 
   @DefaultMessage("Nederlands")
   @Description("")
@@ -6699,4 +6798,570 @@ public interface OdeMessages extends Messages {
   @Description("")
   String reloadWindow();
 
+  @DefaultMessage("AccountName")
+  @Description("")
+  String AccountNameProperties();
+
+  @DefaultMessage("ProjectID")
+  @Description("")
+  String ProjectIDProperties();
+
+  @DefaultMessage("CloudDBError")
+  @Description("")
+  String CloudDBErrorEvents();
+
+  @DefaultMessage("CloudDB")
+  @Description("")
+  String cloudDBComponentPallette();
+
+  @DefaultMessage("Non-visible component allowing you to store data on a Internet " +
+    "connected database server (using Redis software). This allows the users of " +
+    "your App to share data with each other. " +
+    "By default data will be stored in a server maintained by MIT, however you " +
+    "can setup and run your own server. Set the \"RedisServer\" property and " +
+    "\"RedisPort\" Property to access your own server.")
+  @Description("")
+  String CloudDBHelpStringComponentPallette();
+
+  @DefaultMessage("RedisServer")
+  @Description("")
+  String RedisServerProperties();
+
+  @DefaultMessage("DefaultRedisServer")
+  @Description("")
+  String DefaultRedisServerProperties();
+
+  @DefaultMessage("RedisPort")
+  @Description("")
+  String RedisPortProperties();
+
+  @DefaultMessage("Token")
+  @Description("")
+  String TokenProperties();
+
+  @DefaultMessage("GetValues")
+  @Description("")
+  String GetValuesMethods();
+
+  @DefaultMessage("itemToAdd")
+  @Description("")
+  String itemToAddParams();
+
+  @DefaultMessage("UseSSL")
+  @Description("")
+  String UseSSLProperties();
+
+  @DefaultMessage("CloudConnected")
+  @Description("")
+  String CloudConnectedMethods();
+
+  @DefaultMessage("PrimaryColor")
+  @Description("")
+  String PrimaryColorProperties();
+
+  @DefaultMessage("PrimaryColorDark")
+  @Description("")
+  String PrimaryColorDarkProperties();
+
+  @DefaultMessage("AccentColor")
+  @Description("")
+  String AccentColorProperties();
+
+  @DefaultMessage("Theme")
+  @Description("")
+  String ThemeProperties();
+
+  @DefaultMessage("Classic")
+  @Description("")
+  String classicTheme();
+
+  @DefaultMessage("Device Default")
+  @Description("")
+  String defaultTheme();
+
+  @DefaultMessage("Black Title Text")
+  @Description("")
+  String blackTitleTheme();
+
+  @DefaultMessage("Dark")
+  @Description("")
+  String darkTheme();
+
+  // Maps components
+
+  @DefaultMessage("<p>A two-dimensional container that renders map tiles in the background and " +
+      "allows for multiple Marker elements to identify points on the map. Map tiles are supplied " +
+      "by OpenStreetMap contributors and the United States Geological Survey.</p>" +
+      "<p>The Map component provides three utilities for manipulating its boundaries within App " +
+      "Inventor. First, a locking mechanism is provided to allow the map to be moved relative to " +
+      "other components on the Screen. Second, when unlocked, the user can pan the Map to any " +
+      "location. At this new location, the &quot;Set Initial Boundary&quot; button can be pressed " +
+      "to save the current Map coordinates to its properties. Lastly, if the Map is moved to a " +
+      "different location, for example to add Markers off-screen, then the &quot;Reset Map to " +
+      "Initial Bounds&quot; button can be used to re-center the Map at the starting location.</p>")
+  @Description("")
+  String MapHelpStringComponentPallette();
+
+  @DefaultMessage("CenterFromString")
+  @Description("")
+  String CenterFromStringProperties();
+
+  @DefaultMessage("BoundingBox")
+  @Description("A list containing the latitude and longitude of the top-left and bottom-right " +
+    "corners of the Map view in the form ((lat, long), (lat, long)).")
+  String BoundingBoxProperties();
+
+  @DefaultMessage("MapType")
+  @Description("The type of map tile to be displayed")
+  String MapTypeProperties();
+
+  @DefaultMessage("ShowCompass")
+  @Description("Show a compass control on the Map")
+  String ShowCompassProperties();
+
+  @DefaultMessage("ShowUser")
+  @Description("Show a marker on the Map for the user's current location")
+  String ShowUserProperties();
+
+  @DefaultMessage("ShowZoom")
+  @Description("Show a control for changing the Map zoom")
+  String ShowZoomProperties();
+
+  @DefaultMessage("EnableRotation")
+  @Description("Allow the user to rotate the map")
+  String EnableRotationProperties();
+
+  @DefaultMessage("ZoomLevel")
+  @Description("Get or set the zoom level of the Map")
+  String ZoomLevelProperties();
+
+  @DefaultMessage("BoundsChange")
+  @Description("On change of the Map bounds, do...")
+  String BoundsChangeEvents();
+
+  @DefaultMessage("MapReady")
+  @Description("On map ready, do...")
+  String ReadyEvents();
+
+  @DefaultMessage("ZoomChange")
+  @Description("On zoom change, do...")
+  String ZoomChangeEvents();
+
+  @DefaultMessage("InvalidPoint")
+  @Description("")
+  String InvalidPointEvents();
+
+  @DefaultMessage("PanTo")
+  @Description("Pan the map to the given latitude, longitude, and zoom")
+  String PanToMethods();
+
+  @DefaultMessage("Roads")
+  @Description("Road network map type")
+  String mapTypeRoads();
+
+  @DefaultMessage("Aerial")
+  @Description("Aerial photography map type")
+  String mapTypeAerial();
+
+  @DefaultMessage("Terrain")
+  @Description("Terrain map type")
+  String mapTypeTerrain();
+
+  @DefaultMessage("ImageAsset")
+  @Description("ImageAsset")
+  String ImageAssetProperties();
+
+  @DefaultMessage("Description")
+  @Description("Description")
+  String DescriptionProperties();
+
+  @DefaultMessage("Draggable")
+  @Description("Draggable")
+  String DraggableProperties();
+
+  @DefaultMessage("StartDrag")
+  @Description("StartDrag")
+  String StartDragEvents();
+
+  @DefaultMessage("Drag")
+  @Description("Drag")
+  String DragEvents();
+
+  @DefaultMessage("StopDrag")
+  @Description("StopDrag")
+  String StopDragEvents();
+
+  @DefaultMessage("Unexpected map type: {0}")
+  @Description("")
+  String unknownMapTypeException(String maptype);
+
+  @DefaultMessage("Expected 2 values for CenterFromString but got {0}")
+  @Description("")
+  String mapCenterWrongNumberArgumentsException(int numArgs);
+
+  @DefaultMessage("ZoomLevel must be between 1 and 18")
+  @Description("")
+  String mapZoomLevelOutOfBoundsException();
+
+  @DefaultMessage("Zoom In")
+  @Description("Tooltip shown when the user hovers the mouse over the Map component's zoom in control")
+  String mapZoomIn();
+
+  @DefaultMessage("Zoom Out")
+  @Description("Tooltip shown when the user hovers the mouse over the Map component's zoom out control")
+  String mapZoomOut();
+
+  @DefaultMessage("Lock map movement")
+  @Description("Tooltip shown when the user hovers the mouse over the Map component's lock map control")
+  String mapLockMovementTooltip();
+
+  @DefaultMessage("Unlock map component")
+  @Description("Tooltip shown when the user hovers the mouse over the Map component's unlock map control")
+  String mapUnlockMovementTooltip();
+
+  @DefaultMessage("Set initial map to current view")
+  @Description("Tooltip shown when the user hovers the mouse over the Map component's set initial map control")
+  String mapSetInitialMapTooltip();
+
+  @DefaultMessage("Reset bounding box")
+  @Description("Tooltip shown when the user hovers the mouse over the Map component's reset map control")
+  String mapResetBoundingBoxTooltip();
+
+  @DefaultMessage("CreateMarker")
+  @Description("CreateMarker")
+  String CreateMarkerMethods();
+
+  @DefaultMessage("SetLocation")
+  @Description("SetLocation")
+  String SetLocationMethods();
+
+  @DefaultMessage("FillColor")
+  @Description("FillColor")
+  String FillColorProperties();
+
+  @DefaultMessage("StrokeColor")
+  @Description("StrokeColor")
+  String StrokeColorProperties();
+
+  @DefaultMessage("StrokeWidth")
+  @Description("StrokeWidth")
+  String StrokeWidthProperties();
+
+  @DefaultMessage("Type")
+  @Description("Type")
+  String TypeProperties();
+
+  @DefaultMessage("LoadError")
+  @Description("")
+  String LoadErrorEvents();
+
+  @DefaultMessage("GotFeatures")
+  @Description("")
+  String GotFeaturesEvents();
+
+  @DefaultMessage("TapAtPoint")
+  @Description("")
+  String TapAtPointEvents();
+
+  @DefaultMessage("FeatureFromDescription")
+  @Description("")
+  String FeatureFromDescriptionMethods();
+
+  @DefaultMessage("EnableInfobox")
+  @Description("")
+  String EnableInfoboxProperties();
+
+  @DefaultMessage("EnableZoom")
+  @Description("")
+  String EnableZoomProperties();
+
+  @DefaultMessage("HideInfobox")
+  @Description("")
+  String HideInfoboxMethods();
+
+  @DefaultMessage("ShowInfobox")
+  @Description("")
+  String ShowInfoboxMethods();
+
+  @DefaultMessage("From URL...")
+  @Description("")
+  String fromUrlButton();
+
+  @DefaultMessage("Import Media from URL")
+  @Description("")
+  String urlImportWizardCaption();
+
+  @DefaultMessage("AnchorHorizontal")
+  @Description("")
+  String AnchorHorizontalProperties();
+
+  @DefaultMessage("AnchorVertical")
+  @Description("")
+  String AnchorVerticalProperties();
+
+  @DefaultMessage("Features")
+  @Description("")
+  String FeaturesProperties();
+
+  @DefaultMessage("FeaturesFromGeoJSON")
+  @Description("")
+  String FeaturesFromGeoJSONProperties();
+
+  @DefaultMessage("Points")
+  @Description("")
+  String PointsProperties();
+
+  @DefaultMessage("EnablePan")
+  @Description("")
+  String EnablePanProperties();
+
+  @DefaultMessage("DistanceToFeature")
+  @Description("")
+  String DistanceToFeatureMethods();
+
+  @DefaultMessage("DistanceToPoint")
+  @Description("")
+  String DistanceToPointMethods();
+
+  @DefaultMessage("BearingToFeature")
+  @Description("")
+  String BearingToFeatureMethods();
+
+  @DefaultMessage("BearingToPoint")
+  @Description("")
+  String BearingToPointMethods();
+
+  @DefaultMessage("HolePoints")
+  @Description("")
+  String HolePointsProperties();
+
+  @DefaultMessage("Centroid")
+  @Description("")
+  String CentroidMethods();
+
+  @DefaultMessage("PointsFromString")
+  @Description("")
+  String PointsFromStringProperties();
+
+  @DefaultMessage("HolePointsFromString")
+  @Description("")
+  String HolePointsFromStringProperties();
+
+  @DefaultMessage("DoubleTapAtPoint")
+  @Description("")
+  String DoubleTapAtPointEvents();
+
+  @DefaultMessage("FeatureClick")
+  @Description("")
+  String FeatureClickEvents();
+
+  @DefaultMessage("FeatureDrag")
+  @Description("")
+  String FeatureDragEvents();
+
+  @DefaultMessage("FeatureLongClick")
+  @Description("")
+  String FeatureLongClickEvents();
+
+  @DefaultMessage("FeatureStartDrag")
+  @Description("")
+  String FeatureStartDragEvents();
+
+  @DefaultMessage("FeatureStopDrag")
+  @Description("")
+  String FeatureStopDragEvents();
+
+  @DefaultMessage("LongPressAtPoint")
+  @Description("")
+  String LongPressAtPointEvents();
+
+  @DefaultMessage("Circle")
+  @Description("")
+  String circleComponentPallette();
+
+  @DefaultMessage("<p>Use the Circle component to draw a circle of a given radius around a " +
+      "point. The radius is specified in meters.</p><p>Click and drag the handle on the edge of " +
+      "the circle to change its size. Click and drag the center to change its location.</p>")
+  @Description("")
+  String CircleHelpStringComponentPallette();
+
+  @DefaultMessage("mapFeature")
+  @Description("")
+  String mapFeatureParams();
+
+  @DefaultMessage("centroids")
+  @Description("")
+  String centroidsParams();
+
+  @DefaultMessage("centroid")
+  @Description("")
+  String centroidParams();
+
+  @DefaultMessage("FeatureCollection")
+  @Description("")
+  String featureCollectionComponentPallette();
+
+  @DefaultMessage("<p>Use a FeatureCollection to show a group of features. Load a GeoJSON file " +
+      "as an asset (or using a URL in blocks) into the FeatureCollection to see the data " +
+      "contained within.</p>")
+  @Description("")
+  String FeatureCollectionHelpStringComponentPallette();
+
+  @DefaultMessage("LineString")
+  @Description("")
+  String lineStringComponentPallette();
+
+  @DefaultMessage("<p>Use the LineString component to draw a sequence of line segments on a " +
+      "Map.</p><p>Click and drag on the vertices of the LineString to move it in the designer. " +
+      "Click and drag the midpoint of a line segment to split it into smaller pieces.</p>")
+  @Description("")
+  String LineStringHelpStringComponentPallette();
+
+  @DefaultMessage("Map")
+  @Description("")
+  String mapComponentPallette();
+
+  @DefaultMessage("feature")
+  @Description("")
+  String featureParams();
+
+  @DefaultMessage("features")
+  @Description("")
+  String featuresParams();
+
+  @DefaultMessage("description")
+  @Description("")
+  String descriptionParams();
+
+  @DefaultMessage("zoom")
+  @Description("")
+  String zoomParams();
+
+  @DefaultMessage("Marker")
+  @Description("")
+  String markerComponentPallette();
+
+  @DefaultMessage("<p>Marker is an icon positioned at a point to indicate information on a Map. " +
+      "Markers can be used to provide an info window, custom fill and stroke colors, and custom " +
+      "images to convey information to the user.")
+  @Description("")
+  String MarkerHelpStringComponentPallette();
+
+  @DefaultMessage("Polygon")
+  @Description("")
+  String polygonComponentPallette();
+
+  @DefaultMessage("<p>Use a Polygon to draw arbitrary shapes on a Map.</p><p>Click and drag on " +
+      "the handles to move the vertices of the Polygon. Click and drag the handle at the midpoint " +
+      "of an edge to split that edge into two parts. Drag the Polygon around to reposition it.</p>")
+  @Description("")
+  String PolygonHelpStringComponentPallette();
+
+  @DefaultMessage("errorMessage")
+  @Description("")
+  String errorMessageParams();
+
+  @DefaultMessage("Rectangle")
+  @Description("")
+  String rectangleComponentPallette();
+
+  @DefaultMessage("<p>Use the Rectangle to draw a rectangle on a Map bounded by north, south, " +
+      "east, and west edges.</p><p>Click and drag the handles of the Rectangle to change its " +
+      "size. Click and drag the Rectangle to reposition it on the Map.</p>")
+  @Description("")
+  String RectangleHelpStringComponentPallette();
+
+  @DefaultMessage("EastLongitude")
+  @Description("")
+  String EastLongitudeProperties();
+
+  @DefaultMessage("NorthLatitude")
+  @Description("")
+  String NorthLatitudeProperties();
+
+  @DefaultMessage("SouthLatitude")
+  @Description("")
+  String SouthLatitudeProperties();
+
+  @DefaultMessage("WestLongitude")
+  @Description("")
+  String WestLongitudeProperties();
+
+  @DefaultMessage("LoadFromURL")
+  @Description("")
+  String LoadFromURLMethods();
+
+  @DefaultMessage("Custom...")
+  @Description("")
+  String customEllipsis();
+
+  @DefaultMessage("ActionBar")
+  @Description("")
+  String ActionBarProperties();
+
+  @DefaultMessage("The given value {0} was not in the expected range [{1}, {2}].")
+  @Description("")
+  String valueNotInRange(String text, String min, String max);
+
+  @DefaultMessage("The value supplied for {0} was not a valid latitude, longitude pair.")
+  @Description("")
+  String expectedLatLongPair(String property);
+
+  @DefaultMessage("LocationSensor")
+  @Description("")
+  String LocationSensorProperties();
+
+  @DefaultMessage("UserLatitude")
+  @Description("")
+  String UserLatitudeProperties();
+
+  @DefaultMessage("UserLongitude")
+  @Description("")
+  String UserLongitudeProperties();
+
+  @DefaultMessage("Bounds")
+  @Description("")
+  String BoundsMethods();
+
+  @DefaultMessage("Center")
+  @Description("")
+  String CenterMethods();
+
+  @DefaultMessage("SetCenter")
+  @Description("")
+  String SetCenterMethods();
+
+  @DefaultMessage("Rotation")
+  @Description("")
+  String RotationProperties();
+
+  @DefaultMessage("WebRTC")     // Note: This is INTERNAL so doesn't need translation
+  @Description("")
+  String WebRTCProperties();
+
+  @DefaultMessage("GetVersionName")
+  @Description("")
+  String GetVersionNameMethods();
+
+  @DefaultMessage("SdkLevel")
+  @Description("")
+  String SdkLevelMethods();
+
+  @DefaultMessage("GetInstaller")
+  @Description("")
+  String GetInstallerMethods();
+
+  @DefaultMessage("Notice!")
+  @Description("Title for the Warning Dialog Box")
+  String NoticeTitle();
+
+  @DefaultMessage("Use this option to build apps that that will work back to Android version 2.1 (Eclair)," +
+      "<br/>but will not be publishable in the Google Play Store.")
+  @Description("Text for the Package non-SDK 26 Warning Dialog Box (HTML)")
+  String PackageNotice();
+
+  @DefaultMessage("Use this option to create applications that can be submitted to the Google Play Store." +
+      "<br/>These applications will not run on Android versions older than 4.0.")
+  @Description("Text for the Package SDK 26 Warning Dialog Box (HTML)")
+  String Package26Notice();
 }
