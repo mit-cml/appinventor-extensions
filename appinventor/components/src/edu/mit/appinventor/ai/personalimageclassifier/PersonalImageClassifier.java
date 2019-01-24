@@ -61,7 +61,7 @@ import java.util.zip.ZipInputStream;
  * @author data1013@mit.edu (Danny Tang)
  */
 
-@DesignerComponent(version = 20180822,
+@DesignerComponent(version = 20190123,
         category = ComponentCategory.EXTENSION,
         description = "Component that classifies images using a user trained model from the image " +
             "classification explorer. You must provide a WebViewer component in the PersonalImageClassifier " +
@@ -206,17 +206,26 @@ public final class PersonalImageClassifier extends AndroidNonvisibleComponent im
 
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_COMPONENT + ":com.google.appinventor.runtime.components.WebViewer")
   @SimpleProperty(userVisible = false)
-  public void WebViewer(WebViewer webviewer) {
-    if (webviewer != null) {
-      configureWebView((WebView) webviewer.getView());
-      webview.requestLayout();
-      try {
-        Log.d(LOG_TAG, "isHardwareAccelerated? " + webview.isHardwareAccelerated());
-        webview.loadUrl(form.getAssetPathForExtension(this, "personal_image_classifier.html"));
-      } catch (FileNotFoundException e) {
-        Log.d(LOG_TAG, e.getMessage());
-        e.printStackTrace();
+  public void WebViewer(final WebViewer webviewer) {
+    Runnable next = new Runnable() {
+      public void run() {
+        if (webviewer != null) {
+          configureWebView((WebView) webviewer.getView());
+          webview.requestLayout();
+          try {
+            Log.d(LOG_TAG, "isHardwareAccelerated? " + webview.isHardwareAccelerated());
+            webview.loadUrl(form.getAssetPathForExtension(PersonalImageClassifier.this, "personal_image_classifier.html"));
+          } catch (FileNotFoundException e) {
+            Log.d(LOG_TAG, e.getMessage());
+            e.printStackTrace();
+          }
+        }
       }
+    };
+    if (SDK26Helper.shouldAskForPermission(form)) {
+      SDK26Helper.askForPermission(this, next);
+    } else {
+      next.run();
     }
   }
 
@@ -316,6 +325,10 @@ public final class PersonalImageClassifier extends AndroidNonvisibleComponent im
   @SimpleEvent(description = "Event indicating that an error has occurred.")
   public void Error(final int errorCode) {
     EventDispatcher.dispatchEvent(this, "Error", errorCode);
+  }
+
+  Form getForm() {
+    return form;
   }
 
   private static void requestHardwareAcceleration(Activity activity) {
