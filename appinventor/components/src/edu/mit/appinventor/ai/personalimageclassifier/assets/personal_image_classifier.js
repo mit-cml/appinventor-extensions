@@ -2,11 +2,14 @@
 
 console.log("PersonalImageClassifier: Using TensorFlow.js version " + tf.version.tfjs);
 
-const MOBILENET_MODEL_PATH = "https://storage.googleapis.com/tfjs-models/tfjs/mobilenet_v1_0.25_224/model.json";
-const PERSONAL_MODEL_PREFIX = "https://appinventor.mit.edu/personal-image-classifier/";
+const TRANSFER_MODEL_PREFIX = "https://appinventor.mit.edu/personal-image-classifier/transfer/";
+const TRANSFER_MODEL_SUFFIX = "_model.json";
+
+const PERSONAL_MODEL_PREFIX = "https://appinventor.mit.edu/personal-image-classifier/personal/";
 const PERSONAL_MODEL_JSON_SUFFIX = "model.json";
 const PERSONAL_MODEL_WEIGHTS_SUFFIX = "model.weights.bin";
 const PERSONAL_MODEL_LABELS_SUFFIX = "model_labels.json";
+const TRANSFER_MODEL_INFO_SUFFIX = "transfer_model.json";
 
 const IMAGE_SIZE = 224;
 
@@ -18,21 +21,23 @@ const ERROR_CANNOT_CLASSIFY_IMAGE_IN_VIDEO_MODE = -4;
 const ERROR_CANNOT_CLASSIFY_VIDEO_IN_IMAGE_MODE = -5;
 const ERROR_INVALID_INPUT_MODE = -6;
 
-// Inputs are passed through an activation of mobilenet before being fed into
+// Inputs are passed through an activation of the transfer before being fed into
 // the user provided model
-let mobilenet;
+let transferModel;
 let model;
 
-// Mapping of model predictions to label names
+// Data required to use the model
 let modelLabels;
+let transferModelInfo;
+
 let topk_predictions;
 
-async function loadMobilenet() {
-  const mobilenet = await tf.loadModel(MOBILENET_MODEL_PATH);
+async function loadTransferModel(modelName, modelActivation) {
+  const transferModel = await tf.loadModel(TRANSFER_MODEL_PREFIX + modelName + TRANSFER_MODEL_SUFFIX);
 
-  // Return an internal activation of mobilenet.
-  const layer = mobilenet.getLayer('conv_pw_13_relu');
-  return tf.model({inputs: mobilenet.inputs, outputs: layer.output});
+  // Return an internal activation of the transfer model.
+  const layer = transferModel.getLayer(modelActivation);
+  return tf.model({inputs: transferModel.inputs, outputs: layer.output});
 }
 
 async function loadModelFile(url, json) {
@@ -54,11 +59,13 @@ function blobToFile(blob, fileName){
     return blob;
 }
 
-const mobilenetDemo = async () => {
+const loadModel = async () => {
   try {
-    // Load the mobelnet activation and the user's personal model
-    mobilenet = await loadMobilenet();
+    // Loads the transfer model
+    transferModelInfo = await loadModelFile(PERSONAL_MODEL_PREFIX + TRANSFER_MODEL_INFO_SUFFIX, true);
+    transferModel = await loadTransferModel(transferModelInfo['name'], transferModelInfo['lastLayer']);
 
+    // Loads the user's personal model
     const modelTopologyBlob = await loadModelFile(PERSONAL_MODEL_PREFIX + PERSONAL_MODEL_JSON_SUFFIX, false);
     const modelTopologyFile = blobToFile(modelTopologyBlob, PERSONAL_MODEL_JSON_SUFFIX);
 
@@ -72,9 +79,9 @@ const mobilenetDemo = async () => {
     topk_predictions = Math.min(3, Object.keys(modelLabels).length);
 
     const zeros = tf.zeros([1, IMAGE_SIZE, IMAGE_SIZE, 3]);
-    mobilenet.predict(zeros).dispose();
+    transferModel.predict(zeros).dispose();
     zeros.dispose();
-    console.log("PersonalImageClassifier: Mobilenet activation and personal model are ready");
+    console.log("PersonalImageClassifier: transfer model activation and personal model are ready");
     PersonalImageClassifier.ready();
   } catch (error) {
     console.log("PersonalImageClassifier: " + error);
@@ -90,9 +97,9 @@ async function predict(pixels) {
       const normalized = img.sub(offset).div(offset);
       const batched = normalized.reshape([1, IMAGE_SIZE, IMAGE_SIZE, 3]);
 
-      // Make a prediction, first using the mobilenet activation and then
+      // Make a prediction, first using the transfer model activation and then
       // feeding that into the user provided model
-      const activation = mobilenet.predict(batched);
+      const activation = transferModel.predict(batched);
       const predictions = model.predict(activation);
       return predictions.as1D();
     });
@@ -207,4 +214,4 @@ window.addEventListener("resize", function() {
   video.height = video.videoHeight * window.innerWidth / video.videoWidth;
 });
 
-mobilenetDemo();
+loadModel();
