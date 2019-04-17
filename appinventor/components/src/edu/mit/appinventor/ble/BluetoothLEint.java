@@ -389,6 +389,12 @@ final class BluetoothLEint {
     @Override
     public void unsubscribe(final BluetoothGatt gatt) {
       synchronized (pendingOperationsByUuid) {
+        BluetoothGattDescriptor desc = characteristic
+          .getDescriptor(BluetoothLEGattAttributes.CLIENT_CHARACTERISTIC_CONFIGURATION);          
+          
+        desc.setValue(BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE);
+        gatt.writeDescriptor(desc);
+          
         if (gatt.setCharacteristicNotification(characteristic, false)) {
           pendingOperationsByUuid.get(characteristic.getUuid()).remove(this);
           notify = false;
