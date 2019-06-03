@@ -31,7 +31,6 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 
 import android.os.Handler;
-import android.os.Looper;
 import android.os.ParcelUuid;
 
 import android.text.TextUtils;
@@ -389,7 +388,7 @@ final class BluetoothLEint {
     @Override
     public void unsubscribe(final BluetoothGatt gatt) {
       synchronized (pendingOperationsByUuid) {
-        if (gatt.setCharacteristicNotification(characteristic, false)) {
+        if (gatt == null || gatt.setCharacteristicNotification(characteristic, false)) {
           pendingOperationsByUuid.get(characteristic.getUuid()).remove(this);
           notify = false;
         } else if (delay > 2000) {
@@ -1161,7 +1160,6 @@ final class BluetoothLEint {
   private static final int ERROR_INVALID_UUID_FORMAT = 9009;
   private static final int ERROR_ADVERTISEMENTS_NOT_SUPPORTED = 9010;
   private static final int ERROR_UNSUPPORTED_CHARACTERISTIC = 9011;
-  private static final String BLUETOOTH_BASE_UUID_SUFFIX = "-0000-1000-8000-00805F9B34FB";
   private static final String UNKNOWN_SERVICE_NAME = "Unknown Service";
   private static final String UNKNOWN_CHAR_NAME = "Unknown Characteristic";
   private static final int GATT_LINK_LOSS = 8;  // Not documented in Android SDK
@@ -1285,7 +1283,7 @@ final class BluetoothLEint {
   private HashMap<String, String> nameToAddress = new HashMap<String, String>();
   private boolean isAdvertising = false;
 
-  BluetoothLEint(BluetoothLE outer, final Activity activity, ComponentContainer container) {
+  BluetoothLEint(final BluetoothLE outer, final Activity activity, ComponentContainer container) {
 
     this.outer = outer;
     this.activity = activity;
@@ -1459,6 +1457,11 @@ final class BluetoothLEint {
         device_rssi = rssi;
         RssiChanged(device_rssi);
       }
+
+      @Override
+      public void onMtuChanged(BluetoothGatt gatt, int mtu, int status) {
+        outer.MTUChanged(mtu);
+      }
     };
 
     mAdvertisementScanCallback = new ScanCallback() {
@@ -1525,6 +1528,83 @@ final class BluetoothLEint {
           }
         }
 
+        return null;
+      }
+    }.run();
+  }
+
+  interface DeviceCallback {
+    boolean foundDevice(String name, String mac);
+  }
+
+  void StartScanningForService(String caller, final UUID serviceUuid, final DeviceCallback callback) {
+    new BLEAction<Void>(caller) {
+      @Override
+      public Void action() {
+        if (!mLeDevices.isEmpty()) {
+          mLeDevices.clear();
+          mLeDeviceRssi.clear();
+        }
+
+        BluetoothAdapter btAdapter = obtainBluetoothAdapter();
+        if (btAdapter == null) return null;
+        mBluetoothLeDeviceScanner = btAdapter.getBluetoothLeScanner();
+        if (mBluetoothLeDeviceScanner == null) return null;
+        ScanSettings settings = new ScanSettings.Builder()
+            .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+            .build();
+        List<ScanFilter> filters = new ArrayList<ScanFilter>();
+        ScanFilter filter = new ScanFilter.Builder()
+            .setServiceUuid(new ParcelUuid(serviceUuid))
+            .build();
+        filters.add(filter);
+        if (callback != null) {
+          final ScanCallback scanCallback = new ScanCallback() {
+            @Override
+            public void onScanResult(int callbackType, ScanResult result) {
+              super.onScanResult(callbackType, result);
+              if (result != null) {
+                BluetoothDevice device = result.getDevice();
+                if (callback.foundDevice(device.getName(), device.getAddress())) {
+                  mBluetoothLeDeviceScanner.stopScan(this);
+                  isScanning = false;
+                  Log.i(LOG_TAG, "Connecting to device " + device);
+                  mBluetoothGatt = device.connectGatt(activity, autoReconnect, mGattCallback);
+                  if (mBluetoothGatt == null) {
+                    outer.ConnectionFailed("Connect failed to return a BluetoothGatt object");
+                    Log.e(LOG_TAG, "Connect failed.");
+                  } else {
+                    scheduleConnectionTimeoutMessage();
+                  }
+                }
+              }
+            }
+
+            @Override
+            public void onScanFailed(int errorCode) {
+              if (errorCode != SCAN_FAILED_ALREADY_STARTED) {
+                isScanning = false;
+              }
+              super.onScanFailed(errorCode);
+            }
+          };
+          mBluetoothLeDeviceScanner.startScan(filters, settings, scanCallback);
+          isScanning = true;
+        } else {
+          mBluetoothLeDeviceScanner.startScan(filters, settings, mDeviceScanCallback);
+        }
+        return null;
+      }
+    }.run();
+  }
+
+  void RequestMTU(final int bytes) {
+    new BLEAction<Void>("RequestMTU") {
+      @Override
+      public Void action() {
+        if (mBluetoothGatt != null) {
+          mBluetoothGatt.requestMtu(bytes);
+        }
         return null;
       }
     }.run();
@@ -1685,8 +1765,8 @@ final class BluetoothLEint {
     new BLEAction<Void>(METHOD) {
       @Override
       public Void action() {
-        BluetoothGattCharacteristic characteristic = findMGattChar(bleStringToUuid(serviceUuid),
-            bleStringToUuid(characteristicUuid));
+        BluetoothGattCharacteristic characteristic = findMGattChar(BLEUtil.bleStringToUuid(serviceUuid),
+            BLEUtil.bleStringToUuid(characteristicUuid));
         schedulePendingOperation(new BLEReadByteOperation(characteristic, signed, callback));
         return null;
       }
@@ -1719,8 +1799,8 @@ final class BluetoothLEint {
         new BLEAction<Void>(METHOD) {
           @Override
           public Void action() {
-            BluetoothGattCharacteristic characteristic = findMGattChar(bleStringToUuid(serviceUuid),
-                bleStringToUuid(characteristicUuid));
+            BluetoothGattCharacteristic characteristic = findMGattChar(BLEUtil.bleStringToUuid(serviceUuid),
+                BLEUtil.bleStringToUuid(characteristicUuid));
             schedulePendingOperation(new BLEReadByteOperation(characteristic, signed, callback, true));
             return null;
           }
@@ -1735,8 +1815,8 @@ final class BluetoothLEint {
     new BLEAction<Void>(METHOD) {
       @Override
       public Void action() {
-        BluetoothGattCharacteristic characteristic = findMGattChar(bleStringToUuid(serviceUuid),
-            bleStringToUuid(characteristicUuid));
+        BluetoothGattCharacteristic characteristic = findMGattChar(BLEUtil.bleStringToUuid(serviceUuid),
+            BLEUtil.bleStringToUuid(characteristicUuid));
         schedulePendingOperation(new BLEWriteBytesOperation(characteristic, signed, values,
             BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE));
         return null;
@@ -1757,8 +1837,8 @@ final class BluetoothLEint {
     new BLEAction<Void>(METHOD) {
       @Override
       public Void action() {
-        BluetoothGattCharacteristic characteristic = findMGattChar(bleStringToUuid(serviceUuid),
-            bleStringToUuid(characteristicUuid));
+        BluetoothGattCharacteristic characteristic = findMGattChar(BLEUtil.bleStringToUuid(serviceUuid),
+            BLEUtil.bleStringToUuid(characteristicUuid));
         schedulePendingOperation(new BLEWriteBytesOperation(characteristic, signed, values, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT));
         return null;
       }
@@ -1787,8 +1867,8 @@ final class BluetoothLEint {
     new BLEAction<Void>(METHOD) {
       @Override
       public Void action() {
-        BluetoothGattCharacteristic characteristic = findMGattChar(bleStringToUuid(serviceUuid),
-            bleStringToUuid(characteristicUuid));
+        BluetoothGattCharacteristic characteristic = findMGattChar(BLEUtil.bleStringToUuid(serviceUuid),
+            BLEUtil.bleStringToUuid(characteristicUuid));
         schedulePendingOperation(new BLEReadShortOperation(characteristic, signed, callback));
         return null;
       }
@@ -1818,8 +1898,8 @@ final class BluetoothLEint {
     new BLEAction<Void>(METHOD) {
       @Override
       public Void action() {
-        BluetoothGattCharacteristic characteristic = findMGattChar(bleStringToUuid(serviceUuid),
-            bleStringToUuid(characteristicUuid));
+        BluetoothGattCharacteristic characteristic = findMGattChar(BLEUtil.bleStringToUuid(serviceUuid),
+            BLEUtil.bleStringToUuid(characteristicUuid));
         schedulePendingOperation(new BLEReadShortOperation(characteristic, signed, callback, true));
         return null;
       }
@@ -1832,8 +1912,8 @@ final class BluetoothLEint {
     new BLEAction<Void>(METHOD) {
       @Override
       public Void action() {
-        BluetoothGattCharacteristic characteristic = findMGattChar(bleStringToUuid(serviceUuid),
-            bleStringToUuid(characteristicUuid));
+        BluetoothGattCharacteristic characteristic = findMGattChar(BLEUtil.bleStringToUuid(serviceUuid),
+            BLEUtil.bleStringToUuid(characteristicUuid));
         schedulePendingOperation(new BLEWriteShortsOperation(characteristic, signed, values,
             BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE));
         return null;
@@ -1853,8 +1933,8 @@ final class BluetoothLEint {
     new BLEAction<Void>(METHOD) {
       @Override
       public Void action() {
-        BluetoothGattCharacteristic characteristic = findMGattChar(bleStringToUuid(serviceUuid),
-            bleStringToUuid(characteristicUuid));
+        BluetoothGattCharacteristic characteristic = findMGattChar(BLEUtil.bleStringToUuid(serviceUuid),
+            BLEUtil.bleStringToUuid(characteristicUuid));
         schedulePendingOperation(new BLEWriteShortsOperation(characteristic, signed, values,
             BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT));
         return null;
@@ -1884,8 +1964,8 @@ final class BluetoothLEint {
     new BLEAction<Void>(METHOD) {
       @Override
       public Void action() {
-        BluetoothGattCharacteristic characteristic = findMGattChar(bleStringToUuid(serviceUuid),
-            bleStringToUuid(characteristicUuid));
+        BluetoothGattCharacteristic characteristic = findMGattChar(BLEUtil.bleStringToUuid(serviceUuid),
+            BLEUtil.bleStringToUuid(characteristicUuid));
         schedulePendingOperation(new BLEReadIntegerOperation(characteristic, signed, handler));
         return null;
       }
@@ -1914,8 +1994,8 @@ final class BluetoothLEint {
     new BLEAction<Void>(METHOD) {
       @Override
       public Void action() {
-        BluetoothGattCharacteristic characteristic = findMGattChar(bleStringToUuid(serviceUuid),
-            bleStringToUuid(characteristicUuid));
+        BluetoothGattCharacteristic characteristic = findMGattChar(BLEUtil.bleStringToUuid(serviceUuid),
+            BLEUtil.bleStringToUuid(characteristicUuid));
         schedulePendingOperation(new BLEReadIntegerOperation(characteristic, signed, handler, true));
         return null;
       }
@@ -1928,8 +2008,8 @@ final class BluetoothLEint {
     new BLEAction<Void>(METHOD) {
       @Override
       public Void action() {
-        BluetoothGattCharacteristic characteristic = findMGattChar(bleStringToUuid(serviceUuid),
-            bleStringToUuid(characteristicUuid));
+        BluetoothGattCharacteristic characteristic = findMGattChar(BLEUtil.bleStringToUuid(serviceUuid),
+            BLEUtil.bleStringToUuid(characteristicUuid));
         schedulePendingOperation(new BLEWriteIntegersOperation(characteristic, signed, values,
             BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE));
         return null;
@@ -1949,8 +2029,8 @@ final class BluetoothLEint {
     new BLEAction<Void>(METHOD) {
       @Override
       public Void action() {
-        BluetoothGattCharacteristic characteristic = findMGattChar(bleStringToUuid(serviceUuid),
-            bleStringToUuid(characteristicUuid));
+        BluetoothGattCharacteristic characteristic = findMGattChar(BLEUtil.bleStringToUuid(serviceUuid),
+            BLEUtil.bleStringToUuid(characteristicUuid));
         schedulePendingOperation(new BLEWriteIntegersOperation(characteristic, signed, values,
             BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT));
         return null;
@@ -1981,8 +2061,8 @@ final class BluetoothLEint {
     new BLEAction<Void>(METHOD) {
       @Override
       public Void action() {
-        BluetoothGattCharacteristic characteristic = findMGattChar(bleStringToUuid(serviceUuid),
-            bleStringToUuid(characteristicUuid));
+        BluetoothGattCharacteristic characteristic = findMGattChar(BLEUtil.bleStringToUuid(serviceUuid),
+            BLEUtil.bleStringToUuid(characteristicUuid));
         schedulePendingOperation(new BLEReadFloatOperation(characteristic, shortFloat, callback));
         return null;
       }
@@ -2013,8 +2093,8 @@ final class BluetoothLEint {
     new BLEAction<Void>(METHOD) {
       @Override
       public Void action() {
-        BluetoothGattCharacteristic characteristic = findMGattChar(bleStringToUuid(serviceUuid),
-            bleStringToUuid(characteristicUuid));
+        BluetoothGattCharacteristic characteristic = findMGattChar(BLEUtil.bleStringToUuid(serviceUuid),
+            BLEUtil.bleStringToUuid(characteristicUuid));
         schedulePendingOperation(new BLEReadFloatOperation(characteristic, shortFloat, callback, true));
         return null;
       }
@@ -2027,8 +2107,8 @@ final class BluetoothLEint {
     new BLEAction<Void>(METHOD) {
       @Override
       public Void action() {
-        BluetoothGattCharacteristic characteristic = findMGattChar(bleStringToUuid(serviceUuid),
-            bleStringToUuid(characteristicUuid));
+        BluetoothGattCharacteristic characteristic = findMGattChar(BLEUtil.bleStringToUuid(serviceUuid),
+            BLEUtil.bleStringToUuid(characteristicUuid));
         schedulePendingOperation(new BLEWriteFloatsOperation(characteristic, shortFloat, values,
             BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE));
         return null;
@@ -2048,8 +2128,8 @@ final class BluetoothLEint {
     new BLEAction<Void>(METHOD) {
       @Override
       public Void action() {
-        BluetoothGattCharacteristic characteristic = findMGattChar(bleStringToUuid(serviceUuid),
-            bleStringToUuid(characteristicUuid));
+        BluetoothGattCharacteristic characteristic = findMGattChar(BLEUtil.bleStringToUuid(serviceUuid),
+            BLEUtil.bleStringToUuid(characteristicUuid));
         schedulePendingOperation(new BLEWriteFloatsOperation(characteristic, shortFloat, values,
             BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT));
         return null;
@@ -2081,8 +2161,8 @@ final class BluetoothLEint {
       @Override
       public Void action() {
         try {
-          BluetoothGattCharacteristic characteristic = findMGattChar(bleStringToUuid(serviceUuid),
-              bleStringToUuid(characteristicUuid));
+          BluetoothGattCharacteristic characteristic = findMGattChar(BLEUtil.bleStringToUuid(serviceUuid),
+              BLEUtil.bleStringToUuid(characteristicUuid));
           schedulePendingOperation(new BLEReadStringOperation(characteristic, utf16, handler));
         } catch(IllegalStateException e) {
           container.$form().dispatchErrorOccurredEvent(outer, "ReadString",
@@ -2118,8 +2198,8 @@ final class BluetoothLEint {
     new BLEAction<Void>(METHOD) {
       @Override
       public Void action() {
-        BluetoothGattCharacteristic characteristic = findMGattChar(bleStringToUuid(serviceUuid),
-            bleStringToUuid(characteristicUuid));
+        BluetoothGattCharacteristic characteristic = findMGattChar(BLEUtil.bleStringToUuid(serviceUuid),
+            BLEUtil.bleStringToUuid(characteristicUuid));
         schedulePendingOperation(new BLEReadStringOperation(characteristic, utf16, handler, true));
         return null;
       }
@@ -2132,8 +2212,8 @@ final class BluetoothLEint {
     new BLEAction<Void>(METHOD) {
       @Override
       public Void action() {
-        BluetoothGattCharacteristic characteristic = findMGattChar(bleStringToUuid(serviceUuid),
-            bleStringToUuid(characteristicUuid));
+        BluetoothGattCharacteristic characteristic = findMGattChar(BLEUtil.bleStringToUuid(serviceUuid),
+            BLEUtil.bleStringToUuid(characteristicUuid));
         schedulePendingOperation(new BLEWriteStringsOperation(characteristic, utf16, values,
             BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE));
         return null;
@@ -2153,8 +2233,8 @@ final class BluetoothLEint {
     new BLEAction<Void>(METHOD) {
       @Override
       public Void action() {
-        BluetoothGattCharacteristic characteristic = findMGattChar(bleStringToUuid(serviceUuid),
-            bleStringToUuid(characteristicUuid));
+        BluetoothGattCharacteristic characteristic = findMGattChar(BLEUtil.bleStringToUuid(serviceUuid),
+            BLEUtil.bleStringToUuid(characteristicUuid));
         schedulePendingOperation(new BLEWriteStringsOperation(characteristic, utf16, values,
             BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT));
         return null;
@@ -2178,7 +2258,7 @@ final class BluetoothLEint {
     new BLEAction<Void>(METHOD) {
       @Override
       public Void action() {
-        UUID characteristic = bleStringToUuid(characteristicUuid);
+        UUID characteristic = BLEUtil.bleStringToUuid(characteristicUuid);
         List<BLEOperation> operations = pendingOperationsByUuid.get(characteristic);
         if (operations != null) {
           // Copy the list to prevent ConcurrentModificationException
@@ -2634,13 +2714,13 @@ final class BluetoothLEint {
   }
 
   boolean isServicePublished(String serviceUuid) {
-    UUID service = bleStringToUuid(serviceUuid);
+    UUID service = BLEUtil.bleStringToUuid(serviceUuid);
     return mBluetoothGatt != null && mBluetoothGatt.getService(service) != null;
   }
 
   boolean isCharacteristicPublished(String serviceUuid, String characteristicUuid) {
-    UUID service = bleStringToUuid(serviceUuid);
-    UUID characteristic = bleStringToUuid(characteristicUuid);
+    UUID service = BLEUtil.bleStringToUuid(serviceUuid);
+    UUID characteristic = BLEUtil.bleStringToUuid(characteristicUuid);
     if (mBluetoothGatt != null) {
       BluetoothGattService gattService = mBluetoothGatt.getService(service);
       if (gattService != null) {
@@ -2863,18 +2943,4 @@ final class BluetoothLEint {
     mBluetoothGatt = null;
   }
 
-  private static UUID bleStringToUuid(String uuid) {
-    uuid = uuid.toLowerCase();
-    if (uuid.length() == 4) {  // 16 bit short Bluetooth UUID
-      uuid = "0000" + uuid + BLUETOOTH_BASE_UUID_SUFFIX;
-    } else if (uuid.length() == 8) {  // 32 bit short Bluetooth UUID
-      uuid = uuid + BLUETOOTH_BASE_UUID_SUFFIX;
-    } else if (uuid.length() == 32) {  // 128 bit Bluetooth UUID without dashes
-      uuid = uuid.substring(0, 8) + "-" + uuid.substring(8, 12) + "-" + uuid.substring(12, 16) +
-          "-" + uuid.substring(16, 20) + "-" + uuid.substring(20);
-    } else if (!BLEUtil.hasValidUUIDFormat(uuid)) {
-      throw new IllegalArgumentException("Invalid UUID: " + uuid);
-    }
-    return UUID.fromString(uuid);
-  }
 }

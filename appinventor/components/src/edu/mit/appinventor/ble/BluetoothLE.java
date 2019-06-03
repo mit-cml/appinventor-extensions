@@ -32,6 +32,7 @@ import com.google.appinventor.components.runtime.Form;
 import com.google.appinventor.components.runtime.util.ErrorMessages;
 import com.google.appinventor.components.runtime.util.SdkLevel;
 import com.google.appinventor.components.runtime.util.YailList;
+import edu.mit.appinventor.ble.BluetoothLEint.DeviceCallback;
 import gnu.lists.FString;
 
 import java.io.UnsupportedEncodingException;
@@ -42,7 +43,11 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
+import static android.Manifest.permission.ACCESS_COARSE_LOCATION;
+import static android.Manifest.permission.BLUETOOTH;
+import static android.Manifest.permission.BLUETOOTH_ADMIN;
 
 /**
  * @author Andrew McKinney (mckinney@mit.edu)
@@ -51,7 +56,7 @@ import java.util.Set;
  * @author William Byrne (will2596@gmail.com) (minor bugfixes)
  */
 
-@DesignerComponent(version = 20181124,
+@DesignerComponent(version = 20190525,
     description = "Bluetooth Low Energy, also referred to as Bluetooth LE " +
         "or simply BLE, is a new communication protocol similar to classic Bluetooth except " +
         "that it is designed to consume less power while maintaining comparable " +
@@ -65,8 +70,7 @@ import java.util.Set;
     helpUrl = "http://iot.appinventor.mit.edu/#/bluetoothle/bluetoothleintro",
     iconName = "images/bluetooth.png")
 @SimpleObject(external = true)
-@UsesPermissions(permissionNames = "android.permission.BLUETOOTH, " + "android.permission.BLUETOOTH_ADMIN,"
-    + "android.permission.ACCESS_COARSE_LOCATION")
+@UsesPermissions({ BLUETOOTH, BLUETOOTH_ADMIN, ACCESS_COARSE_LOCATION })
 public class BluetoothLE extends AndroidNonvisibleComponent implements Component, Deleteable {
   public static final int ERROR_DEVICE_INDEX_OOB = 9101;
   public static final int ERROR_SERVICE_INDEX_OOB = 9102;
@@ -1662,6 +1666,149 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
       }
     }
     return "";
+  }
+
+  /**
+   * Scans for a particular type of device. The device component must implement
+   * the BLEDevice interface in order for this method to work.
+   *
+   * __Parameters__:
+   *
+   *   * <code>param</code> (<a href="">_component_</a>) &mdash;
+   *     A component block that expects a particular service.
+   *
+   * @param device the device to scan for instances of
+   */
+  @SimpleFunction
+  public void ScanForDevice(final BLEDevice device) {
+    if (inner == null) return;
+    if (SDK26Helper.shouldAskForPermission(form)) {
+      SDK26Helper.askForPermission(this, new Runnable() {
+        public void run() {
+          inner.StartScanningForService("ScanForDevice",
+              device.GetBroadcastUUID(), null);
+        }
+      });
+    } else {
+      inner.StartScanningForService("ScanForDevice",
+          device.GetBroadcastUUID(), null);
+    }
+  }
+
+  /**
+   * Scans for devices advertising a particular Bluetooth low energy service
+   * by UUID.
+   *
+   * __Parameters__:
+   *
+   *   * <code>serviceUuid</code> (<a href="">_text_</a>) &mdash;
+   *     The unique identifier of the service being broadcast by the device(s)
+   *     of interest.
+   *
+   * @param serviceUuid The unique identifier of the service being broadcast by
+   *                    the device(s) of interest.
+   */
+  @SimpleFunction
+  public void ScanForService(final String serviceUuid) {
+    if (inner == null) return;
+    final UUID uuid = BLEUtil.bleStringToUuid(serviceUuid);
+    if (SDK26Helper.shouldAskForPermission(form)) {
+      SDK26Helper.askForPermission(this, new Runnable() {
+        @Override
+        public void run() {
+          inner.StartScanningForService("ScanForService", uuid, null);
+        }
+      });
+    } else {
+      inner.StartScanningForService("ScanForService", uuid, null);
+    }
+  }
+
+  /**
+   * Connects to the first device found advertising with the given
+   * <code>name</code> and the service UUID associated with <code>device</code>.
+   *
+   * __Parameters__:
+   *
+   *   * <code>device</code> (<a href="">_component_</a>) &mdash;
+   *     A component block that represents a Bluetooth Low Energy device
+   *   * <code>name</code> (a href="">_name_</a>) &mdash;
+   *     The name advertised by the desired device,
+   *
+   * @param device a component that represents a BLE device
+   * @param name the name advertised by the desired device
+   */
+  @SimpleFunction
+  public void ConnectToDeviceType(final BLEDevice device, final String name) {
+    if (inner == null) return;
+    if (SDK26Helper.shouldAskForPermission(form)) {
+      SDK26Helper.askForPermission(this, new Runnable() {
+        @Override
+        public void run() {
+          inner.StartScanningForService("ConnectToDeviceType",
+              device.GetBroadcastUUID(),
+              new DeviceCallback() {
+                @Override
+                public boolean foundDevice(String devname, String mac) {
+                  Log.i(LOG_TAG, "devname = " + devname + ", name = " + name);
+                  return devname.equals(name);
+                }
+              });
+        }
+      });
+    }
+  }
+
+  /**
+   * Requests a new minimum transmission unit (MUT) for the BluetoothLE connection. This feature
+   * is only supported when both devices support Bluetooth 4.2 or higher. If the MTU is changed
+   * successfully, the MTUChanged event will be run. The default MTU is 20.
+   *
+   * This block is intended for advanced apps that need to change the size of the messages sent
+   * between the BLE devices. Most developers will not need to adjust this value.
+   *
+   * __Parameters__:
+   *
+   *   * <code>bytes</code> (<a href="">_number_</a>) &mdash;
+   *     The desired MTU size.
+   *
+   * @param bytes the desired mtu size
+   */
+  @SimpleFunction
+  public void RequestMTU(final int bytes) {
+    if (inner == null) return;
+    if (SDK26Helper.shouldAskForPermission(form)) {
+      SDK26Helper.askForPermission(this, new Runnable() {
+        @Override
+        public void run() {
+          inner.RequestMTU(bytes);
+        }
+      });
+    } else {
+      inner.RequestMTU(bytes);
+    }
+  }
+
+  /**
+   * The MTUChanged event is run when the two BluetoothLE devices have successfully changed their
+   * maximum transmission unit (MTU) to a different value. This event will only run in response
+   * to a call to the method block RequestMTU.
+   *
+   * __ Parameters__:
+   *
+   *   * <code>bytes</code> (<a href="">_number_</a>) &mdash;
+   *     The new size, in bytes, of the new MTU.
+   *
+   * @param bytes the new size of the MTU
+   */
+  @SimpleEvent
+  public void MTUChanged(final int bytes) {
+    form.runOnUiThread(new Runnable() {
+      @Override
+      public void run() {
+        EventDispatcher.dispatchEvent(BluetoothLE.this, "MTUChanged", bytes);
+      }
+    });
   }
 
   // Helper methods for profile extensions for BLE

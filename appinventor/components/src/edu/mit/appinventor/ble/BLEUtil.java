@@ -7,11 +7,9 @@ package edu.mit.appinventor.ble;
 
 import android.os.ParcelUuid;
 
-import com.google.appinventor.components.runtime.ComponentContainer;
-import com.google.appinventor.components.runtime.Notifier;
-
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.regex.Pattern;
 
 /**
@@ -27,6 +25,7 @@ final class BLEUtil {
 
   // Regex to detect invalid characters in a potential UUID string
   private static final Pattern INVALID_UUID_CHARS = Pattern.compile("[^0-9a-fA-F-]");
+  public static final String BLUETOOTH_BASE_UUID_SUFFIX = "-0000-1000-8000-00805F9B34FB";
 
   /**
    * Validator for prospective service and characteristic UUID strings used in
@@ -62,5 +61,30 @@ final class BLEUtil {
       deviceServices.add(serviceUuid.toString());
     }
     return deviceServices;
+  }
+
+  /**
+   * Converts a string representing a UUID into a UUID object. This method will
+   * also convert 16-bit and 32-bit UUIDs from the Bluetooth specification into
+   * 128-bit versions.
+   *
+   * @param uuid the UUID-like string to verify
+   * @return a UUID object representing the 128-bit version of {@code uuid}
+   * @throws IllegalArgumentException if the {@code uuid} does not represent a
+   * valid UUID based on the Bluetooth specification.
+   */
+  public static UUID bleStringToUuid(String uuid) {
+    uuid = uuid.toLowerCase();
+    if (uuid.length() == 4) {  // 16 bit short Bluetooth UUID
+      uuid = "0000" + uuid + BLUETOOTH_BASE_UUID_SUFFIX;
+    } else if (uuid.length() == 8) {  // 32 bit short Bluetooth UUID
+      uuid = uuid + BLUETOOTH_BASE_UUID_SUFFIX;
+    } else if (uuid.length() == 32) {  // 128 bit Bluetooth UUID without dashes
+      uuid = uuid.substring(0, 8) + "-" + uuid.substring(8, 12) + "-" + uuid.substring(12, 16) +
+          "-" + uuid.substring(16, 20) + "-" + uuid.substring(20);
+    } else if (!hasValidUUIDFormat(uuid)) {
+      throw new IllegalArgumentException("Invalid UUID: " + uuid);
+    }
+    return UUID.fromString(uuid);
   }
 }
