@@ -1760,6 +1760,42 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
   }
 
   /**
+   * Connects to the first device found advertising with the given
+   * <code>name</code> and the service UUID associated with <code>device</code>.
+   *
+   * __Parameters__:
+   *
+   *   * <code>serviceUuid</code> (<a href="">_text_</a>) &mdash;
+   *     The unique identifier of the service being broadcast by the device(s)
+   *     of interest.
+   *   * <code>name</code> (a href="">_name_</a>) &mdash;
+   *     The name advertised by the desired device,
+   *
+   * @param serviceUuid The unique identifier of the service being broadcast by
+   *                    the device(s) of interest.
+   * @param name        the name advertised by the desired device
+   */
+  @SimpleFunction
+  public void ConnectToDeviceWithServiceAndName(final String serviceUuid, final String name) {
+    if (inner == null) return;
+    if (SDK26Helper.shouldAskForPermission(form)) {
+      SDK26Helper.askForPermission(this, new Runnable() {
+        @Override
+        public void run() {
+          inner.StartScanningForService("ConnectToDeviceWithServiceAndName",
+              BLEUtil.bleStringToUuid(serviceUuid),
+              new DeviceCallback() {
+                @Override
+                public boolean foundDevice(String devname, String mac) {
+                  return devname.equals(name);
+                }
+              });
+        }
+      });
+    }
+  }
+
+  /**
    * Requests a new minimum transmission unit (MUT) for the BluetoothLE connection. This feature
    * is only supported when both devices support Bluetooth 4.2 or higher. If the MTU is changed
    * successfully, the MTUChanged event will be run. The default MTU is 20.

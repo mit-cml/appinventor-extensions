@@ -33,6 +33,8 @@ public class BluetoothLEGattAttributes {
   public final static UUID DEVICE_INFORMATION_SERVICE = UUID.fromString("0000180a-0000-1000-8000-00805f9b34fbb");
   public final static UUID MANUFACTURER_NAME_STRING = UUID.fromString("00002a29-0000-1000-8000-00805f9b34fb");
   public final static UUID CLIENT_CHARACTERISTIC_CONFIGURATION = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
+  public final static UUID HUMAN_INTERFACE_DEVICE_SERVICE = UUID.fromString("0000dfb0-0000-1000-8000-00805f9b34fb");
+  public final static UUID HUMAN_INTERFACE_DEVICE_CHARACTERISTIC = UUID.fromString("0000dfb1-0000-1000-8000-00805f9b34fb");
 
 
 
