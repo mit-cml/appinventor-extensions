@@ -1677,24 +1677,30 @@ final class BluetoothLEint {
             mBluetoothLeAdvertisementScanner.stopScan(mDeviceScanCallback);
             isScanning = false;
           }
-          if (!mLeDevices.isEmpty()) {
-            for (BluetoothDevice bluetoothDevice : mLeDevices) {
-              if (bluetoothDevice.getAddress().equals(address)) {
-                forceDisconnect();
-                mBluetoothGatt = bluetoothDevice.connectGatt(activity, autoReconnect, mGattCallback);
-                if (mBluetoothGatt != null) {
-                  //TODO(Will): Delete the puts to this map
-                  gattMap.put(bluetoothDevice.getAddress(), mBluetoothGatt);
-                  scheduleConnectionTimeoutMessage();
-                  Log.i(LOG_TAG, "ConnectWithAddress successful.");
-                  return null;
-                } else {
-                  outer.ConnectionFailed("Connect failed to return a BluetoothGatt object");
-                  Log.e(LOG_TAG, "ConnectWithAddress failed.");
-                }
+          for (BluetoothDevice bluetoothDevice : mLeDevices) {
+            if (bluetoothDevice.getAddress().equals(address)) {
+              forceDisconnect();
+              mBluetoothGatt = bluetoothDevice.connectGatt(activity, autoReconnect, mGattCallback);
+              if (mBluetoothGatt != null) {
+                //TODO(Will): Delete the puts to this map
+                gattMap.put(bluetoothDevice.getAddress(), mBluetoothGatt);
+                scheduleConnectionTimeoutMessage();
+                Log.i(LOG_TAG, "ConnectWithAddress successful.");
+              } else {
+                outer.ConnectionFailed("Connect failed to return a BluetoothGatt object");
+                Log.e(LOG_TAG, "ConnectWithAddress failed.");
               }
+              return null;
             }
-            outer.ConnectionFailed("No device found with address " + address);
+          }
+          // No device in existing scan list. Try to force a connection.
+          BluetoothDevice dev = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(address.toUpperCase());
+          forceDisconnect();
+          mBluetoothGatt = dev.connectGatt(activity, autoReconnect, mGattCallback);
+          if (mBluetoothGatt != null) {
+            gattMap.put(dev.getAddress(), mBluetoothGatt);
+            scheduleConnectionTimeoutMessage();
+            return null;
           } else {
             outer.ConnectionFailed("Device list was empty");
             signalError("ConnectWithAddress", ERROR_DEVICE_LIST_EMPTY);
