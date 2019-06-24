@@ -2651,22 +2651,24 @@ final class BluetoothLEint {
   }
 
   String GetSupportedCharacteristics() {
-    if (mGattService == null) return ",";
-    charUUIDList = ", ";
-    for (int i = 0; i < mGattService.size(); i++) {
-      if (i == 0) {
-        charUUIDList = "";
-      }
-      for (BluetoothGattCharacteristic characteristic : mGattService.get(i).getCharacteristics()) {
-        gattChars.add(characteristic);
-      }
+    if (mGattService == null || mGattService.size() == 0) return ",";
+    gattChars.clear();
+    for (BluetoothGattService bluetoothGattService : mGattService) {
+      gattChars.addAll(bluetoothGattService.getCharacteristics());
     }
     String unknownCharString = "Unknown Characteristic";
+    StringBuilder sb = new StringBuilder();
+    String sep = "";
     for (BluetoothGattCharacteristic gattChar : gattChars) {
       UUID charUUID = gattChar.getUuid();
       String charName = BluetoothLEGattAttributes.lookup(charUUID, unknownCharString);
-      charUUIDList += charUUID + " " + charName + ",";
+      sb.append(sep);
+      sb.append(charUUID);
+      sb.append(" ");
+      sb.append(charName);
+      sep = ",";
     }
+    charUUIDList = sb.toString();
     return charUUIDList;
   }
 
