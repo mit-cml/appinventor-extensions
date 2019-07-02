@@ -2632,16 +2632,16 @@ final class BluetoothLEint {
 
   YailList getSupportedServicesList() {
     if (mGattService == null) return YailList.makeEmptyList();
-    YailList result = YailList.makeEmptyList();
+    List<YailList> results = new ArrayList<YailList>();
     for (BluetoothGattService service : mGattService) {
       UUID serviceUuid = service.getUuid();
       YailList pair = YailList.makeList(new Object[] {
           serviceUuid.toString(),
           BluetoothLEGattAttributes.lookup(serviceUuid, UNKNOWN_SERVICE_NAME)
           });
-      result.add(pair);
+      results.add(pair);
     }
-    return result;
+    return YailList.makeList(results);
   }
 
   String GetServiceByIndex(int index) {
@@ -2675,7 +2675,7 @@ final class BluetoothLEint {
 
   YailList getSupportedCharacteristicsList() {
     if (mGattService == null) return YailList.makeEmptyList();
-    YailList result = YailList.makeEmptyList();
+    List<YailList> results = new ArrayList<YailList>();
     for (BluetoothGattService service : mGattService) {
       for (BluetoothGattCharacteristic characteristic : service.getCharacteristics()) {
         UUID serviceUuid = service.getUuid();
@@ -2685,10 +2685,10 @@ final class BluetoothLEint {
             characteristicUuid.toString(),
             BluetoothLEGattAttributes.lookup(characteristicUuid, UNKNOWN_CHAR_NAME)
         });
-        result.add(triple);
+        results.add(triple);
       }
     }
-    return result;
+    return YailList.makeList(results);
   }
 
   YailList GetCharacteristicsForService(String serviceUuid) {
