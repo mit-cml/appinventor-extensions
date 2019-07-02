@@ -54,9 +54,9 @@ import static android.Manifest.permission.BLUETOOTH_ADMIN;
  * @author Cristhian Ulloa (cristhian2ulloa@gmail.com)
  * @author tiffanyle (le.tiffanya@gmail.com)
  * @author William Byrne (will2596@gmail.com) (minor bugfixes)
+ * @author Evan W. Patton (ewpatton@mit.edu)
  */
-
-@DesignerComponent(version = 20190621,
+@DesignerComponent(version = 20190701,
     description = "Bluetooth Low Energy, also referred to as Bluetooth LE " +
         "or simply BLE, is a new communication protocol similar to classic Bluetooth except " +
         "that it is designed to consume less power while maintaining comparable " +
