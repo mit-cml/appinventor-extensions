@@ -1141,8 +1141,8 @@ final class BluetoothLEint {
    * Reference to our "outer" class
    */
 
-  BluetoothLE outer;
-  ComponentContainer container;
+  private final BluetoothLE outer;
+  private final ComponentContainer container;
 
   /**
    * Constants
