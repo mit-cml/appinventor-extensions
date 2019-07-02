@@ -2763,6 +2763,12 @@ final class BluetoothLEint {
     return nullTerminateStrings;
   }
 
+  void readConnectedRssi() {
+    if (mBluetoothGatt != null) {
+      mBluetoothGatt.readRemoteRssi();
+    }
+  }
+
   /*
    * Non-static helper functions. For static helpers, see {@link edu.mit.appinventor.ble.BLEUtil}.
    */

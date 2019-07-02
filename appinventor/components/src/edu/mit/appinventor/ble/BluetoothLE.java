@@ -1863,6 +1863,13 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
     return false;
   }
 
+  @SimpleFunction
+  public void ReadConnectedRssi() {
+    if (inner != null) {
+      inner.readConnectedRssi();
+    }
+  }
+
   // Helper methods for profile extensions for BLE
   /**
    * Read bytes from the given characteristic. Bytes on the wire are
