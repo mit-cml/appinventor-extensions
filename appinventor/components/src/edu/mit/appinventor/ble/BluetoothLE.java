@@ -1847,6 +1847,22 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
     });
   }
 
+  @DesignerProperty(defaultValue = "True", editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN)
+  @SimpleProperty
+  public void NullTerminateStrings(boolean terminate) {
+    if (inner != null) {
+      inner.setNullTerminatedStrings(terminate);
+    }
+  }
+
+  @SimpleProperty
+  public boolean NullTerminateStrings() {
+    if (inner != null) {
+      return inner.isNullTerminatedStrings();
+    }
+    return false;
+  }
+
   // Helper methods for profile extensions for BLE
   /**
    * Read bytes from the given characteristic. Bytes on the wire are

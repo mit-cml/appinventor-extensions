@@ -668,12 +668,12 @@ final class BluetoothLEint {
       // TODO(ewpatton): Refactor this so that each write type knows only its own serialization
       if (mClass == String.class) {
         byte[] str = ((String) data.get(0)).getBytes();
-        final int len = str.length > 22 ? 23 : str.length + 1;
+        final int len = Math.min(23, str.length + (nullTerminateStrings ? 1 : 0));
         byte[] buffer = new byte[len];
-        for (int i = 0; i < len - 1; i++) {
-          buffer[i] = str[i];
+        System.arraycopy(str, 0, buffer, 0, len - (nullTerminateStrings ? 1 : 0));
+        if (nullTerminateStrings) {
+          buffer[len - 1] = 0;
         }
-        buffer[len - 1] = 0;
         characteristic.setValue(buffer);
       } else if (mClass == Float.class) {
         byte[] contents = new byte[size * data.size()];
@@ -1200,6 +1200,7 @@ final class BluetoothLEint {
   private final Handler uiThread;
   private volatile int connectionTimeout = 10;
   private boolean autoReconnect = false;
+  private boolean nullTerminateStrings = true;
 
   /**
    * pendingOperationsByUuid stores a list of pending BLE operations per characteristic.
@@ -2752,6 +2753,14 @@ final class BluetoothLEint {
 
   boolean getAutoReconnect() {
     return this.autoReconnect;
+  }
+
+  void setNullTerminatedStrings(boolean terminate) {
+    nullTerminateStrings = terminate;
+  }
+
+  boolean isNullTerminatedStrings() {
+    return nullTerminateStrings;
   }
 
   /*
