@@ -163,6 +163,11 @@ public class PropertyTypeConstants {
   public static final String PROPERTY_TYPE_LONGITUDE = "longitude";
 
   /**
+   * Unit system for the map scale bar.
+   */
+  public static final String PROPERTY_TYPE_MAP_UNIT_SYSTEM = "map_unit_system";
+
+  /**
    * Map types supported by the Map component.
    * @see
    * com.google.appinventor.client.editor.youngandroid.properties.YoungAndroidMapTypePropertyEditor
@@ -235,6 +240,12 @@ public class PropertyTypeConstants {
   public static final String PROPERTY_TYPE_TEXT = "text";
 
   public static final String PROPERTY_TYPE_TEXTAREA = "textArea";
+
+  /**
+   * The Subset JSON property editor pops up a web form for the selection of
+   * components and blocks to be included in the subset.
+   */
+  public static final String PROPERTY_TYPE_SUBSET_JSON = "subset_json";
 
   /**
    * Choices of text alignment (left, center, right) offered by {@link

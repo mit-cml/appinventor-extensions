@@ -1,6 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2018 MIT, All rights reserved
+// Copyright 2011-2019 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -15,6 +15,7 @@ import java.util.Map;
  * @author lizlooney@google.com (Liz Looney)
  */
 public final class ErrorMessages {
+  public static final int ERROR_DEFAULT = 0;
   // Phone version errors
   public static final int ERROR_FUNCTIONALITY_NOT_SUPPORTED_CONTACT_EMAIL = 1;
   public static final int ERROR_FUNCTIONALITY_NOT_SUPPORTED_EMAIL_PICKER = 2;
@@ -121,6 +122,7 @@ public final class ErrorMessages {
   public static final int ERROR_CANVAS_BITMAP_ERROR = 1001;
   public static final int ERROR_CANVAS_WIDTH_ERROR = 1002;
   public static final int ERROR_CANVAS_HEIGHT_ERROR = 1003;
+  public static final int ERROR_CANVAS_DRAW_SHAPE_BAD_ARGUMENT = 1004;
   // Web errors
   public static final int ERROR_WEB_UNABLE_TO_GET = 1101;
   public static final int ERROR_WEB_UNSUPPORTED_ENCODING = 1102;
@@ -240,16 +242,35 @@ public final class ErrorMessages {
   public static final int ERROR_INVALID_LATITUDE_IN_POINT_AT_INDEX = 3418;
   public static final int ERROR_INVALID_LONGITUDE_IN_POINT_AT_INDEX = 3419;
   public static final int ERROR_EXPECTED_ARRAY_AT_INDEX = 3420;
+  public static final int ERROR_INVALID_UNIT_SYSTEM = 3421;
 
   // Phone Call Errors
   public static final int ERROR_NO_CALL_PERMISSION = 3501;
 
-  // Start the next group of errors at 3600
+  // REPL Errors
+  public static final int ERROR_UNABLE_TO_INSTALL_PACKAGE = 3601;
+
+  // Augmented Reality Errors
+  public static final int ERROR_INVALID_CONFIGURATION_VALUE = 3700;
+
+  //SpeechRecognizer Errors
+  public static final int ERROR_AUDIO = 3801;
+  public static final int ERROR_CLIENT = 3802;
+  public static final int ERROR_INSUFFICIENT_PERMISSIONS = 3803;
+  public static final int ERROR_NETWORK = 3804;
+  public static final int ERROR_NETWORK_TIMEOUT = 3805;
+  public static final int ERROR_NO_MATCH = 3806;
+  public static final int ERROR_RECOGNIZER_BUSY = 3807;
+  public static final int ERROR_SERVER = 3808;
+  public static final int ERROR_SPEECH_TIMEOUT = 3809;
+
+  // Start the next group of errors at 3900
 
   // Mapping of error numbers to error message format strings.
   private static final Map<Integer, String> errorMessages;
   static {
     errorMessages = new HashMap<Integer, String>();
+    errorMessages.put(ERROR_DEFAULT, "Try Again.");
     // Phone version errors
     errorMessages.put(ERROR_FUNCTIONALITY_NOT_SUPPORTED_CONTACT_EMAIL,
         "Warning: This app contains functionality that does not work on this phone: " +
@@ -425,7 +446,7 @@ public final class ErrorMessages {
         "Unable to grant exclusive lock of audio output stream to %s.");
     errorMessages.put(ERROR_SOUND_NOT_READY, "The sound is not ready to play: %s.");
     errorMessages.put(ERROR_OUT_OF_MEMORY_LOADING_MEDIA, "Not Enough Memory to load: %s.");
-    errorMessages.put(ERROR_PLAYER_INVALID_VOLUME, "Invalid volume: %s. Volume must be set to a number between 0 and 100.");  
+    errorMessages.put(ERROR_PLAYER_INVALID_VOLUME, "Invalid volume: %s. Volume must be set to a number between 0 and 100.");
     // SoundRecorder errors
     errorMessages.put(ERROR_SOUND_RECORDER, "An unexpected error occurred while recording sound.");
     errorMessages.put(ERROR_SOUND_RECORDER_CANNOT_CREATE, "Cannot start recording: %s");
@@ -453,6 +474,7 @@ public final class ErrorMessages {
     errorMessages.put(ERROR_CANVAS_BITMAP_ERROR, "Error getting Canvas contents to save");
     errorMessages.put(ERROR_CANVAS_WIDTH_ERROR, "Canvas width cannot be set to non-positive number");
     errorMessages.put(ERROR_CANVAS_HEIGHT_ERROR, "Canvas height cannot be set to non-positive number");
+    errorMessages.put(ERROR_CANVAS_DRAW_SHAPE_BAD_ARGUMENT, "Canvas cannot draw the shape with a bad point list");
     // Web errors
     errorMessages.put(ERROR_WEB_UNABLE_TO_GET,
         "Unable to get a response with the specified URL: %s");
@@ -607,8 +629,31 @@ public final class ErrorMessages {
         "Invalid longitude %2$s in point at index %1$d. Expected a value between [-180, 180].");
     errorMessages.put(ERROR_EXPECTED_ARRAY_AT_INDEX,
         "Expected an array of values at index %1$d, but got %2$s.");
+    errorMessages.put(ERROR_INVALID_UNIT_SYSTEM,
+        "Invalid unit system %1$d given to ScaleUnits. Expected either 1 or 2.");
+
+    // Phone Call errors
     errorMessages.put(ERROR_NO_CALL_PERMISSION,
         "You do not have permission to make phone calls.");
+
+    // REPL errors
+    errorMessages.put(ERROR_UNABLE_TO_INSTALL_PACKAGE,
+        "Unable to launch the package installer for %1$s.");
+
+    // Augmented Reality errors
+    errorMessages.put(ERROR_INVALID_CONFIGURATION_VALUE,
+        "Invalid value %1$d given for ARConfigurationType.  Valid settings are 1, 2, or 3.");
+
+    //SpeechRecognizer Errors
+    errorMessages.put(ERROR_AUDIO, "Audio Recording Error");
+    errorMessages.put(ERROR_CLIENT, "Client Side Error");
+    errorMessages.put(ERROR_INSUFFICIENT_PERMISSIONS, "Insufficient Permissions");
+    errorMessages.put(ERROR_NETWORK, "Network Error");
+    errorMessages.put(ERROR_NETWORK_TIMEOUT, "Network Timeout");
+    errorMessages.put(ERROR_NO_MATCH, "No Match");
+    errorMessages.put(ERROR_RECOGNIZER_BUSY, "RecognitionService Busy");
+    errorMessages.put(ERROR_SERVER, "Error From Server");
+    errorMessages.put(ERROR_SPEECH_TIMEOUT, "No Speech Input");
   }
 
   private ErrorMessages() {

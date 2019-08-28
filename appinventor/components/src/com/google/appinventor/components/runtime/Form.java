@@ -1,6 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2018 MIT, All rights reserved
+// Copyright 2011-2019 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -25,6 +25,7 @@ import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.support.annotation.VisibleForTesting;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.util.Log;
@@ -49,7 +50,6 @@ import com.google.appinventor.components.annotations.SimpleEvent;
 import com.google.appinventor.components.annotations.SimpleFunction;
 import com.google.appinventor.components.annotations.SimpleObject;
 import com.google.appinventor.components.annotations.SimpleProperty;
-import com.google.appinventor.components.annotations.UsesLibraries;
 import com.google.appinventor.components.annotations.UsesPermissions;
 import com.google.appinventor.components.common.ComponentCategory;
 import com.google.appinventor.components.common.ComponentConstants;
@@ -69,6 +69,7 @@ import com.google.appinventor.components.runtime.util.JsonUtil;
 import com.google.appinventor.components.runtime.util.MediaUtil;
 import com.google.appinventor.components.runtime.util.OnInitializeListener;
 import com.google.appinventor.components.runtime.util.PaintUtil;
+import com.google.appinventor.components.runtime.util.BulkPermissionRequest;
 import com.google.appinventor.components.runtime.util.ScreenDensityUtil;
 import com.google.appinventor.components.runtime.util.SdkLevel;
 import com.google.appinventor.components.runtime.util.ViewUtil;
@@ -81,7 +82,11 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -109,9 +114,6 @@ import java.util.Set;
     androidMinSdk = 7,
     showOnPalette = false)
 @SimpleObject
-@UsesLibraries(libraries = "appcompat-v7.aar, support-v4.aar, animated-vector-drawable.aar, " +
-    "runtime.aar, support-compat.aar, support-core-ui.aar, support-core-utils.aar, " +
-    "support-fragment.aar, support-vector-drawable.aar")
 @UsesPermissions(permissionNames = "android.permission.INTERNET,android.permission.ACCESS_WIFI_STATE," +
     "android.permission.ACCESS_NETWORK_STATE")
 public class Form extends AppInventorCompatActivity
@@ -199,8 +201,11 @@ public class Form extends AppInventorCompatActivity
 
   private static boolean showListsAsJson = false;
 
+  private final Set<String> permissions = new HashSet<String>();
+
   // Application lifecycle related fields
   private final HashMap<Integer, ActivityResultListener> activityResultMap = Maps.newHashMap();
+  private final Map<Integer, Set<ActivityResultListener>> activityResultMultiMap = Maps.newHashMap();
   private final Set<OnStopListener> onStopListeners = Sets.newHashSet();
   private final Set<OnClearListener> onClearListeners = Sets.newHashSet();
   private final Set<OnNewIntentListener> onNewIntentListeners = Sets.newHashSet();
@@ -244,6 +249,10 @@ public class Form extends AppInventorCompatActivity
   private ProgressDialog progress;
   private static boolean _initialized = false;
 
+  // It should be changed from 100000 to 65535 if the functionality to extend
+  // FragmentActivity is added in future.
+  public static final int MAX_PERMISSION_NONCE = 100000;
+
   public static class PercentStorageRecord {
     public enum Dim {
       HEIGHT, WIDTH };
@@ -258,7 +267,8 @@ public class Form extends AppInventorCompatActivity
     int length;
     Dim dim;
   }
-  private ArrayList<PercentStorageRecord> dimChanges = new ArrayList();
+  // private ArrayList<PercentStorageRecord> dimChanges = new ArrayList();
+  private LinkedHashMap<Integer, PercentStorageRecord> dimChanges = new LinkedHashMap();
 
   private static class MultiDexInstaller extends AsyncTask<Form, Void, Boolean> {
     Form ourForm;
@@ -342,6 +352,8 @@ public class Form extends AppInventorCompatActivity
       progress.dismiss();
     }
 
+    populatePermissions();
+
     // Check to see if we need to ask for WRITE_EXTERNAL_STORAGE
     // permission.  We look at the application manifest to see if it
     // is declared there. If it is, then we need to ask the user to
@@ -350,28 +362,9 @@ public class Form extends AppInventorCompatActivity
     // we have to have yet another continuation of the onCreate
     // process (onCreateFinish2). Sigh.
 
-    boolean needSdcardWrite = false;
-    try {
-      PackageInfo packageInfo = getPackageManager().getPackageInfo(getPackageName(),
-        PackageManager.GET_PERMISSIONS);
-      for (String permission : packageInfo.requestedPermissions) {
-        if (DEBUG) {
-          Log.d(LOG_TAG, "requestedPersmission: " + permission);
-        }
-        if ("android.permission.WRITE_EXTERNAL_STORAGE".equals(permission)) {
-          // If we are the Companion and we are not using the Splash Screen, then we
-          // will need to prompt for permissions here.
-          if (!(this instanceof ReplForm) || !AppInventorFeatures.doCompanionSplashScreen()) {
-            needSdcardWrite = true;
-          }
-          if (DEBUG) {
-            Log.d(LOG_TAG, "NEED TO REQUEST PERMISSION!");
-          }
-        }
-      }
-    } catch (Exception e) {
-      Log.e(LOG_TAG, "Exception while attempting to learn permissions.", e);
-    }
+    boolean needSdcardWrite = doesAppDeclarePermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) &&
+        // Only ask permission if we are in the REPL and not using the splash screen
+        isRepl() && !AppInventorFeatures.doCompanionSplashScreen();
     if (needSdcardWrite) {
       askPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE,
         new PermissionResultHandler() {
@@ -423,6 +416,19 @@ public class Form extends AppInventorCompatActivity
     // before initialization finishes. Instead the compiler suppresses the invocation of the
     // event and leaves it up to the library implementation.
     Initialize();
+  }
+
+  /**
+   * Builds a set of permissions requested by the app from the package manifest.
+   */
+  private void populatePermissions() {
+    try {
+      PackageInfo packageInfo = getPackageManager().getPackageInfo(getPackageName(),
+          PackageManager.GET_PERMISSIONS);
+      Collections.addAll(permissions, packageInfo.requestedPermissions);
+    } catch (Exception e) {
+      Log.e(LOG_TAG, "Exception while attempting to learn permissions.", e);
+    }
   }
 
   private void defaultPropertyValues() {
@@ -603,6 +609,13 @@ public class Form extends AppInventorCompatActivity
       if (component != null) {
         component.resultReturned(requestCode, resultCode, data);
       }
+      // Many components are interested in this request (e.g., Texting, PhoneCall)
+      Set<ActivityResultListener> listeners = activityResultMultiMap.get(requestCode);
+      if (listeners != null) {
+        for (ActivityResultListener listener : listeners.toArray(new ActivityResultListener[0])) {
+          listener.resultReturned(requestCode, resultCode, data);
+        }
+      }
     }
   }
 
@@ -629,6 +642,22 @@ public class Form extends AppInventorCompatActivity
     return requestCode;
   }
 
+  /**
+   * Register a {@code listener} for the given {@code requestCode}. This is used to simulate
+   * broadcast receivers as a workaround for PhoneCall and Texting handlers related to initiating
+   * calls/messages.
+   *
+   * @param listener The object to report activity results to for the given request code
+   */
+  public void registerForActivityResult(ActivityResultListener listener, int requestCode) {
+    Set<ActivityResultListener> listeners = activityResultMultiMap.get(requestCode);
+    if (listeners == null) {
+      listeners = Sets.newHashSet();
+      activityResultMultiMap.put(requestCode, listeners);
+    }
+    listeners.add(listener);
+  }
+
   public void unregisterForActivityResult(ActivityResultListener listener) {
     List<Integer> keysToDelete = Lists.newArrayList();
     for (Map.Entry<Integer, ActivityResultListener> mapEntry : activityResultMap.entrySet()) {
@@ -639,17 +668,27 @@ public class Form extends AppInventorCompatActivity
     for (Integer key : keysToDelete) {
       activityResultMap.remove(key);
     }
+
+    // Remove any simulated broadcast receivers
+    Iterator<Map.Entry<Integer, Set<ActivityResultListener>>> it =
+        activityResultMultiMap.entrySet().iterator();
+    while (it.hasNext()) {
+      Map.Entry<Integer, Set<ActivityResultListener>> entry = it.next();
+      entry.getValue().remove(listener);
+      if (entry.getValue().size() == 0) {
+        it.remove();
+      }
+    }
   }
 
   void ReplayFormOrientation() {
     // We first make a copy of the existing dimChanges list
     // because while we are replaying it, it is being appended to
     Log.d(LOG_TAG, "ReplayFormOrientation()");
-    ArrayList<PercentStorageRecord> temp = (ArrayList<PercentStorageRecord>) dimChanges.clone();
+    LinkedHashMap<Integer, PercentStorageRecord> temp = (LinkedHashMap<Integer, PercentStorageRecord>) dimChanges.clone();
     dimChanges.clear();         // Empties it out
-    for (int i = 0; i < temp.size(); i++) {
-      // Iterate over the list...
-      PercentStorageRecord r = temp.get(i);
+    // Iterate temp
+    for (PercentStorageRecord r : temp.values()) {
       if (r.dim == PercentStorageRecord.Dim.HEIGHT) {
         r.component.Height(r.length);
       } else {
@@ -658,8 +697,23 @@ public class Form extends AppInventorCompatActivity
     }
   }
 
+  private Integer generateHashCode(AndroidViewComponent component, PercentStorageRecord.Dim dim) {
+    if (dim == PercentStorageRecord.Dim.HEIGHT) {
+      return component.hashCode() * 2 + 1;
+    } else {
+      return component.hashCode() * 2;
+    }
+  }
+
   public void registerPercentLength(AndroidViewComponent component, int length, PercentStorageRecord.Dim dim) {
-    dimChanges.add(new PercentStorageRecord(component, length, dim));
+    PercentStorageRecord r = new PercentStorageRecord(component, length, dim);
+    Integer key = generateHashCode(component, dim);
+    dimChanges.put(key, r);
+  }
+
+  public void unregisterPercentLength(AndroidViewComponent component, PercentStorageRecord.Dim dim) {
+    // iterate map, remove all entry match this
+    dimChanges.remove(generateHashCode(component, dim));
   }
 
   private static int generateNewRequestCode() {
@@ -790,9 +844,9 @@ public class Form extends AppInventorCompatActivity
    * Compiler-generated method to initialize and add application components to
    * the form.  We just provide an implementation here to artificially make
    * this class concrete so that it is included in the documentation and
-   * Codeblocks language definition file generated by
+   * App Inventor component definition file generated by
    * {@link com.google.appinventor.components.scripts.DocumentationGenerator} and
-   * {@link com.google.appinventor.components.scripts.LangDefXmlGenerator},
+   * {@link com.google.appinventor.components.scripts.ComponentDescriptorGenerator},
    * respectively.  The actual implementation appears in {@code runtime.scm}.
    */
   protected void $define() {    // This must be declared protected because we are called from Screen1 which subclasses
@@ -818,9 +872,9 @@ public class Form extends AppInventorCompatActivity
   /**
    * A trivial implementation to artificially make this class concrete so
    * that it is included in the documentation and
-   * Codeblocks language definition file generated by
+   * App Inventor component definition file generated by
    * {@link com.google.appinventor.components.scripts.DocumentationGenerator} and
-   * {@link com.google.appinventor.components.scripts.LangDefXmlGenerator},
+   * {@link com.google.appinventor.components.scripts.ComponentDescriptorGenerator},
    * respectively.  The actual implementation appears in {@code runtime.scm}.
    */
   @Override
@@ -829,6 +883,11 @@ public class Form extends AppInventorCompatActivity
     throw new UnsupportedOperationException();
   }
 
+  @Override
+  public void dispatchGenericEvent(Component component, String eventName,
+      boolean notAlreadyHandled, Object[] args) {
+    throw new UnsupportedOperationException();
+  }
 
   /**
    * Initialize event handler.
@@ -1763,10 +1822,12 @@ public class Form extends AppInventorCompatActivity
   @SimpleProperty(userVisible = false, description = "Sets the theme used by the application.")
   public void Theme(String theme) {
     if (SdkLevel.getLevel() < SdkLevel.LEVEL_HONEYCOMB) {
+      backgroundColor = Component.COLOR_WHITE;
+      setBackground(frameLayout);
       return;  // Only "Classic" is supported below SDK 11 due to minSDK in AppCompat
     }
     if (usesDefaultBackground) {
-      if (theme.equalsIgnoreCase("AppTheme")) {
+      if (theme.equalsIgnoreCase("AppTheme") && !isClassicMode()) {
         backgroundColor = Component.COLOR_BLACK;
       } else {
         backgroundColor = Component.COLOR_WHITE;
@@ -1817,6 +1878,15 @@ public class Form extends AppInventorCompatActivity
     + "editing a project. Used as a teaching aid.")
   public void TutorialURL(String url) {
     // We don't actually do anything This property is stored in the
+    // project properties file
+  }
+
+  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_SUBSET_JSON,
+    defaultValue = "")
+  @SimpleProperty(userVisible = false,
+    description = "A JSON string representing the subset for the screen")
+  public void BlocksToolkit(String json) {
+    // We don't actually do anything. This property is stored in the
     // project properties file
   }
 
@@ -2243,52 +2313,28 @@ public class Form extends AppInventorCompatActivity
 
   public void deleteComponent(Object component) {
     if (component instanceof OnStopListener) {
-      OnStopListener onStopListener = (OnStopListener) component;
-      if (onStopListeners.contains(onStopListener)) {
-        onStopListeners.remove(onStopListener);
-      }
+      onStopListeners.remove(component);
     }
     if (component instanceof OnNewIntentListener) {
-      OnNewIntentListener onNewIntentListener = (OnNewIntentListener) component;
-      if (onNewIntentListeners.contains(onNewIntentListener)) {
-        onNewIntentListeners.remove(onNewIntentListener);
-      }
+      onNewIntentListeners.remove(component);
     }
     if (component instanceof OnResumeListener) {
-      OnResumeListener onResumeListener = (OnResumeListener) component;
-      if (onResumeListeners.contains(onResumeListener)) {
-        onResumeListeners.remove(onResumeListener);
-      }
+      onResumeListeners.remove(component);
     }
     if (component instanceof OnPauseListener) {
-      OnPauseListener onPauseListener = (OnPauseListener) component;
-      if (onPauseListeners.contains(onPauseListener)) {
-        onPauseListeners.remove(onPauseListener);
-      }
+      onPauseListeners.remove(component);
     }
     if (component instanceof OnDestroyListener) {
-      OnDestroyListener onDestroyListener = (OnDestroyListener) component;
-      if (onDestroyListeners.contains(onDestroyListener)) {
-        onDestroyListeners.remove(onDestroyListener);
-      }
+      onDestroyListeners.remove(component);
     }
     if (component instanceof OnInitializeListener) {
-      OnInitializeListener onInitializeListener = (OnInitializeListener) component;
-      if (onInitializeListeners.contains(onInitializeListener)) {
-        onInitializeListeners.remove(onInitializeListener);
-      }
+      onInitializeListeners.remove(component);
     }
     if (component instanceof OnCreateOptionsMenuListener) {
-      OnCreateOptionsMenuListener onCreateOptionsMenuListener = (OnCreateOptionsMenuListener) component;
-      if (onCreateOptionsMenuListeners.contains(onCreateOptionsMenuListener)) {
-        onCreateOptionsMenuListeners.remove(onCreateOptionsMenuListener);
-      }
+      onCreateOptionsMenuListeners.remove(component);
     }
     if (component instanceof OnOptionsItemSelectedListener) {
-      OnOptionsItemSelectedListener onOptionsItemSelectedListener = (OnOptionsItemSelectedListener) component;
-      if (onOptionsItemSelectedListeners.contains(onOptionsItemSelectedListener)) {
-        onOptionsItemSelectedListeners.remove(onOptionsItemSelectedListener);
-      }
+      onOptionsItemSelectedListeners.remove(component);
     }
     if (component instanceof Deleteable) {
       ((Deleteable) component).onDelete();
@@ -2403,7 +2449,7 @@ public class Form extends AppInventorCompatActivity
       view = frameLayout;
     }
     InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-    imm.hideSoftInputFromWindow(view.getWindowToken(), 0); 
+    imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
   }
 
   protected void updateTitle() {
@@ -2470,8 +2516,7 @@ public class Form extends AppInventorCompatActivity
    */
   public void askPermission(final String permission, final PermissionResultHandler responseRequestor) {
     final Form form = this;
-    if (ContextCompat.checkSelfPermission(form, permission) ==
-        PackageManager.PERMISSION_GRANTED) {
+    if (!isDeniedPermission(permission)) {
       // We already have permission, so no need to ask
       responseRequestor.HandlePermissionResponse(permission, true);
       return;
@@ -2479,7 +2524,7 @@ public class Form extends AppInventorCompatActivity
     androidUIHandler.post(new Runnable() {
         @Override
         public void run() {
-          int nonce = permissionRandom.nextInt(100000);
+          int nonce = permissionRandom.nextInt(MAX_PERMISSION_NONCE);
           Log.d(LOG_TAG, "askPermission: permission = " + permission +
             " requestCode = " + nonce);
           permissionHandlers.put(nonce, responseRequestor);
@@ -2487,6 +2532,53 @@ public class Form extends AppInventorCompatActivity
             new String[] {permission}, nonce);
         }
       });
+  }
+
+  /**
+   * Evaluates the request for bulk permissions and asks the user for any ungranted permissions.
+   *
+   * @param request the request to evaluate
+   */
+  public void askPermission(final BulkPermissionRequest request) {
+    final List<String> permissionsToAsk = request.getPermissions();
+    Iterator<String> it = permissionsToAsk.iterator();
+    while (it.hasNext()) {
+      if (!isDeniedPermission(it.next())) {
+        it.remove();
+      }
+    }
+    if (permissionsToAsk.size() == 0) {
+      // We already have all the necessary permissions
+      request.onGranted();
+    }  else {
+      // Make sure we ask for permissions on the UI thread
+      androidUIHandler.post(new Runnable() {
+        @Override
+        public void run() {
+          final Iterator<String> it = permissionsToAsk.iterator();
+          final PermissionResultHandler handler = new PermissionResultHandler() {
+            final List<String> deniedPermissions = new ArrayList<String>();
+
+            @Override
+            public void HandlePermissionResponse(String permission, boolean granted) {
+              if (!granted) {
+                deniedPermissions.add(permission);
+              }
+              if (it.hasNext()) {
+                askPermission(it.next(), this);
+              } else {
+                if (deniedPermissions.size() == 0) {
+                  request.onGranted();
+                } else {
+                  request.onDenied(deniedPermissions.toArray(new String[] {}));
+                }
+              }
+            }
+          };
+          askPermission(it.next(), handler);
+        }
+      });
+    }
   }
 
   @Override
@@ -2512,6 +2604,18 @@ public class Form extends AppInventorCompatActivity
   }
 
   /**
+   * Tests whether the app declares the given permission.
+   *
+   * @param permissionName The name of the permission to test.
+   * @see android.Manifest.permission
+   * @return True if the permission is declared in the manifest, otherwise false.
+   */
+  @SuppressWarnings("WeakerAccess")  // May be used by extensions
+  public boolean doesAppDeclarePermission(String permissionName) {
+    return permissions.contains(permissionName);
+  }
+
+  /**
    * Gets the path to an asset.
    *
    * @param asset The filename of an application asset
@@ -2530,13 +2634,7 @@ public class Form extends AppInventorCompatActivity
    */
   @SuppressWarnings({"WeakerAccess"})  // May be called by extensions
   public InputStream openAsset(String asset) throws IOException {
-    String path = getAssetPath(asset);
-    if (path.startsWith(ASSETS_PREFIX)) {
-      final AssetManager am = getAssets();
-      return am.open(path.substring(ASSETS_PREFIX.length()));
-    } else {
-      return FileUtil.openFile(URI.create(path));
-    }
+    return openAssetInternal(getAssetPath(asset));
   }
 
   /**
@@ -2563,13 +2661,21 @@ public class Form extends AppInventorCompatActivity
    * stream to prevent resource leaking.
    * @throws IOException if the asset is not found or cannot be read
    */
+  @SuppressWarnings("unused")  // May be called by extensions
   public InputStream openAssetForExtension(Component component, String asset) throws IOException {
-    String path = getAssetPathForExtension(component, asset);
+    return openAssetInternal(getAssetPathForExtension(component, asset));
+  }
+
+  @SuppressWarnings("WeakerAccess")  // Visible for testing
+  @VisibleForTesting
+  InputStream openAssetInternal(String path) throws IOException {
     if (path.startsWith(ASSETS_PREFIX)) {
       final AssetManager am = getAssets();
       return am.open(path.substring(ASSETS_PREFIX.length()));
-    } else {
+    } else if (path.startsWith("file:")) {
       return FileUtil.openFile(URI.create(path));
+    } else {
+      return FileUtil.openFile(path);
     }
   }
 }

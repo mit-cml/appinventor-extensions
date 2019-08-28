@@ -15,6 +15,7 @@ import java.util.Map;
 
 import com.google.appinventor.client.editor.simple.SimpleEditor;
 import com.google.appinventor.client.editor.simple.components.utils.PropertiesUtil;
+import com.google.appinventor.client.editor.youngandroid.YaFormEditor;
 import com.google.appinventor.client.editor.youngandroid.properties.YoungAndroidLengthPropertyEditor;
 import com.google.appinventor.client.editor.youngandroid.properties.YoungAndroidVerticalAlignmentChoicePropertyEditor;
 import com.google.appinventor.client.output.OdeLog;
@@ -198,6 +199,7 @@ public final class MockForm extends MockContainer {
   private int LANDSCAPE_WIDTH = PHONE_LANDSCAPE_WIDTH;
   private int LANDSCAPE_HEIGHT = PHONE_LANDSCAPE_HEIGHT;
   private boolean landscape = false;
+  private int idxPhoneSize = 0;
 
   // Property names
   private static final String PROPERTY_NAME_TITLE = "Title";
@@ -212,6 +214,7 @@ public final class MockForm extends MockContainer {
   // Don't show except on screen1
   private static final String PROPERTY_NAME_SHOW_LISTS_AS_JSON = "ShowListsAsJson";
   private static final String PROPERTY_NAME_TUTORIAL_URL = "TutorialURL";
+  private static final String PROPERTY_NAME_BLOCK_SUBSET = "BlocksToolkit";
   private static final String PROPERTY_NAME_ACTIONBAR = "ActionBar";
   private static final String PROPERTY_NAME_PRIMARY_COLOR = "PrimaryColor";
   private static final String PROPERTY_NAME_PRIMARY_COLOR_DARK = "PrimaryColorDark";
@@ -220,6 +223,8 @@ public final class MockForm extends MockContainer {
 
   // Form UI components
   AbsolutePanel formWidget;
+  AbsolutePanel phoneWidget;
+
   ScrollPanel scrollPanel;
   private TitleBar titleBar;
   private MockComponent selectedComponent;
@@ -235,11 +240,11 @@ public final class MockForm extends MockContainer {
   private static int verticalScrollbarWidth;
 
   private MockFormLayout myLayout;
-  
+
   // flag to control attempting to enable/disable vertical
   // alignment when scrollable property is changed
   private boolean initialized = false;
-  
+
   private YoungAndroidVerticalAlignmentChoicePropertyEditor myVAlignmentPropertyEditor;
 
   public static final String PROPERTY_NAME_HORIZONTAL_ALIGNMENT = "AlignHorizontal";
@@ -262,6 +267,8 @@ public final class MockForm extends MockContainer {
     // future problems if we ever have threads creating forms in parallel.
     myLayout = MockFormHelper.getLayout();
 
+    phoneWidget = new AbsolutePanel();
+    phoneWidget.setStylePrimaryName("ode-SimpleMockFormPhonePortrait");
     formWidget = new AbsolutePanel();
     formWidget.setStylePrimaryName("ode-SimpleMockForm");
 
@@ -277,8 +284,9 @@ public final class MockForm extends MockContainer {
     //Add navigation bar at the bottom of the viewer.
     formWidget.add(new NavigationBar());
 
-    initComponent(formWidget);
-    
+    phoneWidget.add(formWidget);
+    initComponent(phoneWidget);
+
     // Set up the initial state of the vertical alignment property editor and its dropdowns
     try {
       myVAlignmentPropertyEditor = PropertiesUtil.getVAlignmentEditor(properties);
@@ -292,26 +300,35 @@ public final class MockForm extends MockContainer {
     setScrollableProperty(getPropertyValue(PROPERTY_NAME_SCROLLABLE));
   }
 
-  public void changePreviewSize(boolean isTablet) {
-    if (isTablet) {
-      PORTRAIT_WIDTH   = TABLET_PORTRAIT_WIDTH;
-      PORTRAIT_HEIGHT  = TABLET_PORTRAIT_HEIGHT;
-      LANDSCAPE_WIDTH  = TABLET_LANDSCAPE_WIDTH;
-      LANDSCAPE_HEIGHT = TABLET_LANDSCAPE_HEIGHT;
-    }
-    else {
-      PORTRAIT_WIDTH = PHONE_PORTRAIT_WIDTH;
-      PORTRAIT_HEIGHT = PHONE_PORTRAIT_HEIGHT;
-      LANDSCAPE_WIDTH = PHONE_LANDSCAPE_WIDTH;
-      LANDSCAPE_HEIGHT = PHONE_LANDSCAPE_HEIGHT;
-    }
+  public void changePreviewSize(int width, int height, int idx) {
+    // It will definitely be modified in the future to add more options.
+    PORTRAIT_WIDTH = width;
+    PORTRAIT_HEIGHT = height;
+    LANDSCAPE_WIDTH = height;
+    LANDSCAPE_HEIGHT = width;
 
-    if (landscape)
+    idxPhoneSize = idx;
+
+    setPhoneStyle();
+    if (landscape) {
       resizePanel(LANDSCAPE_WIDTH, LANDSCAPE_HEIGHT);
-    else
-      resizePanel(PORTRAIT_WIDTH, PORTRAIT_HEIGHT);
+    } else {
+      resizePanel(width, height);
+    }
   }
 
+  private void setPhoneStyle() {
+    if (landscape) {
+      if (idxPhoneSize == 0) phoneWidget.setStylePrimaryName("ode-SimpleMockFormPhoneLandscape");
+      else if (idxPhoneSize == 1) phoneWidget.setStylePrimaryName("ode-SimpleMockFormPhoneLandscapeTablet");
+      else if (idxPhoneSize == 2) phoneWidget.setStylePrimaryName("ode-SimpleMockFormPhoneLandscapeMonitor");
+    }
+    else {
+      if (idxPhoneSize == 0) phoneWidget.setStylePrimaryName("ode-SimpleMockFormPhonePortrait");
+      else if (idxPhoneSize == 1) phoneWidget.setStylePrimaryName("ode-SimpleMockFormPhonePortraitTablet");
+      else if (idxPhoneSize == 2) phoneWidget.setStylePrimaryName("ode-SimpleMockFormPhonePortraitMonitor");
+    }
+  }
   /*
    * Resizes the scrollPanel and formWidget based on the screen size.
    */
@@ -434,67 +451,39 @@ public final class MockForm extends MockContainer {
 
   @Override
   protected boolean isPropertyVisible(String propertyName) {
-    if (propertyName.equals(PROPERTY_NAME_WIDTH) ||
-        propertyName.equals(PROPERTY_NAME_HEIGHT)) {
-      return false;
-    }
+    switch (propertyName) {
+      case PROPERTY_NAME_WIDTH:
+      case PROPERTY_NAME_HEIGHT:
+      case PROPERTY_NAME_ACTIONBAR: {
+        return false;
+      }
 
-    if (propertyName.equals(PROPERTY_NAME_ICON)) {
       // The Icon property actually applies to the application and is only visible on Screen1.
-      return editor.isScreen1();
-    }
-
-    if (propertyName.equals(PROPERTY_NAME_VNAME)) {
+      case PROPERTY_NAME_ICON:
       // The VersionName property actually applies to the application and is only visible on Screen1.
-      return editor.isScreen1();
-    }
-
-    if (propertyName.equals(PROPERTY_NAME_VCODE)) {
+      case PROPERTY_NAME_VNAME:
       // The VersionCode property actually applies to the application and is only visible on Screen1.
-      return editor.isScreen1();
-    }
-
-    if (propertyName.equals(PROPERTY_NAME_SIZING)) {
+      case PROPERTY_NAME_VCODE:
       // The Sizing property actually applies to the application and is only visible on Screen1.
-      return editor.isScreen1();
-    }
-
-    if (propertyName.equals(PROPERTY_NAME_ANAME)) {
+      case PROPERTY_NAME_SIZING:
       // The AppName property actually applies to the application and is only visible on Screen1.
-      return editor.isScreen1();
-    }
-
-    if (propertyName.equals(PROPERTY_NAME_SHOW_LISTS_AS_JSON)) {
+      case PROPERTY_NAME_ANAME:
       // The ShowListsAsJson property actually applies to the application and is only visible on Screen1.
-      return editor.isScreen1();
-    }
-
-    if (propertyName.equals(PROPERTY_NAME_TUTORIAL_URL)) {
+      case PROPERTY_NAME_SHOW_LISTS_AS_JSON:
       // The TutorialURL property actually applies to the application and is only visible on Screen1.
-      return editor.isScreen1();
-    }
+      case PROPERTY_NAME_TUTORIAL_URL:
+      case PROPERTY_NAME_BLOCK_SUBSET:
+      case PROPERTY_NAME_PRIMARY_COLOR:
+      case PROPERTY_NAME_PRIMARY_COLOR_DARK:
+      case PROPERTY_NAME_ACCENT_COLOR:
+      case PROPERTY_NAME_THEME: {
+        return editor.isScreen1();
+      }
 
-    if (propertyName.equals(PROPERTY_NAME_ACTIONBAR)) {
-      return false;
+      default: {
+        return super.isPropertyVisible(propertyName);
+      }
     }
-
-    if (propertyName.equals(PROPERTY_NAME_PRIMARY_COLOR)) {
-      return editor.isScreen1();
-    }
-
-    if (propertyName.equals(PROPERTY_NAME_PRIMARY_COLOR_DARK)) {
-      return editor.isScreen1();
-    }
-
-    if (propertyName.equals(PROPERTY_NAME_ACCENT_COLOR)) {
-      return editor.isScreen1();
-    }
-
-    if (propertyName.equals(PROPERTY_NAME_THEME)) {
-      return editor.isScreen1();
-    }
-
-    return super.isPropertyVisible(propertyName);
   }
 
   /*
@@ -533,6 +522,7 @@ public final class MockForm extends MockContainer {
         screenHeight = PORTRAIT_HEIGHT;
         landscape = false;
       }
+      setPhoneStyle();
       usableScreenHeight = screenHeight - PhoneBar.HEIGHT - titleBar.getHeight() - NavigationBar.HEIGHT;
       resizePanel(screenWidth, screenHeight);
 
@@ -618,6 +608,19 @@ public final class MockForm extends MockContainer {
     }
   }
 
+  private void setBlockSubsetProperty(String asJson) {
+    //This property applies to the application and is only visible on Screen1. When we load a form that is
+    //not Screen1, this method will be called with the default value for SubsetJson (""). We need to ignore that. 
+    if (editor.isScreen1()) {
+      editor.getProjectEditor().changeProjectSettingsProperty(
+        SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
+        SettingsConstants.YOUNG_ANDROID_SETTINGS_BLOCK_SUBSET, asJson);
+      if (editor.isLoadComplete()) {
+        ((YaFormEditor)editor).reloadComponentPalette(asJson);
+      }
+    }
+  }
+
   private void setANameProperty(String aname) {
     // The AppName property actually applies to the application and is only visible on Screen1.
     // When we load a form that is not Screen1, this method will be called with the default value
@@ -627,7 +630,7 @@ public final class MockForm extends MockContainer {
           SettingsConstants.YOUNG_ANDROID_SETTINGS_APP_NAME, aname);
     }
   }
-  
+
   private void setTitleVisibleProperty(String text) {
     boolean visible = Boolean.parseBoolean(text);
     titleBar.setVisible(visible);
@@ -957,6 +960,8 @@ public final class MockForm extends MockContainer {
       setShowListsAsJsonProperty(newValue);
     } else if (propertyName.equals(PROPERTY_NAME_TUTORIAL_URL)) {
       setTutorialURLProperty(newValue);
+    } else if (propertyName.equals(PROPERTY_NAME_BLOCK_SUBSET)) {
+      setBlockSubsetProperty(newValue);
     } else if (propertyName.equals(PROPERTY_NAME_ACTIONBAR)) {
       setActionBarProperty(newValue);
     } else if (propertyName.equals(PROPERTY_NAME_THEME)) {
@@ -1022,6 +1027,10 @@ public final class MockForm extends MockContainer {
           editor.getProjectEditor().getProjectSettingsProperty(
             SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
             SettingsConstants.YOUNG_ANDROID_SETTINGS_TUTORIAL_URL));
+      properties.changePropertyValue(SettingsConstants.YOUNG_ANDROID_SETTINGS_BLOCK_SUBSET, 
+          editor.getProjectEditor().getProjectSettingsProperty(
+            SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
+            SettingsConstants.YOUNG_ANDROID_SETTINGS_BLOCK_SUBSET));
       properties.changePropertyValue(SettingsConstants.YOUNG_ANDROID_SETTINGS_ACTIONBAR,
           editor.getProjectEditor().getProjectSettingsProperty(
             SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
