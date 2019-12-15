@@ -51,7 +51,7 @@ import java.util.Set;
  * @author William Byrne (will2596@gmail.com) (minor bugfixes)
  */
 
-@DesignerComponent(version = 20190417,
+@DesignerComponent(version = 20190519,
     description = "Bluetooth Low Energy, also referred to as Bluetooth LE " +
         "or simply BLE, is a new communication protocol similar to classic Bluetooth except " +
         "that it is designed to consume less power while maintaining comparable " +
@@ -133,71 +133,86 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
   public void removeConnectionListener(BluetoothConnectionListener listener) {
     connectionListeners.remove(listener);
   }
-
-  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN,
-      defaultValue = "false")
-  @SimpleProperty
-  public void AutoReconnect(boolean autoReconnect) {
-    inner.setAutoReconnect(autoReconnect);
-  }
-
-  @SimpleProperty(category = PropertyCategory.BEHAVIOR,
-      description = "If true, the application will attempt to reestablish a lost connection to a " +
-          "device due to link loss (e.g., moving out of range). This will not apply to " +
-          "connections that are disconnected by a call to the " +
-          "<a href='#Disconnect'><code>Disconnect</code></a> method. Such disconnects will need " +
-          "to be reconnected via a call to <a href='#Connect'><code>Connect</code></a> or " +
-          "<a href='#ConnectWithAddress'><code>ConnectWithAddress</code></a>.")
-  public boolean AutoReconnect() {
-    return inner.getAutoReconnect();
-  }
-
-  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_NON_NEGATIVE_INTEGER,
-      defaultValue = "10")
-  @SimpleProperty
-  public void ConnectionTimeout(int timeout) {
-    inner.setConnectionTimeout(timeout);
-  }
-
-  @SimpleProperty(category = PropertyCategory.BEHAVIOR,
-      description = "The amount of time, in seconds, that the BluetoothLE component will wait " +
-          "for a connection to be established with a device after a call to " +
-          "<a href='#Connect'><code>Connect</code></a> or " +
-          "<a href='#ConnectWithAddress'><code>ConnectWithAddress</code></a>. If a connection is " +
-          "not established in the given amount of time, the attempt will be aborted and the " +
-          "<a href='#ConnectionFailed'><code>ConnectionFailed</code></a> event will be run.")
-  public int ConnectionTimeout() {
-    return inner.getConnectionTimeout();
-  }
-
-  /**
-   * Starts scanning for Bluetooth low energy devices.
-   */
-  @SimpleFunction
-  public void StartScanning() {
-    if (inner != null) {
-      if (SDK26Helper.shouldAskForPermission(form)) {
-        SDK26Helper.askForPermission(this, new Runnable() {
-          public void run() {
-            inner.StartScanning();
-          }
-        });
-      } else {
-        inner.StartScanning();
-      }
+  
+    /**
+     * Scans for advertising Bluetooth low energy devices.
+     *
+     * __Parameter__:
+     *
+     *     * <code>scanPeriod</code> (<a href="http://appinventor.mit.edu/explore/ai2/support/blocks/math.html#number">_number_</a>) &mdash;
+     *       The amount of time to spend scanning, in milliseconds.
+     *
+     * @param scanPeriod The amount of time to spend scanning, in milliseconds.
+     */
+    @SimpleFunction(description = "Starts scanning for BLE devices for the specified duration in milliseconds.")
+    public void StartScanLimited(final long scanPeriod) {
+        if (inner != null) {
+            if (SDK26Helper.shouldAskForPermission(form)) {
+                SDK26Helper.askForPermission(this, new Runnable() {
+                    public void run() {
+                        inner.StartScanLimited(scanPeriod);
+                    }
+                });
+            }
+            else {
+                inner.StartScanLimited(scanPeriod);
+            }            
+        }
     }
-  }
+  
+    @SimpleFunction(description = "Starts scanning for BLE devices (no time limit).")
+    public void StartScan() {
+        StartScanLimited(0);
+    }  
 
-  /**
-   * Stops scanning for Bluetooth low energy devices.
-   */
-  @SimpleFunction
-  public void StopScanning() {
-    if (inner != null) {
-      inner.StopScanning();
-    }
-  }
-
+    @SimpleFunction(description = "Stops scanning for BLE devices.")
+    public void StopScan() {
+        if (inner != null) {
+            inner.StopScan();
+        }
+    }   
+  
+    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_STRING,
+        defaultValue = "")
+    @SimpleProperty(description = "Configures scan filter for device address.")
+    public void ScanFilterDeviceAddress(String deviceAddress) {
+        if (inner != null) {
+            inner.AddScanFilterDeviceAddress(deviceAddress);
+        }
+    }   
+  
+    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_STRING,
+        defaultValue = "")
+    @SimpleProperty(description = "Configures scan filter for device name.")
+    public void ScanFilterDeviceName(String deviceName) {
+        if (inner != null) {
+            inner.AddScanFilterDeviceName(deviceName);
+        }
+    }  
+  
+    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_STRING,
+        defaultValue = "")
+    @SimpleProperty(description = "Configures scan filter for service UUID.")
+    public void ScanFilterServiceUuid(String serviceUuid) {
+        if (inner != null) {
+            inner.AddScanFilterServiceUuid(serviceUuid);
+        }
+    }  
+  
+    @SimpleFunction(description = "Clears all configured scan filters.")
+    public void ClearScanFilters() {
+        if (inner != null) {
+            inner.ClearScanFilters();
+        }
+    }    
+  
+    @SimpleFunction(description = "Configures scan settings.")
+    public void ScanSettings(int callback_type, int match_mode, int match_num, long reportDelayMillis, int scan_mode) {
+        if (inner != null) {
+            inner.SetScanSettings(callback_type, match_mode, match_num, reportDelayMillis, scan_mode);
+        }
+    }    
+  
   /**
    * The scanning state of the Bluetooth low energy component.
    *
@@ -282,6 +297,42 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
       inner.DisconnectWithAddress(address);
     }
   }
+  
+  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN,
+      defaultValue = "false")
+  @SimpleProperty
+  public void AutoReconnect(boolean autoReconnect) {
+    inner.setAutoReconnect(autoReconnect);
+  }
+
+  @SimpleProperty(category = PropertyCategory.BEHAVIOR,
+      description = "If true, the application will attempt to reestablish a lost connection to a " +
+          "device due to link loss (e.g., moving out of range). This will not apply to " +
+          "connections that are disconnected by a call to the " +
+          "<a href='#Disconnect'><code>Disconnect</code></a> method. Such disconnects will need " +
+          "to be reconnected via a call to <a href='#Connect'><code>Connect</code></a> or " +
+          "<a href='#ConnectWithAddress'><code>ConnectWithAddress</code></a>.")
+  public boolean AutoReconnect() {
+    return inner.getAutoReconnect();
+  }
+
+  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_NON_NEGATIVE_INTEGER,
+      defaultValue = "10")
+  @SimpleProperty
+  public void ConnectionTimeout(int timeout) {
+    inner.setConnectionTimeout(timeout);
+  }
+
+  @SimpleProperty(category = PropertyCategory.BEHAVIOR,
+      description = "The amount of time, in seconds, that the BluetoothLE component will wait " +
+          "for a connection to be established with a device after a call to " +
+          "<a href='#Connect'><code>Connect</code></a> or " +
+          "<a href='#ConnectWithAddress'><code>ConnectWithAddress</code></a>. If a connection is " +
+          "not established in the given amount of time, the attempt will be aborted and the " +
+          "<a href='#ConnectionFailed'><code>ConnectionFailed</code></a> event will be run.")
+  public int ConnectionTimeout() {
+    return inner.getConnectionTimeout();
+  }  
 
   /**
    * Reads one or more 8-bit integer values from a connected BluetoothLE device. Service Unique ID
@@ -1004,33 +1055,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
     }
   }
 
-  /**
-   * Scans for advertising Bluetooth low energy devices.
-   *
-   * __Parameter__:
-   *
-   *     * <code>scanPeriod</code> (<a href="http://appinventor.mit.edu/explore/ai2/support/blocks/math.html#number">_number_</a>) &mdash;
-   *       The amount of time to spend scanning, in milliseconds.
-   *
-   * @param scanPeriod The amount of time to spend scanning, in milliseconds.
-   */
-  @SimpleFunction
-  public void ScanAdvertisements(long scanPeriod) {
-    if (inner != null) {
-      inner.ScanAdvertisements(scanPeriod);
-    }
-  }
-
-  /**
-   * Stops scanning for Bluetooth low energy advertisements.
-   */
-  @SimpleFunction
-  public void StopScanningAdvertisements() {
-    if (inner != null) {
-      inner.StopScanningAdvertisements();
-    }
-  }
-
+  
   /**
    * Returns the advertisement data associated with the specified device address.
    *
@@ -1045,14 +1070,30 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param serviceUuid The unique identifier of the advertised service.
    * @return The advertisement data from the device's service, if any.
    */
-  @SimpleFunction
+  @SimpleFunction(description = "Returns advertisement data as text.")
   public String AdvertisementData(String deviceAddress, String serviceUuid) {
     if (inner != null) {
       return inner.GetAdvertisementData(deviceAddress, serviceUuid);
     }
     return "";
   }
+  
+    @SimpleFunction(description = "Returns advertisement data as list of Byte values.")
+    public List<Short> AdvertisementDataList(String deviceAddress, String serviceUuid) {
+        if (inner != null) {
+            return inner.GetAdvertisementDataList(deviceAddress, serviceUuid);
+        }
+        return new ArrayList<Short>();
+    }  
 
+    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN,
+        defaultValue = "false")
+    @SimpleProperty(description = "Clear advertisement data buffer on read?")
+    public void AdvertisementDataRemoveOnRead(boolean remove) {
+        inner.setAdvertisementDataRemoveOnRead(remove);
+    }
+  
+  
   /**
    * Returns the address of the device with the name specified.
    *
@@ -1064,7 +1105,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param deviceName The advertised name of the target Bluetooth low energy device.
    * @return the address of the device with the given name, if any.
    */
-  @SimpleFunction
+  @SimpleFunction(description = "Returns address of advertiser with speficied name.")
   public String AdvertiserAddress(String deviceName) {
     if (inner != null) {
       return inner.GetAdvertiserAddress(deviceName);

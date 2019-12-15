@@ -390,11 +390,11 @@ final class BluetoothLEint {
     public void unsubscribe(final BluetoothGatt gatt) {
       synchronized (pendingOperationsByUuid) {
         BluetoothGattDescriptor desc = characteristic
-          .getDescriptor(BluetoothLEGattAttributes.CLIENT_CHARACTERISTIC_CONFIGURATION);          
-          
+          .getDescriptor(BluetoothLEGattAttributes.CLIENT_CHARACTERISTIC_CONFIGURATION);
+
         desc.setValue(BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE);
         gatt.writeDescriptor(desc);
-          
+
         if (gatt.setCharacteristicNotification(characteristic, false)) {
           pendingOperationsByUuid.get(characteristic.getUuid()).remove(this);
           notify = false;
@@ -1198,98 +1198,90 @@ final class BluetoothLEint {
         "Bluetooth Advertisements not supported!");
   }
 
-  /**
-   * Basic Variables
-   */
-  private final Activity activity;
-  private BluetoothLeScanner mBluetoothLeDeviceScanner = null;
-  private BluetoothGatt mBluetoothGatt;
-  private int device_rssi = 0;
-  private final Handler uiThread;
-  private volatile int connectionTimeout = 10;
-  private boolean autoReconnect = false;
+    /**
+     * Basic Variables
+     */
+    private final Activity activity;
+    private final Handler uiThread;
+    private Handler mHandler = new Handler();
 
-  /**
-   * pendingOperationsByUuid stores a list of pending BLE operations per characteristic.
-   */
-  private final Map<UUID, List<BLEOperation>> pendingOperationsByUuid =
-      new HashMap<UUID, List<BLEOperation>>();
-  private final Queue<BLEOperation> pendingOperations = new LinkedList<BLEOperation>();
+    /**
+     * pendingOperationsByUuid stores a list of pending BLE operations per characteristic.
+     */
+    private final Map<UUID, List<BLEOperation>> pendingOperationsByUuid = new HashMap<UUID, List<BLEOperation>>();
+    private final Queue<BLEOperation> pendingOperations = new LinkedList<BLEOperation>();
 
-  /**
-   * BluetoothLE Device Scanning and Connection Callbacks
-   */
-  private ScanCallback mDeviceScanCallback;
-  private BluetoothGattCallback mGattCallback;
+    /**
+     * Scanning
+     */
+    private BluetoothLeScanner mBluetoothLeScanner = null;
+    private ScanCallback mScanCallback;
+    private boolean mScanning = false;
+    private List<BluetoothDevice> mLeDevices;
+    private HashMap<BluetoothDevice, Integer> mLeDeviceRssi;
+    private long SCAN_PERIOD = 5000;
+    private boolean mScanResultRemove = false;
+    private List<ScanFilter> mScanFilters = new ArrayList<ScanFilter>();
+    private ScanSettings mScanSettings = new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build();
+    private List<String> mAdvertiserAddresses = new ArrayList<String>();
+    private List<String> mAdvertiserNames = new ArrayList<String>();
+    private HashMap<String, String> mAdvertiserNamesToAddresses = new HashMap<String, String>();
+    private HashMap<String, List<ParcelUuid>> mAdvertiserServiceUuids = new HashMap<String, List<ParcelUuid>>();
+    private HashMap<String, Map<ParcelUuid, byte[]>> mAdvertiserServiceData = new HashMap<String, Map<ParcelUuid, byte[]>>();
 
-  /**
-   * Advertising and Advertisement Scanning Callbacks
-   */
-  private ScanCallback mAdvertisementScanCallback; // Entered when a BLE Advertisement is found
-  private AdvertiseCallback mAdvertiseCallback; // Entered when Advertising is started
+    /**
+     * Advertisement (BLE on Android advertises)
+     */
+    private BluetoothLeAdvertiser mBluetoothLeAdvertiser = null;
+    private AdvertiseCallback mAdvertiseCallback;
+    private boolean mAdvertising = false;
 
-  /**
-   * BluetoothLE Info List
-   */
-  //TODO(Will): Delete the gattMap variable when DisconnectWithAddress is removed
-  private HashMap<String, BluetoothGatt> gattMap;
-  private String deviceInfoList = "";
-  private List<BluetoothDevice> mLeDevices;
-  private List<BluetoothGattService> mGattService;
-  private ArrayList<BluetoothGattCharacteristic> gattChars;
-  private String serviceUUIDList;
-  private String charUUIDList;
-  private BluetoothGattCharacteristic mGattChar;
-  private HashMap<BluetoothDevice, Integer> mLeDeviceRssi;
+    /**
+     * Connection
+     */
+    private BluetoothGatt mBluetoothGatt;
+    private volatile int connectionTimeout = 10;
+    private boolean autoReconnect = false;
+    private volatile boolean isConnected = false;
+    private volatile boolean isUserDisconnect = false;
+    private int device_rssi = 0;
 
-  /**
-   * BluetoothLE Device Status
-   */
-  private boolean isScanning = false;
-  private volatile boolean isConnected = false;
-  private volatile boolean isUserDisconnect = false;
-  private boolean isCharRead = false;
-  private boolean isCharWritten = false;
-  private boolean isServiceRead = false;
+    /**
+     * GATT
+     */
+    private BluetoothGattCallback mGattCallback;
+    //TODO(Will): Delete the gattMap variable when DisconnectWithAddress is removed
+    private HashMap<String, BluetoothGatt> gattMap;
+    private List<BluetoothGattService> mGattService;
+    private ArrayList<BluetoothGattCharacteristic> gattChars;
+    private BluetoothGattCharacteristic mGattChar;
 
-  /**
-   * GATT values
-   */
-  private int battery = -1;
-  private int txPower = -1;
-  private byte[] data;
-  private byte[] descriptorValue;
-  private int intValue = 0;
-  private float floatValue = 0;
-  private String stringValue = "";
-  private String byteValue = "";
-  private int intOffset = 0;
-  private int strOffset = 0;
-  private int floatOffset = 0;
+    private boolean isCharRead = false;
+    private boolean isCharWritten = false;
+    private boolean isServiceRead = false;
 
-  /**
-   * Enum describing the data type of a characteristic.
-   */
-  private enum CharType {
-    BYTE, INT, STRING, FLOAT
-  }
+    private int battery = -1;
+    private int txPower = -1;
+    private byte[] data;
+    private byte[] descriptorValue;
+    private int intValue = 0;
+    private float floatValue = 0;
+    private String stringValue = "";
+    private String byteValue = "";
+    private int intOffset = 0;
+    private int strOffset = 0;
+    private int floatOffset = 0;
 
-  // The data type of a characteristic: Byte, Int, String, or Float.
-  private CharType charType = CharType.BYTE;
+    /**
+     * Enum describing the data type of a characteristic.
+     */
+    private enum CharType {
+        BYTE, INT, STRING, FLOAT
+    }
 
-  /**
-   * Advertising Support
-   */
-  private BluetoothLeScanner mBluetoothLeAdvertisementScanner;
-  private Handler mHandler = new Handler();
-  private BluetoothLeAdvertiser mBluetoothLeAdvertiser;
-  private long SCAN_PERIOD = 5000;
-  private String advertisementScanResult = "";
-  private List<String> scannedAdvertiserNames = new ArrayList<String>();
-  private HashMap<String, ScanResult> scannedAdvertisers = new HashMap<String, ScanResult>();
-  private List<String> advertiserAddresses = new ArrayList<String>();
-  private HashMap<String, String> nameToAddress = new HashMap<String, String>();
-  private boolean isAdvertising = false;
+    // The data type of a characteristic: Byte, Int, String, or Float.
+    private CharType charType = CharType.BYTE;
+
 
   BluetoothLEint(BluetoothLE outer, final Activity activity, ComponentContainer container) {
 
@@ -1298,48 +1290,71 @@ final class BluetoothLEint {
     this.container = container;
 
     this.mLeDevices = new ArrayList<BluetoothDevice>();
+    this.mLeDeviceRssi = new HashMap<BluetoothDevice, Integer>();
+
     this.mGattService = new ArrayList<BluetoothGattService>();
     this.gattChars = new ArrayList<BluetoothGattCharacteristic>();
-    this.mLeDeviceRssi = new HashMap<BluetoothDevice, Integer>();
     this.gattMap = new HashMap<String, BluetoothGatt>();
+
     this.uiThread = new Handler();
 
-    this.mDeviceScanCallback = new ScanCallback() {
-      @Override
-      public void onScanResult(final int callbackType, final ScanResult scanResult) {
-        super.onScanResult(callbackType, scanResult);
+    // scan callback
+    this.mScanCallback = new ScanCallback() {
+        @Override
+        public void onScanResult(final int callbackType, final ScanResult result) {
+            super.onScanResult(callbackType, result);
 
-        if (scanResult == null || scanResult.getDevice() == null) {
-          return;
+            if (result == null) {
+                Log.e(LOG_TAG, "ScanCallback: no scan result");
+                return;
+            }
+
+            if (result.getDevice() == null) {
+                Log.e(LOG_TAG, "ScanCallback: no device record");
+                return;
+            }
+
+            // main content of ScanResult:
+            // 1) int getAdvertisingSid()
+            // 2) BluetoothDevice getDevice()
+            // 3) int getPeriodicAdvertisingInterval()
+            // 4) int getRssi()
+            // 5) ScanRecord getScanRecord()
+            // 6) int getTxPower()
+            // 7) boolean isConnectable()
+
+            uiThread.post(new Runnable() {
+                @Override
+                public void run() {
+                    addDevice(result);
+                    addResult(result);
+                }
+            });
         }
 
-        uiThread.post(new Runnable() {
-          @Override
-          public void run() {
-            isScanning = true;
-            addDevice(scanResult.getDevice(), scanResult.getRssi());
-          }
-        });
-      }
-      @Override
-      public void onBatchScanResults(List<ScanResult> results) {
-        super.onBatchScanResults(results);
-      }
+        @Override
+        public void onBatchScanResults(List<ScanResult> results) {
+            super.onBatchScanResults(results);
 
-      @Override
-      public void onScanFailed(int errorCode) {
-        switch(errorCode) {
-          case SCAN_FAILED_ALREADY_STARTED:
-            Log.e(LOG_TAG, "Device Scan failed. There is already a scan in progress.");
-            break;
-          default:
-            isScanning = false;
-            Log.e(LOG_TAG, "Device Scan failed due to an internal error. Error Code: " + errorCode);
+            Log.i(LOG_TAG, "ScanCallback: batch results not logged");
         }
-        super.onScanFailed(errorCode);
-      }
+
+        @Override
+        public void onScanFailed(int errorCode) {
+            super.onScanFailed(errorCode);
+
+            switch(errorCode) {
+                case SCAN_FAILED_ALREADY_STARTED:
+                    Log.e(LOG_TAG, "ScanCallback: device scan already in progress");
+                    break;
+                default:
+                    mScanning = false;
+                    Log.e(LOG_TAG, "ScanCallback: internal error code " + errorCode);
+            }
+        }
     };
 
+    // GATT callback
     this.mGattCallback = new BluetoothGattCallback() {
       @Override
       public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
@@ -1351,7 +1366,8 @@ final class BluetoothLEint {
           gatt.discoverServices();
           gatt.readRemoteRssi();
           Log.i(LOG_TAG, "Connect successful.");
-        } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+        }
+        else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
           isConnected = false;
           if (!autoReconnect || isUserDisconnect) {
             mBluetoothGatt.close();
@@ -1387,7 +1403,8 @@ final class BluetoothLEint {
           pendingOperationsByUuid.clear();
           pendingOperations.clear();
           Connected();
-        } else {
+        }
+        else {
           BluetoothLEint.this.outer.ConnectionFailed("Service discovery failed with OS code " + status);
         }
         Log.i(LOG_TAG, "onServicesDiscovered fired with status: " + status);
@@ -1466,94 +1483,235 @@ final class BluetoothLEint {
         RssiChanged(device_rssi);
       }
     };
-
-    mAdvertisementScanCallback = new ScanCallback() {
-      @Override
-      public void onScanResult(int callbackType, ScanResult result) {
-        super.onScanResult(callbackType, result);
-
-        if (result == null || result.getDevice() == null || TextUtils.isEmpty(result.getDevice().getName())) {
-          return;
-        }
-
-        String advertiserAddress = result.getDevice().getAddress();
-        String advertiserName = result.getDevice().getName();
-        advertiserAddresses.add(advertiserAddress);
-        scannedAdvertisers.put(advertiserAddress, result);
-        scannedAdvertiserNames.add(advertiserName);
-        nameToAddress.put(advertiserName, advertiserAddress);
-      }
-
-      @Override
-      public void onBatchScanResults(List<ScanResult> results) {
-        super.onBatchScanResults(results);
-      }
-
-      @Override
-      public void onScanFailed(int errorCode) {
-        Log.e(LOG_TAG, "Advertisement onScanFailed: " + errorCode);
-        ///signalError(); fix me
-        super.onScanFailed(errorCode);
-      }
-    };
   }
 
-  boolean isScanning() {
-    return isScanning;
-  }
+   void StartScanLimited(final long scanPeriod) {
+        new BLEAction<Void>("StartScan") {
+            @Override
+            public Void action() {
+                SCAN_PERIOD = scanPeriod;
 
-  void StartScanning() {
-    new BLEAction<Void>("StartScanning") {
-      @Override
-      public Void action() {
-        if (!mLeDevices.isEmpty()) {
-          mLeDevices.clear();
-          mLeDeviceRssi.clear();
+                // clear information from previous scan
+                if (!mLeDevices.isEmpty()) {
+                    mLeDevices.clear();
+                    mLeDeviceRssi.clear();
+                }
+
+                if (!mAdvertiserAddresses.isEmpty()) {
+                    mAdvertiserAddresses.clear();
+                    mAdvertiserNames.clear();
+                    mAdvertiserNamesToAddresses.clear();
+                    mAdvertiserServiceUuids.clear();
+                    mAdvertiserServiceData.clear();
+                }
+
+                // stop scanning after period has elapsed
+                if (scanPeriod > 0) {
+                    uiThread.postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            StopScan();
+                        }
+                    }, scanPeriod);
+                    Log.i(LOG_TAG, "StartScan: automatic stop scheduled in " + scanPeriod + " ms");
+                }
+
+                // obtain instance of BluetoothAdapter singleton
+                BluetoothAdapter btAdapter = obtainBluetoothAdapter();
+
+                if (btAdapter != null) {
+                    mBluetoothLeScanner = btAdapter.getBluetoothLeScanner();
+
+                    if (mBluetoothLeScanner != null) {
+                        try {
+                            mBluetoothLeScanner.startScan(mScanFilters, mScanSettings, mScanCallback);
+                            mScanning = true;
+                            Log.i(LOG_TAG, "StartScan successful");
+                            Log.i(LOG_TAG, "Filters: " + mScanFilters);
+                            Log.i(LOG_TAG, "Scan mode: " + mScanSettings.getScanMode() + ", reporting delay is: "
+                                + mScanSettings.getReportDelayMillis() + " ms");
+                        }
+                        catch (IllegalArgumentException e) {
+                            Log.e(LOG_TAG, "StartScan: illegal argument");
+                        }
+                    } else {
+                        Log.e(LOG_TAG, "StartScan: unable to obtain Bluetooth LE scanner");
+                    }
+                } else {
+                    Log.e(LOG_TAG, "StartScan: unable to obtain Bluetooth LE adapter");
+                }
+
+                return null;
+            }
+        }.run();
+    }
+
+    void StopScan() {
+        new BLEAction<Void>("StopScan"){
+            @Override
+            public Void action() {
+                if (mScanning) {
+                    mBluetoothLeScanner.stopScan(mScanCallback);
+                    mScanning = false;
+                    Log.i(LOG_TAG, "StopScan");
+                }
+                return null;
+            }
+        }.run();
+    }
+
+    boolean isScanning() {
+        return mScanning;
+    }
+
+    void AddScanFilterDeviceAddress(String deviceAddress) {
+        try {
+            mScanFilters.add(new ScanFilter.Builder().setDeviceAddress(deviceAddress).build());
+        }
+        catch (IllegalArgumentException e) {
+            Log.e(LOG_TAG, "ScanfilterDeviceAddress: " + e);
+        }
+    }
+
+    void AddScanFilterDeviceName(String deviceName) {
+        try {
+            mScanFilters.add(new ScanFilter.Builder().setDeviceName(deviceName).build());
+        }
+        catch (IllegalArgumentException e) {
+            Log.e(LOG_TAG, "ScanfilterDeviceName: " + e);
+        }
+    }
+
+    void AddScanFilterServiceUuid(String serviceUuid) {
+        try {
+            mScanFilters.add(new ScanFilter.Builder().setServiceUuid(new ParcelUuid(UUID.fromString(serviceUuid))).build());
+        }
+        catch (IllegalArgumentException e) {
+            Log.e(LOG_TAG, "ScanfilterServiceUuid: " + e);
+        }
+    }
+
+    void ClearScanFilters() {
+        mScanFilters.clear();
+    }
+
+    void SetScanSettings(int callback_type, int match_mode, int match_num, long reportDelayMillis, int scan_mode) {
+        // default values on Android:
+        // callback_type = ScanSettings.CALLBACK_TYPE_ALL_MATCHES
+        // match_mode = ScanSettings.MATCH_MODE_AGGRESSIVE
+        // match_num = ScanSettings.MATCH_NUM_MAX_ADVERTISEMENT
+        // reportDelayMillis = 0
+        // scan_mode = ScanSettings.SCAN_MODE_LOW_POWER
+
+        switch (callback_type) {
+            case ScanSettings.CALLBACK_TYPE_ALL_MATCHES: break;
+            case ScanSettings.CALLBACK_TYPE_FIRST_MATCH: break;
+            case ScanSettings.CALLBACK_TYPE_MATCH_LOST: break;
+            default:
+                callback_type = ScanSettings.CALLBACK_TYPE_ALL_MATCHES;
+                Log.i(LOG_TAG, "ScanFilterSettings: callback type forced to 'ALL MATCHES'");
         }
 
-        BluetoothAdapter btAdapter = obtainBluetoothAdapter();
-
-        if (btAdapter != null) {
-          mBluetoothLeDeviceScanner = btAdapter.getBluetoothLeScanner();
-
-          if (mBluetoothLeDeviceScanner != null) {
-          
-            ScanSettings settings = new ScanSettings.Builder()
-              .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
-              .build();
-
-            List<ScanFilter> filters = new ArrayList<ScanFilter>();
-            ScanFilter filter = new ScanFilter.Builder().build();
-            filters.add(filter);
-
-            mBluetoothLeDeviceScanner.startScan(filters, settings, mDeviceScanCallback);
-            Log.i(LOG_TAG, "StartScanning successful.");
-          }
+        switch (match_mode) {
+            case ScanSettings.MATCH_MODE_AGGRESSIVE: break;
+            case ScanSettings.MATCH_MODE_STICKY: break;
+            default:
+                match_mode = ScanSettings.MATCH_MODE_AGGRESSIVE;
+                Log.i(LOG_TAG, "ScanFilterSettings: match mode forced to 'AGGRESSIVE'");
         }
 
-        return null;
-      }
-    }.run();
-  }
-
-  void StopScanning() {
-    new BLEAction<Void>("StopScanning") {
-      @Override
-      public Void action() {
-        if (mBluetoothLeDeviceScanner != null) {
-          // After carefully examining the source code for android.bluetooth.le.BluetoothLeScanner, it is clear
-          // that the ScanCallback parameter of BluetoothLeScanner.stopScan(ScanCallback) is only used as a key to
-          // identify the current scan. It is never fired.
-          mBluetoothLeDeviceScanner.stopScan(mDeviceScanCallback);
-          isScanning = false;
-          Log.i(LOG_TAG, "StopScanning successful.");
-        } else {
-          signalError("StopScanning", ERROR_NO_DEVICE_SCAN_IN_PROGRESS);
+        switch (match_num) {
+            case ScanSettings.MATCH_NUM_ONE_ADVERTISEMENT: break;
+            case ScanSettings.MATCH_NUM_FEW_ADVERTISEMENT: break;
+            case ScanSettings.MATCH_NUM_MAX_ADVERTISEMENT: break;
+            default:
+                match_num = ScanSettings.MATCH_NUM_MAX_ADVERTISEMENT;
+                Log.i(LOG_TAG, "ScanFilterSettings: match number forced to 'MAX'");
         }
-        return null;
-      }
-    }.run();
-  }
+
+        if (reportDelayMillis < 0) {
+            reportDelayMillis = 0;
+            Log.i(LOG_TAG, "ScanFilterSettings: report delay forced to zero");
+        }
+
+        switch (scan_mode) {
+            case ScanSettings.SCAN_MODE_BALANCED: break;
+            case ScanSettings.SCAN_MODE_LOW_LATENCY: break;
+            case ScanSettings.SCAN_MODE_LOW_POWER: break;
+            case ScanSettings.SCAN_MODE_OPPORTUNISTIC: break;
+            default:
+                match_num = ScanSettings.SCAN_MODE_LOW_POWER;
+                Log.i(LOG_TAG, "ScanFilterSettings: match number forced to 'BALANCED'");
+        }
+        try {
+            mScanSettings = new ScanSettings.Builder()
+                            .setCallbackType(callback_type)
+                            .setMatchMode(match_mode)
+                            .setNumOfMatches(match_num)
+                            .setReportDelay(reportDelayMillis)
+                            .setScanMode(scan_mode)
+                            .build();
+        }
+        catch (IllegalArgumentException e) {
+            Log.e(LOG_TAG, "SetScanSettings: " + e);
+        }
+    }
+
+    // returns advertisement data as string
+    String GetAdvertisementData(String deviceAddress, String serviceUuid) {
+        if (!validateUUID(serviceUuid, "Service", "GetAdvertisementData"))
+            return "";
+
+        Map<ParcelUuid, byte[]> data = (mScanResultRemove ? mAdvertiserServiceData.remove(deviceAddress) : mAdvertiserServiceData.get(deviceAddress));
+
+        return (data == null ? "" : Arrays.toString(data.get(ParcelUuid.fromString(serviceUuid))));
+    }
+
+    // returns advertisement data as list of Byte values
+    List<Short> GetAdvertisementDataList(String deviceAddress, String serviceUuid) {
+        List<Short> s = null;
+
+        // retrieve latest scan data
+        if (validateUUID(serviceUuid, "Service", "GetAdvertisementData")) {
+            byte[] b;
+            Map<ParcelUuid, byte[]> data = (mScanResultRemove ? mAdvertiserServiceData.remove(deviceAddress) : mAdvertiserServiceData.get(deviceAddress));
+
+            if (data != null) {
+                b = data.get(ParcelUuid.fromString(serviceUuid));
+                s = new ArrayList<Short>(b.length);
+
+                for (int i = 0; i < b.length; i++) {
+                    s.add((short)(b[i] & 0xFF)); // convert to unsigned and store as short
+                }
+            }
+        }
+        
+        if (s == null) {            
+            Log.i(LOG_TAG, "GetAdvertisementDataList: []");
+            return new ArrayList<Short>();
+        }
+        else {
+            Log.i(LOG_TAG, "GetAdvertisementDataList: " + s);            
+            return s;
+        }
+    }
+
+    // set whether to delete advertisement data record on read
+    void setAdvertisementDataRemoveOnRead(boolean remove) {
+        mScanResultRemove = remove;
+    }
+
+    // get address for advertiser "name"; return "" if not mapping found
+    String GetAdvertiserAddress(String deviceName) {
+        String name = mAdvertiserNamesToAddresses.get(deviceName);
+        return (name == null ? "" : name);
+    }
+
+    // get service uuids for advertiser "name"; return empty list if no mapping found
+    List<String> GetAdvertiserServiceUuids(String deviceAddress) {
+        List<ParcelUuid> uuids = mAdvertiserServiceUuids.get(deviceAddress);
+        return (uuids == null ? new ArrayList<String>() : BLEUtil.stringifyParcelUuids(uuids));
+    }
 
   void Connect(final int index) {
     if (index < 1 || index > mLeDevices.size()) {
@@ -1564,9 +1722,9 @@ final class BluetoothLEint {
       @Override
       public Void action() {
         try {
-          if (mBluetoothLeAdvertisementScanner != null) {
-            mBluetoothLeAdvertisementScanner.stopScan(mDeviceScanCallback);
-            isScanning = false;
+          if (mBluetoothLeScanner != null) {
+            mBluetoothLeScanner.stopScan(mScanCallback);
+            mScanning = false;
           }
           if (!mLeDevices.isEmpty()) {
             forceDisconnect();
@@ -1599,9 +1757,9 @@ final class BluetoothLEint {
       @Override
       public Void action() {
         try {
-          if (mBluetoothLeAdvertisementScanner != null) {
-            mBluetoothLeAdvertisementScanner.stopScan(mDeviceScanCallback);
-            isScanning = false;
+          if (mBluetoothLeScanner != null) {
+            mBluetoothLeScanner.stopScan(mScanCallback);
+            mScanning = false;
           }
           if (!mLeDevices.isEmpty()) {
             for (BluetoothDevice bluetoothDevice : mLeDevices) {
@@ -2284,7 +2442,7 @@ final class BluetoothLEint {
         AdvertiseCallback advertisingCallback = new AdvertiseCallback() {
           @Override
           public void onStartSuccess(AdvertiseSettings settingsInEffect) {
-            isAdvertising = true;
+            mAdvertising = true;
             super.onStartSuccess(settingsInEffect);
           }
 
@@ -2330,105 +2488,12 @@ final class BluetoothLEint {
         Log.i(LOG_TAG, "Stopping BLE Advertising");
         if (mBluetoothLeAdvertiser != null) {
           mBluetoothLeAdvertiser.stopAdvertising(mAdvertiseCallback);
-          isAdvertising = false;
+          mAdvertising = false;
           mAdvertiseCallback = null;
         }
         return null;
       }
     }.run();
-  }
-
-  // TODO(Will): Merge this timed scanning functionality with the StartScan/StopScan methods above.
-  void ScanAdvertisements(final long scanPeriod) {
-    new BLEAction<Void>("ScanAdvertisements") {
-      @Override
-      public Void action() {
-        SCAN_PERIOD = scanPeriod;
-
-        // clear the information that was saved during previous scan
-        advertiserAddresses = new ArrayList<String>();
-        scannedAdvertisers = new HashMap<String, ScanResult>();
-        scannedAdvertiserNames = new ArrayList<String>();
-        nameToAddress = new HashMap<String, String>();
-
-
-        // Will stop the scanning after a set time.
-        uiThread.postDelayed(new Runnable() {
-          @Override
-          public void run() {
-            StopScanningAdvertisements();
-          }
-        }, scanPeriod);
-
-        // Obtain an instance of the Bluetooth Adapter
-        BluetoothAdapter btAdapter = obtainBluetoothAdapter();
-
-        if (btAdapter != null) {
-          mBluetoothLeAdvertisementScanner = btAdapter.getBluetoothLeScanner();
-
-          if (mAdvertisementScanCallback != null) {
-
-            if (mBluetoothLeAdvertisementScanner != null) {
-              ScanSettings settings = new ScanSettings.Builder()
-                      .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
-                      .build();
-
-              List<ScanFilter> filters = new ArrayList<ScanFilter>();
-              ScanFilter filter = new ScanFilter.Builder()
-                      .build();
-              // NOTE: removed service uuid from filter:
-              // ".setServiceUuid( new ParcelUuid(UUID.fromString( "0000b81d-0000-1000-8000-00805f9b34fb" ) ) )""
-
-              filters.add(filter);
-
-              if (settings != null) {
-                mBluetoothLeAdvertisementScanner.startScan(filters, settings, mAdvertisementScanCallback);
-              } else {
-                Log.i(LOG_TAG, "settings or filters are null.");
-              }
-            } else {
-              Log.i(LOG_TAG, "Bluetooth LE scanner is null.");
-            }
-          } else {
-            Log.i(LOG_TAG, "mAdvertisementScanCallback is null.");
-          }
-        } else {
-          Log.i(LOG_TAG, "No bluetooth adapter found.");
-        }
-        return null;
-      }
-    }.run();
-  }
-
-  // TODO(Will): Delete this.
-  void StopScanningAdvertisements() {
-    new BLEAction<Void>("StopScanningAdvertisements"){
-      @Override
-      public Void action() {
-        Log.i(LOG_TAG, "Stopping BLE Advertisement Scan.");
-        mBluetoothLeAdvertisementScanner.stopScan(mAdvertisementScanCallback);
-        return null;
-      }
-    }.run();
-  }
-
-  // TODO(Will): Delete this.
-  String GetAdvertisementData(String deviceAddress, String serviceUuid) {
-    if (!validateUUID(serviceUuid, "Service", "GetAdvertisementData"))
-      return "";
-
-    return "" + Arrays.toString(scannedAdvertisers.get(deviceAddress).getScanRecord()
-        .getServiceData().get(ParcelUuid.fromString(serviceUuid)));
-  }
-
-  // TODO(Will): Delete this.
-  String GetAdvertiserAddress(String deviceName) {
-    return nameToAddress.get(deviceName);
-  }
-
-  List<String> GetAdvertiserServiceUuids(String deviceAddress) {
-    return BLEUtil.stringifyParcelUuids(scannedAdvertisers.get(deviceAddress)
-        .getScanRecord().getServiceUuids());
   }
 
   String BatteryValue() {
@@ -2448,7 +2513,7 @@ final class BluetoothLEint {
   }
 
   String DeviceList() {
-    deviceInfoList = "";
+    String deviceInfoList = "";
     mLeDevices = sortDeviceList(mLeDevices);
     if (!mLeDevices.isEmpty()) {
       for (int i = 0; i < mLeDevices.size(); i++) {
@@ -2472,16 +2537,16 @@ final class BluetoothLEint {
     return SCAN_PERIOD;
   }
 
-  List<String> GetAdvertiserNames() {
-    return scannedAdvertiserNames;
-  }
+    List<String> GetAdvertiserNames() {
+        return mAdvertiserNames;
+    }
 
-  List<String> GetAdvertiserAddresses() {
-    return advertiserAddresses;
-  }
+    List<String> GetAdvertiserAddresses() {
+        return mAdvertiserAddresses;
+    }
 
   boolean IsDeviceAdvertising() {
-    return isAdvertising;
+    return mAdvertising;
   }
 
   private void Connected() {
@@ -2535,7 +2600,7 @@ final class BluetoothLEint {
 
   String GetSupportedServices() {
     if (mGattService == null) return ",";
-    serviceUUIDList = ", ";
+    String serviceUUIDList = ", ";
     for (int i = 0; i < mGattService.size(); i++) {
       if (i == 0) {
         serviceUUIDList = "";
@@ -2572,7 +2637,7 @@ final class BluetoothLEint {
 
   String GetSupportedCharacteristics() {
     if (mGattService == null) return ",";
-    charUUIDList = ", ";
+    String charUUIDList = ", ";
     for (int i = 0; i < mGattService.size(); i++) {
       if (i == 0) {
         charUUIDList = "";
@@ -2717,17 +2782,45 @@ final class BluetoothLEint {
     return deviceList;
   }
 
-  // Used by mLeDeviceScanCallback to add to the device list
-  private void addDevice(BluetoothDevice device, int rssi) {
-    if (!mLeDevices.contains(device)) {
-      mLeDevices.add(device);
-      mLeDeviceRssi.put(device, rssi);
-      DeviceFound();
-    } else {
-      mLeDeviceRssi.put(device, rssi);
+    private void addDevice(ScanResult result) {
+        BluetoothDevice device = result.getDevice();
+        int rssi = result.getRssi();
+
+        if (!mLeDevices.contains(device)) {
+            mLeDevices.add(device);
+            mLeDeviceRssi.put(device, rssi);
+            DeviceFound();
+        }
+        else {
+            mLeDeviceRssi.put(device, rssi);
+        }
+
+        RssiChanged(rssi);
     }
-    RssiChanged(rssi);
-  }
+
+    private void addResult(ScanResult result) {
+        String advertiserAddress = result.getDevice().getAddress();
+        String advertiserName;
+
+        if (TextUtils.isEmpty(result.getDevice().getName())) {
+            Log.i(LOG_TAG, "ScanCallback: unable to retrieve device name");
+            advertiserName = "unknown";
+        }
+        else {
+            advertiserName = result.getDevice().getName();
+        }
+        Log.i(LOG_TAG, "ScanCallback: result is " + result);
+
+        if (!mAdvertiserAddresses.contains(advertiserAddress)) {
+            mAdvertiserAddresses.add(advertiserAddress);
+            mAdvertiserNames.add(advertiserName);
+            mAdvertiserNamesToAddresses.put(advertiserName, advertiserAddress);
+            mAdvertiserServiceUuids.put(advertiserAddress, result.getScanRecord().getServiceUuids());
+        }
+
+        // store latest scan result for all service UUIDs from specific advertiser
+        mAdvertiserServiceData.put(advertiserAddress, result.getScanRecord().getServiceData());
+    }
 
   /*
    * Look-up the BluetoothGattCharacteristic with the given service and
