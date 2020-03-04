@@ -79,6 +79,7 @@ public class PosenetExtension extends AndroidNonvisibleComponent
   private String cameraMode = FRONT_CAMERA;
   private boolean initialized = false;
   private boolean enabled = true;
+  private String backgroundImage = "";
 
   /**
    * Creates a new PosenetExtension extension.
@@ -376,6 +377,11 @@ public class PosenetExtension extends AndroidNonvisibleComponent
     return keyPoints.get("rightAnkle");
   }
 
+  @SimpleProperty(description = "BackGround Image.")
+  public String backgroundImage() {
+    return backgroundImage;
+  }
+
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN, defaultValue = "True")
   @SimpleProperty
   public void Enabled(boolean enabled) {
@@ -408,6 +414,12 @@ public class PosenetExtension extends AndroidNonvisibleComponent
       + "Result is of the form [[class1, confidence1], ...]")
   public void PoseUpdated() {
     EventDispatcher.dispatchEvent(this, "PoseUpdated");
+  }
+
+  @SuppressWarnings("squid:S00100")
+  @SimpleEvent(description = "Event indicating that a new video frame is ready. ")
+  public void VideoUpdated() {
+    EventDispatcher.dispatchEvent(this, "VideoUpdated");
   }
 
   @SimpleProperty(description = "Configures Posenet to use the front or " +
@@ -488,6 +500,20 @@ public class PosenetExtension extends AndroidNonvisibleComponent
           }
         }
       });
+    }
+
+    @JavascriptInterface
+    public void reportImage(final String dataUrl) {
+      Log.d(LOG_TAG, "reportImage "  + dataUrl);
+      if (dataUrl != null) {
+        backgroundImage = dataUrl.substring(dataUrl.indexOf(",") + 1);
+        form.runOnUiThread(new Runnable() {
+          @Override
+          public void run() {
+            VideoUpdated();
+          }
+        });
+      }
     }
 
     @JavascriptInterface
