@@ -79,7 +79,7 @@ public class PosenetExtension extends AndroidNonvisibleComponent
   private String cameraMode = FRONT_CAMERA;
   private boolean initialized = false;
   private boolean enabled = true;
-  private String backgroundImage = "";
+  private String BackgroundImage = "";
 
   /**
    * Creates a new PosenetExtension extension.
@@ -378,8 +378,8 @@ public class PosenetExtension extends AndroidNonvisibleComponent
   }
 
   @SimpleProperty(description = "BackGround Image.")
-  public String backgroundImage() {
-    return backgroundImage;
+  public String BackgroundImage() {
+    return BackgroundImage;
   }
 
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN, defaultValue = "True")
@@ -506,7 +506,7 @@ public class PosenetExtension extends AndroidNonvisibleComponent
     public void reportImage(final String dataUrl) {
       Log.d(LOG_TAG, "reportImage "  + dataUrl);
       if (dataUrl != null) {
-        backgroundImage = dataUrl.substring(dataUrl.indexOf(",") + 1);
+        BackgroundImage = dataUrl.substring(dataUrl.indexOf(",") + 1);
         form.runOnUiThread(new Runnable() {
           @Override
           public void run() {
