@@ -52,7 +52,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-@DesignerComponent(version = 20191008,
+@DesignerComponent(version = 20200304,
     category = ComponentCategory.EXTENSION,
     description = "An extension that embeds a Posenet model.",
     iconName = "aiwebres/icon.png",
