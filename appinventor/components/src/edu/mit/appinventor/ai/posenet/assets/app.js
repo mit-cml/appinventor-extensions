@@ -22,7 +22,7 @@ let running = false;
 async function setupCamera() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     PosenetExtension.error(ERROR_WEBVIEW_NO_MEDIA,
-      ERRORS[ERROR_WEBVIEW_NO_MEDIA]);
+      ERRORS.ERROR_WEBVIEW_NO_MEDIA);
     return;
   }
 
@@ -120,7 +120,7 @@ async function runModel() {
     video = await loadVideo();
   } catch (e) {
     PosenetExtension.error(ERROR_WEBVIEW_NO_MEDIA,
-      ERRORS[ERROR_WEBVIEW_NO_MEDIA]);
+      ERRORS.ERROR_WEBVIEW_NO_MEDIA);
     throw e;
   }
 
