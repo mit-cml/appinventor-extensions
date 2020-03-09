@@ -8,14 +8,13 @@ console.log("Posenet Extension using tfjs-converter version " + tf.version_conve
 
 const ERROR_WEBVIEW_NO_MEDIA = 400;
 const ERROR_MODEL_LOAD = 401;
-const videoWidth = 300;
-const videoHeight = 250;
-
 const ERRORS = {
   ERROR_WEBVIEW_NO_MEDIA: "WebView does not support navigator.mediaDevices",
   ERROR_MODEL_LOAD: "Unable to load model"
 };
 
+let videoWidth = 300;
+let videoHeight = 250;
 let forwardCamera = true;
 let running = false;
 let stream = null;
@@ -156,6 +155,14 @@ function setCameraFacingMode(useForward) {
     // noinspection JSIgnoredPromiseFromCall
     startVideo();
   })
+}
+
+function setVideoWidth(width) {
+  videoWidth = width;
+}
+
+function setVideoHeight(height) {
+  videoHeight = height;
 }
 
 // noinspection JSUnresolvedVariable

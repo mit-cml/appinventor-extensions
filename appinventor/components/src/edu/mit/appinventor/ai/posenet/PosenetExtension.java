@@ -52,7 +52,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-@DesignerComponent(version = 20200304,
+@DesignerComponent(version = 20200309,
     category = ComponentCategory.EXTENSION,
     description = "An extension that embeds a Posenet model.",
     iconName = "aiwebres/icon.png",
@@ -442,6 +442,16 @@ public class PosenetExtension extends AndroidNonvisibleComponent
   @SimpleProperty
   public String UseCamera() {
     return cameraMode;
+  }
+
+  @SimpleProperty (description = "Configure video width.")
+  public void SetVideoWidth(int width) {
+    webview.evaluateJavascript("setVideoWidth(" + width + ");", null);
+  }
+
+  @SimpleProperty (description = "Configure video height.")
+  public void SetVideoHeight(int height) {
+    webview.evaluateJavascript("setVideoHeight(" + height + ");", null);
   }
 
   private static void requestHardwareAcceleration(Activity activity) {
