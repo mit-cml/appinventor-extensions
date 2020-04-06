@@ -117,6 +117,10 @@ public final class SimpleComponentDescriptor {
 
   private static void initBundledImages() {
     bundledImages.put("images/accelerometersensor.png", images.accelerometersensor());
+    bundledImages.put("images/lightsensor.png", images.lightsensor());
+    bundledImages.put("images/barometer.png", images.barometer());
+    bundledImages.put("images/thermometer.png", images.thermometer());
+    bundledImages.put("images/hygrometer.png", images.hygrometer());
     bundledImages.put("images/gyroscopesensor.png", images.gyroscopesensor());
     bundledImages.put("images/nearfield.png", images.nearfield());
     bundledImages.put("images/activityStarter.png", images.activitystarter());
@@ -164,6 +168,9 @@ public final class SimpleComponentDescriptor {
     bundledImages.put("images/linestring.png", images.linestring());
     bundledImages.put("images/polygon.png", images.polygon());
     bundledImages.put("images/featurecollection.png", images.featurecollection());
+    bundledImages.put("images/navigation.png", images.navigationComponent());
+    bundledImages.put("images/arduino.png", images.arduino());
+    bundledImages.put("images/magneticSensor.png", images.magneticSensor());
 
     imagesInitialized = true;
   }

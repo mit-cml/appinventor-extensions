@@ -1209,8 +1209,11 @@ Blockly.Versioning.AllUpgradeMaps =
       for (Element block : getAllMatchingGenusBlocks("Ball-Flung")) {
         markBlockBad(block, String.format(CHANGED_FLUNG_WARNING, "Flung"));
     */
-    5: "ai1CantDoUpgrade" // Just indicates we couldn't do upgrade even if we wanted to
+    5: "ai1CantDoUpgrade", // Just indicates we couldn't do upgrade even if we wanted to
 
+    // The CenterAtOrigin property was added.
+    // The default value of false is correct for upgraded apps.
+    6: "noUpgrade"
   }, // End Ball upgraders
 
   "BarcodeScanner": {
@@ -1244,7 +1247,11 @@ Blockly.Versioning.AllUpgradeMaps =
 
     // The BluetoothClient.Secure property was added.
     // No blocks need to be modified to upgrade to version 5.
-    5: "noUpgrade"
+    5: "noUpgrade",
+
+    // The BluetoothClient.DisconnectOnError property was added.
+    // No blocks need to be modified to upgrade to version 5.
+    6: "noUpgrade"
 
   }, // End BluetoothClient upgraders
 
@@ -1379,7 +1386,15 @@ Blockly.Versioning.AllUpgradeMaps =
 
     // DrawShape & DrawArc was added
     // No blocks need to be modified to upgrade to version 11.
-    11: "noUpgrade"
+    11: "noUpgrade",
+
+    // ExtendMovesOutsideCanvas was added
+    // No blocks need to be modified to upgrade to version 12.
+    12: "noUpgrade",
+
+    //  BackgroundImageinBase64 was added
+    // No blocks need to be modified to upgrade to version 13.
+    13: "noUpgrade"
 
   }, // End Canvas upgraders
 
@@ -1572,7 +1587,11 @@ Blockly.Versioning.AllUpgradeMaps =
     2: "noUpgrade",
 
     // Scaling property was added (but not in use yet)
-    3: "noUpgrade"
+    3: "noUpgrade",
+
+    // Click event was added
+    // The Clickable property was added.
+    4: "noUpgrade"
 
   }, // End Image upgraders
 
@@ -1648,7 +1667,9 @@ Blockly.Versioning.AllUpgradeMaps =
     3: "noUpgrade",
 
     // AI2: Add HTMLFormat property
-    4: "noUpgrade"
+    4: "noUpgrade",
+
+    5: "noUpgrade"
 
   }, // End Label upgraders
 
@@ -1786,7 +1807,22 @@ Blockly.Versioning.AllUpgradeMaps =
     25: "noUpgrade",
 
     // AI2: In BLOCKS_LANGUAGE_VERSION 26, Added generic event handlers
-    26: "noUpgrade"
+    26: "noUpgrade",
+
+    // AI2: In BLOCKS_LANGUAGE_VERSION 27, Added not-equal to text compare block
+    27: "noUpgrade",
+
+    // AI2: Added dictionaries
+    28: "noUpgrade",
+
+    // AI2: Added "for each in dictionary" block.
+    29: "noUpgrade",
+
+    // AI2: In BLOCKS_LANGUAGE_VERSION 30, The Reverse Text block was added
+    30: "noUpgrade",
+
+    // AI2: Added "replace all mappings" block
+    31: "noUpgrade"
 
   }, // End Language upgraders
 
@@ -1884,11 +1920,39 @@ Blockly.Versioning.AllUpgradeMaps =
 
   }, // End Map upgraders
 
+  "Circle": {
+    // AI2:
+    // - The FillOpacity and StrokeOpacity properties were added
+    2: "noUpgrade"
+  }, // End Circle upgraders
+
+  "LineString": {
+    // AI2:
+    // - The StrokeOpacity property was added
+    2: "noUpgrade"
+  }, // End LineString upgraders
+
   "Marker": {
     // AI2:
     // - The ShowShadow property was removed
-    2: "noUpgrade"
+    2: "noUpgrade",
+
+    // AI2:
+    // - The FillOpacity and StrokeOpacity properties were added
+    3: "noUpgrade"
   }, // End Marker upgraders
+
+  "Polygon": {
+    // AI2:
+    // - The FillOpacity and StrokeOpacity properties were added
+    2: "noUpgrade"
+  }, // End Polygon upgraders
+
+  "Rectangle": {
+    // AI2:
+    // - The FillOpacity and StrokeOpacity properties were added
+    2: "noUpgrade"
+  }, // End Rectangle upgraders
 
   "NearField": {
 
@@ -2081,7 +2145,10 @@ Blockly.Versioning.AllUpgradeMaps =
 
     // AI2: The step sensing algorithm was updated to be more accurate.
     // The GPS related functionality was removed.
-    2: "noUpgrade"
+    2: "noUpgrade",
+
+    // AI2: The Resume and Pause methods were removed.
+    3: "noUpgrade"
 
   }, // End PhoneCall upgraders
 
@@ -2264,7 +2331,19 @@ Blockly.Versioning.AllUpgradeMaps =
 
     // For FORM_COMPONENT_VERSION 24:
     // - The AskForPermissions method, PermissionDenied event, and PermissionGranted event were added. No blocks need to be changed.
-    24: "noUpgrade"
+    24: "noUpgrade",
+
+    // For FORM_COMPONENT_VERSION 25:
+    // - Sizing default value changed from Fixed to Responsive
+    25: "noUpgrade",
+
+    // For FORM_COMPONENT_VERISON 26:
+    // - ShowListsAsJson default value changed from False to True
+    26: "noUpgrade",
+
+    // For FORM_COMPONENT_VERSION 27:
+    // - Platform and PlatformVersion read-only blocks were added
+    27: "noUpgrade"
 
 
   }, // End Screen
@@ -2359,7 +2438,10 @@ Blockly.Versioning.AllUpgradeMaps =
     4: "noUpgrade",
 
     // AI2: Added RequestFocus method
-    5: "noUpgrade"
+    5: "noUpgrade",
+
+    // AI3: Added ReadOnly property
+    6: "noUpgrade"
 
   }, // End TextBox upgraders
 
@@ -2565,9 +2647,15 @@ Blockly.Versioning.AllUpgradeMaps =
 
     // AI2: Added method XMLTextDecode
     4: "noUpgrade",
-      
+
     // AI2: Added method UriDecode
-    5: "noUpgrade"
+    5: "noUpgrade",
+
+    // AI2: Added property Timeout and event TimedOut
+    6: "noUpgrade",
+
+    // AI2: Added methods JsonTextDecodeWithDictionaries and XMLTextDecodeAsDictionary
+    7: "noUpgrade"
 
   }, // End Web upgraders
 
@@ -2591,7 +2679,16 @@ Blockly.Versioning.AllUpgradeMaps =
     6: "noUpgrade",
 
     // AI2: Added WebViewStringChange
-    7: "noUpgrade"
+    7: "noUpgrade",
+
+    //AI2: Added PageLoaded
+    8: "noUpgrade",
+      
+    // AI2: Added BeforePageLoad event and Stop, Reload, and ClearCookies methods
+    9: "noUpgrade",
+
+    // AI2: Added ErrorOccurred event and RunJavaScript method
+    10: "noUpgrade"
 
   }, // End WebViewer upgraders
 

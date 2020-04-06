@@ -132,13 +132,12 @@ Blockly.Blocks['lexical_variable_get'] = {
     Blockly.LexicalVariable.eventParamDomToMutation(this, xmlElement);
   },
   getVars: function() {
-    return this.getFieldValue('VAR');
+    return [this.getFieldValue('VAR')];
   },
   renameLexicalVar: function(oldName, newName) {
     // console.log("Renaming lexical variable from " + oldName + " to " + newName);
     if (oldName === this.getFieldValue('VAR')) {
         this.setFieldValue(newName, 'VAR');
-        Blockly.Blocks.Utilities.renameCollapsed(this, 0);
     }
   },
   renameFree: function (freeSubstitution) {
@@ -194,7 +193,7 @@ Blockly.Blocks['lexical_variable_set'] = {
     Blockly.LexicalVariable.eventParamDomToMutation(this, xmlElement);
   },
   getVars: function() {
-    return this.getFieldValue('VAR');
+    return [this.getFieldValue('VAR')];
   },
   renameLexicalVar: Blockly.Blocks.lexical_variable_get.renameLexicalVar,
   renameFree: function (freeSubstitution) {
