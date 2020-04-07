@@ -1830,7 +1830,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * maximum transmission unit (MTU) to a different value. This event will only run in response
    * to a call to the method block RequestMTU.
    *
-   * __ Parameters__:
+   * __Parameters__:
    *
    *   * <code>bytes</code> (<a href="">_number_</a>) &mdash;
    *     The new size, in bytes, of the new MTU.
@@ -1847,6 +1847,13 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
     });
   }
 
+  /**
+   * Instructs the BluetoothLE component to terminate strings with a null byte (true) or not (false)
+   * when sending string data to a connected device.
+   *
+   * @param terminate true if strings should be terminated with a null character when sent to the
+   *                  connected Bluetooth low energy device.
+   */
   @DesignerProperty(defaultValue = "True", editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN)
   @SimpleProperty
   public void NullTerminateStrings(boolean terminate) {
@@ -1863,6 +1870,10 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
     return false;
   }
 
+  /**
+   * Initiates a read of the connected device's Received Signal Strength Indicator (RSSI). The
+   * resulting value will be reported via the RssiChanged event.
+   */
   @SimpleFunction
   public void ReadConnectedRssi() {
     if (inner != null) {
