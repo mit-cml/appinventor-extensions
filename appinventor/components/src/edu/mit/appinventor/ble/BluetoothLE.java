@@ -1,9 +1,13 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2015-2017 MIT, All rights reserved
+// Copyright 2015-2020 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
 package edu.mit.appinventor.ble;
+
+import static android.Manifest.permission.ACCESS_FINE_LOCATION;
+import static android.Manifest.permission.BLUETOOTH;
+import static android.Manifest.permission.BLUETOOTH_ADMIN;
 
 import android.app.Activity;
 
@@ -45,10 +49,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
-import static android.Manifest.permission.ACCESS_COARSE_LOCATION;
-import static android.Manifest.permission.BLUETOOTH;
-import static android.Manifest.permission.BLUETOOTH_ADMIN;
-
 /**
  * @author Andrew McKinney (mckinney@mit.edu)
  * @author Cristhian Ulloa (cristhian2ulloa@gmail.com)
@@ -56,7 +56,7 @@ import static android.Manifest.permission.BLUETOOTH_ADMIN;
  * @author William Byrne (will2596@gmail.com) (minor bugfixes)
  * @author Evan W. Patton (ewpatton@mit.edu)
  */
-@DesignerComponent(version = 20190701,
+@DesignerComponent(version = 20200423,
     description = "Bluetooth Low Energy, also referred to as Bluetooth LE " +
         "or simply BLE, is a new communication protocol similar to classic Bluetooth except " +
         "that it is designed to consume less power while maintaining comparable " +
@@ -70,7 +70,7 @@ import static android.Manifest.permission.BLUETOOTH_ADMIN;
     helpUrl = "http://iot.appinventor.mit.edu/#/bluetoothle/bluetoothleintro",
     iconName = "images/bluetooth.png")
 @SimpleObject(external = true)
-@UsesPermissions({ BLUETOOTH, BLUETOOTH_ADMIN, ACCESS_COARSE_LOCATION })
+@UsesPermissions({ BLUETOOTH, BLUETOOTH_ADMIN, ACCESS_FINE_LOCATION })
 public class BluetoothLE extends AndroidNonvisibleComponent implements Component, Deleteable {
   public static final int ERROR_DEVICE_INDEX_OOB = 9101;
   public static final int ERROR_SERVICE_INDEX_OOB = 9102;

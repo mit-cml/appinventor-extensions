@@ -5,7 +5,8 @@
 
 package edu.mit.appinventor.ble;
 
-import android.Manifest;
+import static android.Manifest.permission.ACCESS_FINE_LOCATION;
+
 import android.os.Build;
 import com.google.appinventor.components.runtime.Form;
 import com.google.appinventor.components.runtime.PermissionResultHandler;
@@ -24,7 +25,7 @@ class SDK26Helper {
   }
 
   static void askForPermission(final BluetoothLE ble, final Runnable next) {
-    ble.getForm().askPermission(Manifest.permission.ACCESS_COARSE_LOCATION, new PermissionResultHandler() {
+    ble.getForm().askPermission(ACCESS_FINE_LOCATION, new PermissionResultHandler() {
       @Override
       public void HandlePermissionResponse(String permission, boolean granted) {
         if (granted) {
