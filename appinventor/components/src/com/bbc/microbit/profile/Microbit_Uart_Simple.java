@@ -1,5 +1,5 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright © 2017 Massachusetts Institute of Technology, All rights reserved.
+// Copyright © 2017-2020 Massachusetts Institute of Technology, All rights reserved.
 
 package com.bbc.microbit.profile;
 
@@ -16,41 +16,67 @@ import com.google.appinventor.components.runtime.EventDispatcher;
 import com.google.appinventor.components.runtime.Form;
 import com.google.appinventor.components.runtime.util.ErrorMessages;
 import edu.mit.appinventor.ble.BluetoothLE;
+import edu.mit.appinventor.ble.BluetoothLE.BluetoothConnectionListener;
 
 import java.util.List;
 
-@DesignerComponent(version = 1,
-    description = "The <code>Microbit_Uart</code> sensor provides the ability " +
+@DesignerComponent(version = 20200518,
+    description = "The <code>Microbit_Uart_Simple</code> sensor provides the ability " +
         "to read from and write strings to the BBC micro:bit's serial UART port.",
     category = ComponentCategory.EXTENSION,
     nonVisible = true,
     helpUrl = "http://iot.appinventor.mit.edu/#/microbit/microbituart",
     iconName = "aiwebres/microbit.png")
 @SimpleObject(external = true)
-public class Microbit_Uart extends AndroidNonvisibleComponent {
+public class Microbit_Uart_Simple extends AndroidNonvisibleComponent {
   private BluetoothLE bleConnection = null;
 
   private static final String UART_SERVICE_UUID = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E";
-  private static final String TX_CHARACTERISTIC_CHARACTERISTIC_UUID = "6E400002-B5A3-F393-E0A9-E50E24DCCA9E";
-  private static final String RX_CHARACTERISTIC_CHARACTERISTIC_UUID = "6E400003-B5A3-F393-E0A9-E50E24DCCA9E";
+  private static final String TX_CHARACTERISTIC_CHARACTERISTIC_UUID =
+      "6E400002-B5A3-F393-E0A9-E50E24DCCA9E";
+  private static final String RX_CHARACTERISTIC_CHARACTERISTIC_UUID =
+      "6E400003-B5A3-F393-E0A9-E50E24DCCA9E";
 
-  private final BluetoothLE.BLEResponseHandler<Integer> txCharacteristicHandler =
-      new BluetoothLE.BLEResponseHandler<Integer>() {
+  private final BluetoothLE.BLEResponseHandler<String> txCharacteristicHandler =
+      new BluetoothLE.BLEResponseHandler<String>() {
         @Override
-        public void onReceive(String serviceUuid, String characteristicUuid, List<Integer> values) {
-          TXCharacteristicReceived(values);
+        public void onReceive(String serviceUuid, String characteristicUuid, List<String> values) {
+          String message = "";
+          if (values != null && values.size() > 0) {
+            message = values.get(0);
+          }
+          MessageReceived(message);
         }
       };
 
-  private final BluetoothLE.BLEResponseHandler<Integer> rXCharacteristicWriteHandler =
-      new BluetoothLE.BLEResponseHandler<Integer>() {
+  private final BluetoothLE.BLEResponseHandler<String> rXCharacteristicWriteHandler =
+      new BluetoothLE.BLEResponseHandler<String>() {
         @Override
-        public void onWrite(String serviceUuid, String characteristicUuid, List<Integer> values) {
-          WroteRXCharacteristic(values);
+        public void onWrite(String serviceUuid, String characteristicUuid, List<String> values) {
+          String message = "";
+          if (values != null && values.size() > 0) {
+            message = values.get(0);
+          }
+          MessageSent(message);
         }
       };
 
-  public Microbit_Uart(Form form) {
+  private final BluetoothLE.BluetoothConnectionListener listener =
+      new BluetoothConnectionListener() {
+        @Override
+        public void onConnected(BluetoothLE bleConnection) {
+          bleConnection.ExRegisterForStringValues(UART_SERVICE_UUID,
+              TX_CHARACTERISTIC_CHARACTERISTIC_UUID, false, txCharacteristicHandler);
+        }
+
+        @Override
+        public void onDisconnected(BluetoothLE bleConnection) {
+          bleConnection.ExUnregisterForValues(UART_SERVICE_UUID,
+              TX_CHARACTERISTIC_CHARACTERISTIC_UUID, txCharacteristicHandler);
+        }
+      };
+
+  public Microbit_Uart_Simple(Form form) {
     super(form);
   }
 
@@ -58,10 +84,18 @@ public class Microbit_Uart extends AndroidNonvisibleComponent {
    * The BluetoothLE component connected to the micro:bit device (setter).
    * @param bluetoothLE the BluetoothLE device
    */
-  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_COMPONENT + ":edu.mit.appinventor.ble.BluetoothLE")
+  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_COMPONENT +
+      ":edu.mit.appinventor.ble.BluetoothLE")
   @SimpleProperty
   public void BluetoothDevice(BluetoothLE bluetoothLE) {
-    bleConnection = bluetoothLE;  }
+    if (bleConnection != null) {
+      bleConnection.removeConnectionListener(listener);
+    }
+    bleConnection = bluetoothLE;
+    if (bleConnection != null) {
+      bleConnection.addConnectionListener(listener);
+    }
+  }
 
   /**
    * The BluetoothLE component connected to the micro:bit device (getter).
@@ -72,50 +106,20 @@ public class Microbit_Uart extends AndroidNonvisibleComponent {
     return bleConnection;
   }
 
-
-  /**
-   * Requests notifications of messages received from the micro:bit's serial UART. New messages will
-   * be received through the
-   * <a href='#TXCharacteristicReceived'><code>TXCharacteristicReceived</code></a>
-   * event.
-   */
-  @SimpleFunction
-  public void RequestTXCharacteristic() {
-    if (bleConnection != null) {
-      bleConnection.ExRegisterForByteValues(UART_SERVICE_UUID, TX_CHARACTERISTIC_CHARACTERISTIC_UUID, false, txCharacteristicHandler);
-    } else {
-      reportNullConnection("RequestTXCharacteristic");
-    }
-  }
-
-  /**
-   * Stops receiving updates from the micro:bit's serial UART. Note that there may be pending
-   * messages from the device that will still be reported through the
-   * <a href='#TXCharacteristicReceived'><code>TXCharacteristicReceived</code></a> event.
-   */
-  @SimpleFunction
-  public void StopTXCharacteristicUpdates() {
-    if (bleConnection != null) {
-      bleConnection.ExUnregisterForValues(UART_SERVICE_UUID, TX_CHARACTERISTIC_CHARACTERISTIC_UUID, txCharacteristicHandler);
-    } else {
-      reportNullConnection("StopTXCharacteristicUpdates");
-    }
-  }
-
   /**
    * The <code>TXCharacteristicReceived</code> event is run whenever messages are received over the
    * micro:bit's serial UART protocol.
    *
    * __Parameters__:
    *
-   *     * <code>UART_TX_FIELD</code> (<a href="http://appinventor.mit.edu/explore/ai2/support/blocks/listsU.html#makealist">_list_</a>) &mdash;
+   *     * <code>message</code> (<a href="http://appinventor.mit.edu/explore/ai2/support/blocks/listsU.html#makealist">_list_</a>) &mdash;
    *       A list of unsigned byte values read from the device.
    *
-   * @param UART_TX_Field A list of unsigned byte values read from the device.
+   * @param message the message received from the micro:bit
    */
   @SimpleEvent
-  public void TXCharacteristicReceived(final List<Integer> UART_TX_Field) {
-    EventDispatcher.dispatchEvent(this, "TXCharacteristicReceived", UART_TX_Field);
+  public void MessageReceived(final String message) {
+    EventDispatcher.dispatchEvent(this, "MessageReceived", message);
   }
 
   /**
@@ -131,16 +135,17 @@ public class Microbit_Uart extends AndroidNonvisibleComponent {
    *       numbers will be sent as 32-bit integers. Lists of values will be converted into be
    *       converted into a sequence of bytes depending on the type of each value in the list.
    *
-   * @param UART_TX The value to transmit to the RX "pin" of the micro:bit. Strings will be encoded as UTF-8,
-   *       numbers will be sent as 32-bit integers. Lists of values will be converted into be
-   *       converted into a sequence of bytes depending on the type of each value in the list.
+   * @param message The value to transmit to the RX "pin" of the micro:bit. Strings will be encoded
+   *       as UTF-8, numbers will be sent as 32-bit integers. Lists of values will be converted into
+   *       be converted into a sequence of bytes depending on the type of each value in the list.
    */
   @SimpleFunction
-  public void WriteRXCharacteristic(Object UART_TX) {
+  public void SendMessage(String message) {
     if (bleConnection != null) {
-      bleConnection.ExWriteByteValuesWithResponse(UART_SERVICE_UUID, RX_CHARACTERISTIC_CHARACTERISTIC_UUID, false, UART_TX, rXCharacteristicWriteHandler);
+      bleConnection.ExWriteStringValuesWithResponse(UART_SERVICE_UUID,
+          RX_CHARACTERISTIC_CHARACTERISTIC_UUID, false, message, rXCharacteristicWriteHandler);
     } else {
-      reportNullConnection("WriteRXCharacteristic");
+      reportNullConnection("SendMessage");
     }
   }
 
@@ -153,15 +158,16 @@ public class Microbit_Uart extends AndroidNonvisibleComponent {
    *     * <code>UART_TX_FIELD</code> (<a href="http://appinventor.mit.edu/explore/ai2/support/blocks/listsU.html#makealist">_list_</a>) &mdash;
    *       A list of unsigned byte values written to the device.
    *
-   * @param UART_TX_Field A list of unsigned byte values written to the device.
+   * @param message A list of unsigned byte values written to the device.
    */
   @SimpleEvent
-  public void WroteRXCharacteristic(final List<Integer> UART_TX_Field) {
-    EventDispatcher.dispatchEvent(this, "WroteRXCharacteristic", UART_TX_Field);
+  public void MessageSent(final String message) {
+    EventDispatcher.dispatchEvent(this, "MessageSent", message);
   }
 
+  @SuppressWarnings("SameParameterValue")
   private void reportNullConnection(String functionName) {
     form.dispatchErrorOccurredEvent(this, functionName, ErrorMessages.ERROR_EXTENSION_ERROR,
-        1, Microbit_Uart.class.getSimpleName(), "BluetoothDevice is not set");
+        1, Microbit_Uart_Simple.class.getSimpleName(), "BluetoothDevice is not set");
   }
 }
