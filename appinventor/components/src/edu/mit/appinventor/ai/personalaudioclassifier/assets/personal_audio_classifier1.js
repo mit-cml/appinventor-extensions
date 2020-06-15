@@ -16,10 +16,7 @@ const IMAGE_SIZE = 200;
 // make sure error codes are consistent with those defined in PersonalImageClassifier.java
 const ERROR_CLASSIFICATION_NOT_SUPPORTED = -1;
 const ERROR_CLASSIFICATION_FAILED = -2;
-const ERROR_CANNOT_TOGGLE_CAMERA_IN_IMAGE_MODE = -3;
-const ERROR_CANNOT_CLASSIFY_IMAGE_IN_VIDEO_MODE = -4;
-const ERROR_CANNOT_CLASSIFY_VIDEO_IN_IMAGE_MODE = -5;
-const ERROR_INVALID_INPUT_MODE = -6;
+const ERROR_CANNOT_CREATE_SPECTROGRAM = -10;
 
 // Inputs are passed through an activation of the transfer before being fed into
 // the user provided model
@@ -58,7 +55,7 @@ recordButton.addEventListener("click", startRecording);
 function startRecording() {
   console.log("recordButton clicked");
   recordButton.className = "recording";
-  var constraints = { audio: true, video:false }
+  var constraints = {audio: true, video: false}
 
   /*
       Disable the record button until we get a success or fail from getUserMedia()
@@ -75,7 +72,7 @@ function startRecording() {
   */
 
 
-  navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {
+  navigator.mediaDevices.getUserMedia(constraints).then(function (stream) {
     console.log("getUserMedia() success, stream created, initializing Recorder.js ...");
 
     /*
@@ -100,40 +97,24 @@ function startRecording() {
       Create the Recorder object and configure to record mono sound (1 channel)
       Recording 2 channels  will double the file size
     */
-    rec = new Recorder(input,{numChannels:1})
+    rec = new Recorder(input, {numChannels: 1})
 
     //start the recording process
     rec.record()
 
     console.log("Recording started");
 
-    setTimeout(function() {
+    setTimeout(function () {
       stopRecording()
-  }, 1500)
+    }, 1500)
 
-  }).catch(function(err) {
-      //enable the record button if getUserMedia() fails
-      console.log(err)
-      console.log("getUserMedia() failed...")
-      recordButton.disabled = false;
-      // stopButton.disabled = true;
-      // pauseButton.disabled = true
+  }).catch(function (err) {
+    //enable the record button if getUserMedia() fails
+    console.log(err)
+    console.log("getUserMedia() failed...")
+    recordButton.disabled = false;
   });
 }
-
-// function pauseRecording(){
-//   console.log("pauseButton clicked rec.recording=",rec.recording );
-//   if (rec.recording){
-//     //pause
-//     rec.stop();
-//     pauseButton.innerHTML="Resume";
-//   }else{
-//     //resume
-//     rec.record()
-//     pauseButton.innerHTML="Pause";
-
-//   }
-// }
 
 function stopRecording() {
   console.log("stopButton clicked");
@@ -158,57 +139,59 @@ function stopRecording() {
 }
 
 function createDownloadLink(blob) {
-    var url = URL.createObjectURL(blob);
-    var au = document.createElement('audio');
-    // var li = document.createElement('li');
-    // var link = document.createElement('a');
-    //add controls to the <audio> element
-    au.controls = true;
-    au.src = url;
-    //link the a element to the blob
-    // link.href = url;
-    // link.download = new Date().toISOString() + '.wav';
-    // link.innerHTML = link.download;
-    //add the new audio and a elements to the li element
+  var url = URL.createObjectURL(blob);
+  var au = document.createElement('audio');
+  // var li = document.createElement('li');
+  // var link = document.createElement('a');
+  //add controls to the <audio> element
+  au.controls = true;
+  au.src = url;
+  //link the a element to the blob
+  // link.href = url;
+  // link.download = new Date().toISOString() + '.wav';
+  // link.innerHTML = link.download;
+  //add the new audio and a elements to the li element
 
-    // li.appendChild(au);
-    // li.appendChild(link);
-    //add the li element to the ordered list
-    while (recordingsList.firstChild) {
-      recordingsList.removeChild(recordingsList.firstChild);
+  // li.appendChild(au);
+  // li.appendChild(link);
+  //add the li element to the ordered list
+  while (recordingsList.firstChild) {
+    recordingsList.removeChild(recordingsList.firstChild);
+  }
+  recordingsList.appendChild(au);
+
+  // getSpectrogram(blob)
+
+  getSpectrogram(blob).then(reader => {
+    reader.onload = async () => {
+      let result = reader.result;
+      // console.log("IMAGE STATE UPDATED")
+      // this.setState({image: result});
+      console.log("Got spectrogram from backend!")
+      console.log(result)
+
+      await classifyImageData(result)
+
+
+      //
+      // var canvas = document.createElement('canvas')
+      // var ctx = canvas.getContext('2d');
+      //
+      // canvas.width = 200;
+      // canvas.height = 200;
+      //
+      // var img = new Image;
+      // img.onload = function(){
+      //   ctx.drawImage(img,0,0); // Or at whatever offset you like
+      // };
+      // img.src = result;
+      // document.body.appendChild(canvas)
+
     }
-    recordingsList.appendChild(au);
-
-    // getSpectrogram(blob)
-
-    getSpectrogram(blob).then(reader => {
-        reader.onload = async () => {
-            let result = reader.result;
-            // console.log("IMAGE STATE UPDATED")
-            // this.setState({image: result});
-            console.log("Got spectrogram from backend!")
-            console.log(result)
-
-            await classifyImageData(result)
-
-
-
-            //
-            // var canvas = document.createElement('canvas')
-            // var ctx = canvas.getContext('2d');
-            //
-            // canvas.width = 200;
-            // canvas.height = 200;
-            //
-            // var img = new Image;
-            // img.onload = function(){
-            //   ctx.drawImage(img,0,0); // Or at whatever offset you like
-            // };
-            // img.src = result;
-            // document.body.appendChild(canvas)
-
-        }
-    })
+  }).catch(error => {
+    PersonalAudioClassifier.error(ERROR_CANNOT_CREATE_SPECTROGRAM,
+      "Failed to create spectrogram: " + error);
+  });
 }
 
 
@@ -232,102 +215,31 @@ async function loadModelFile(url, json) {
 }
 
 // From https://stackoverflow.com/questions/27159179/how-to-convert-blob-to-file-in-javascript
-function blobToFile(blob, fileName){
-    // A Blob() is almost a File() - it's just missing the two properties below which we will add
-    blob.lastModifiedDate = new Date();
-    blob.name = fileName;
-    return blob;
+function blobToFile(blob, fileName) {
+  // A Blob() is almost a File() - it's just missing the two properties below which we will add
+  blob.lastModifiedDate = new Date();
+  blob.name = fileName;
+  return blob;
 }
-
-// function b64ToBlob(b64Data, contentType='', sliceSize=512) {
-//     const byteCharacters = atob(b64Data);
-//     const byteArrays = [];
-
-//     for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
-//       const slice = byteCharacters.slice(offset, offset + sliceSize);
-
-//       const byteNumbers = new Array(slice.length);
-//       for (let i = 0; i < slice.length; i++) {
-//         byteNumbers[i] = slice.charCodeAt(i);
-//       }
-
-//       const byteArray = new Uint8Array(byteNumbers);
-//       byteArrays.push(byteArray);
-//     }
-
-//     const blob = new Blob(byteArrays, {type: contentType});
-//     return blob;
-// }
 
 async function getSpectrogram(blob) {
 
-    // const spectrogram = require('./spectrogram/spectrogram');
+  // const spectrogram = require('./spectrogram/spectrogram');
 
-    //get blob from encoded sound
+  //get blob from encoded sound
 
-    console.log("PersonalAudioClassifier: " + "Audio Blob:")
-    console.log(blob)
+  console.log("PersonalAudioClassifier: " + "Audio Blob:")
+  console.log(blob)
 
-    const response = await fetch('https://c1.appinventor.mit.edu:5000/spectrogram', {
-        method: 'POST',
-        body: blob
-    });
-    const resultBlob = await response.blob()
-    // let matrixBlob = new Blob([res.data], {type:"image/png"});
-    let reader = new FileReader();
-    reader.readAsDataURL(resultBlob);
-    return reader;
-
-
-
-    //
-    // var spectro = Spectrogram(canvas, {
-    //     audio: {
-    //         enable: false
-    //     },
-    //     colors: (steps) => {
-    //         var baseColors = [[65,65,90,1], [0,255,255,1], [0,255,0,1], [255,255,0,1], [ 255,0,0,1]];
-    //         var positions = [0, 0.15, 0.30, 0.50, 0.75];
-    //
-    //         var scale = new chroma.scale(baseColors, positions)
-    //         .domain([0, steps]);
-    //
-    //         var colors = [];
-    //
-    //         for (var i = 0; i < steps; ++i) {
-    //           var color = scale(i);
-    //           colors.push(color.hex());
-    //         }
-    //
-    //         return colors;
-    //       }
-    // });
-    //
-    // var audioContext = new AudioContext({sampleRate: 384000});
-    // var request = new XMLHttpRequest();
-    // // request.open('GET', URL.createObjectURL(recordedBlob.blob), true);
-    // request.open('GET', URL.createObjectURL(blob), true);
-    // request.responseType = 'arraybuffer';
-    //
-    // request.onload = () => {
-    //     audioContext.decodeAudioData(request.response, (buffer) => {
-    //         spectro.connectSource(buffer, audioContext);
-    //         var canvasPromise = new Promise(function(resolve, reject) {
-    //             spectro.start(0, resolve);
-    //         })
-    //         canvasPromise.then(async () => {
-    //             console.log("PersonalAudioClassifier: " + "Promise Resolved, calling report result")
-    //             var dataURL = canvas.toDataURL();
-    //             // this.props.handleNewImage(dataURL, this.state.currentLabel)
-    //             console.log("Spectrogram output:")
-    //             console.log(JSON.stringify(dataURL))
-    //
-    //             await classifyImageData(dataURL)
-    //             // PersonalAudioClassifier.reportSpectrogram(JSON.stringify(dataURL));
-    //         })
-    //     });
-    // };
-    // request.send();
+  const response = await fetch('https://c1.appinventor.mit.edu/spectrogram', {
+    method: 'POST',
+    body: blob
+  });
+  const resultBlob = await response.blob()
+  // let matrixBlob = new Blob([res.data], {type:"image/png"});
+  let reader = new FileReader();
+  reader.readAsDataURL(resultBlob);
+  return reader;
 }
 
 const loadModel = async () => {
@@ -340,22 +252,6 @@ const loadModel = async () => {
     console.log(transferModel)
 
     // Loads the user's personal model
-    // console.log("personal fetch (loadModelFile): " + PERSONAL_MODEL_PREFIX + PERSONAL_MODEL_JSON_SUFFIX)
-    // const modelTopologyBlob = await loadModelFile(PERSONAL_MODEL_PREFIX + PERSONAL_MODEL_JSON_SUFFIX, false);
-    // console.log("personal fetch (loadModelFile) successful")
-    // console.log(modelTopologyBlob)
-    //
-    // const modelTopologyFile = blobToFile(modelTopologyBlob, PERSONAL_MODEL_JSON_SUFFIX);
-    // console.log(modelTopologyFile)
-
-    // const modelWeightsBlob = await loadModelFile(PERSONAL_MODEL_PREFIX + PERSONAL_MODEL_WEIGHTS_SUFFIX, false);
-    // console.log(modelWeightsBlob)
-    //
-    // const modelWeightsFile = blobToFile(modelWeightsBlob, PERSONAL_MODEL_WEIGHTS_SUFFIX);
-    // console.log(modelWeightsFile)
-
-    // model = await tf.loadLayersModel(tf.io.browserFiles([modelTopologyFile, modelWeightsFile]));
-    // console.log(model)
     model = await tf.loadLayersModel(PERSONAL_MODEL_PREFIX + PERSONAL_MODEL_JSON_SUFFIX, true);
     console.log("personal model fetch successful")
     console.log(model)
@@ -364,19 +260,12 @@ const loadModel = async () => {
     modelLabels = await loadModelFile(PERSONAL_MODEL_PREFIX + PERSONAL_MODEL_LABELS_SUFFIX, true);
     console.log(modelLabels)
 
-    // topk_predictions = Math.min(3, Object.keys(modelLabels).length);
-    // console.log(topk_predictions)
-    //
-    // const zeros = tf.zeros([1, IMAGE_SIZE, IMAGE_SIZE, 3]);
-    // console.log(zeros)
-    //
-    // transferModel.predict(zeros).dispose();
-    // zeros.dispose();
     console.log("PersonalAudioClassifier: transfer model activation and personal model are ready");
     PersonalAudioClassifier.ready();
   } catch (error) {
     console.log("PersonalAudioClassifier: " + error);
-    PersonalAudioClassifier.error(ERROR_CLASSIFICATION_NOT_SUPPORTED);
+    PersonalAudioClassifier.error(ERROR_CLASSIFICATION_NOT_SUPPORTED,
+      "Classification not supported: " + error);
   }
 };
 
@@ -416,53 +305,8 @@ async function predict(pixels) {
     PersonalAudioClassifier.reportResult(JSON.stringify(result));
   } catch (error) {
     console.log("PersonalAudioClassifier: " + error);
-    PersonalAudioClassifier.error(ERROR_CLASSIFICATION_NOT_SUPPORTED);
-  }
-}
-
-var img = document.createElement("img");
-img.width = window.innerWidth;
-img.style.display = "block";
-
-var video = document.createElement("video");
-video.setAttribute("autoplay", "");
-video.setAttribute("playsinline", "");
-video.width = window.innerWidth;
-video.style.display = "none";
-
-var frontFacing = false;
-var isVideoMode = false;
-
-document.body.appendChild(img);
-document.body.appendChild(video);
-
-video.addEventListener("loadedmetadata", function() {
-  video.height = this.videoHeight * video.width / this.videoWidth;
-}, false);
-
-function startVideo() {
-  if (isVideoMode) {
-    navigator.mediaDevices.getUserMedia({video: {facingMode: frontFacing ? "user" : "environment"}, audio: false})
-    .then(stream => (video.srcObject = stream))
-    .catch(e => log(e));
-    video.style.display = "block";
-  }
-}
-
-function stopVideo() {
-  if (isVideoMode && video.srcObject) {
-    video.srcObject.getTracks().forEach(t => t.stop());
-    video.style.display = "none";
-  }
-}
-
-function toggleCameraFacingMode() {
-  if (isVideoMode) {
-    frontFacing = !frontFacing;
-    stopVideo();
-    startVideo();
-  } else {
-    PersonalAudioClassifier.error(ERROR_CANNOT_TOGGLE_CAMERA_IN_IMAGE_MODE);
+    PersonalAudioClassifier.error(ERROR_CLASSIFICATION_NOT_SUPPORTED,
+      "Failed to predict: " + error);
   }
 }
 
@@ -485,69 +329,33 @@ async function classifyImageData(imageURL) {
 
   var result = []
   for (var place = 0; place < ranks.length; place++) {
-      var who = ranks[place]
-      var label = modelLabels[who]
-      var conf = confidences[place]
-      result.push([label, conf])
+    var who = ranks[place]
+    var label = modelLabels[who]
+    var conf = confidences[place]
+    result.push([label, conf])
   }
 
   console.log(result)
 
   PersonalAudioClassifier.reportResult(JSON.stringify(result));
-
-
-  // img.onload = function() {
-  //     predict(img);
-  // }
-  // img.src = imageURL
-
-
 }
 
 async function convertImg(imgUrl) {
-    const load = () => new Promise((resolve, reject) => {
-        var img = new Image()
-        img.onload = () => {
-          resolve({img})
-        }
-        img.src = imgUrl
-        img.width = 200;
-        img.height = 200;
-      });
+  const load = () => new Promise((resolve, reject) => {
+    var img = new Image()
+    img.onload = () => {
+      resolve({img})
+    }
+    img.onerror = reject;
+    img.src = imgUrl
+    img.width = 200;
+    img.height = 200;
+  });
 
-    const {img} = await load()
+  const {img} = await load()
 
-    const trainImage = tf.browser.fromPixels(img).resizeNearestNeighbor([224,224]);
-    const trainImageNormalized =  trainImage.toFloat().div(tf.scalar(127)).sub(tf.scalar(1));
-    return trainImageNormalized;
+  const trainImage = tf.browser.fromPixels(img).resizeNearestNeighbor([224, 224]);
+  return trainImage.toFloat().div(tf.scalar(127)).sub(tf.scalar(1));
 }
-
-function classifyVideoData() {
-  if (isVideoMode) {
-    predict(video);
-  } else {
-    PersonalAudioClassifier.error(ERROR_CANNOT_CLASSIFY_VIDEO_IN_IMAGE_MODE);
-  }
-}
-
-function setInputMode(inputMode) {
-  if (inputMode === "image" && isVideoMode) {
-    stopVideo();
-    isVideoMode = false;
-    img.style.display = "block";
-  } else if (inputMode === "video" && !isVideoMode) {
-    img.style.display = "none";
-    isVideoMode = true;
-    startVideo();
-  } else if (inputMode !== "image" && inputMode !== "video") {
-    PersonalAudioClassifier.error(ERROR_INVALID_INPUT_MODE);
-  }
-}
-
-window.addEventListener("resize", function() {
-  img.width = window.innerWidth;
-  video.width = window.innerWidth;
-  video.height = video.videoHeight * window.innerWidth / video.videoWidth;
-});
 
 loadModel();

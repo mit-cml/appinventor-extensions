@@ -5,10 +5,10 @@
 
 package edu.mit.appinventor.ai.personalaudioclassifier;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.graphics.Bitmap;
-import android.graphics.drawable.BitmapDrawable;
+import android.os.Build;
 import android.util.Base64;
 import android.util.Log;
 import android.view.WindowManager.LayoutParams;
@@ -20,7 +20,6 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import com.google.appinventor.components.annotations.DesignerComponent;
 import com.google.appinventor.components.annotations.DesignerProperty;
-import com.google.appinventor.components.annotations.PropertyCategory;
 import com.google.appinventor.components.annotations.SimpleEvent;
 import com.google.appinventor.components.annotations.SimpleFunction;
 import com.google.appinventor.components.annotations.SimpleObject;
@@ -33,38 +32,28 @@ import com.google.appinventor.components.runtime.AndroidNonvisibleComponent;
 import com.google.appinventor.components.runtime.Component;
 import com.google.appinventor.components.runtime.EventDispatcher;
 import com.google.appinventor.components.runtime.Form;
+import com.google.appinventor.components.runtime.PermissionResultHandler;
+import com.google.appinventor.components.runtime.ReplForm;
 import com.google.appinventor.components.runtime.WebViewer;
 import com.google.appinventor.components.runtime.util.ErrorMessages;
 import com.google.appinventor.components.runtime.util.JsonUtil;
 import com.google.appinventor.components.runtime.util.MediaUtil;
 import com.google.appinventor.components.runtime.util.SdkLevel;
 import com.google.appinventor.components.runtime.util.YailList;
-import org.json.JSONArray;
-import org.json.JSONException;
-
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Array;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
-
-import java.io.File;
-import java.io.FileInputStream;
-
-import android.Manifest;
-import android.os.Build;
-import com.google.appinventor.components.runtime.Form;
-import com.google.appinventor.components.runtime.PermissionResultHandler;
-
-
+import org.json.JSONArray;
+import org.json.JSONException;
 
 /**
  * Component that classifies audio clips using a user trained model from the spectrogram audio classifier.
@@ -73,13 +62,13 @@ import com.google.appinventor.components.runtime.PermissionResultHandler;
  * @author nwbhatia@mit.edu (Nikhil Bhatia)
  */
 
-@DesignerComponent(version = 20190123,
-        category = ComponentCategory.EXTENSION,
-        description = "Component that classifies audio clips using a user trained model from the personal audio classifier",
-        iconName = "images/extension.png",
-        nonVisible = true)
+@DesignerComponent(version = 20200904,
+    category = ComponentCategory.EXTENSION,
+    description = "Component that classifies audio clips using a user trained model from the personal audio classifier",
+    iconName = "images/extension.png",
+    nonVisible = true)
 @SimpleObject(external = true)
-@UsesAssets(fileNames = "tfjs-0.13.2.js, tfjs-1.0.0.js, tfjs-1.5.2.js, tfjs-1.2.8.js, recorder1.js, chroma.js, spectrogram.js, personal_audio_classifier.html, personal_audio_classifier1.js, mobilenet_group1-shard1of1, mobilenet_group10-shard1of1, mobilenet_group11-shard1of1, mobilenet_group12-shard1of1, mobilenet_group13-shard1of1, mobilenet_group14-shard1of1, mobilenet_group15-shard1of1, mobilenet_group16-shard1of1, mobilenet_group17-shard1of1, mobilenet_group18-shard1of1, mobilenet_group19-shard1of1, mobilenet_group2-shard1of1, mobilenet_group20-shard1of1, mobilenet_group21-shard1of1, mobilenet_group22-shard1of1, mobilenet_group23-shard1of1, mobilenet_group24-shard1of1, mobilenet_group25-shard1of1, mobilenet_group26-shard1of1, mobilenet_group27-shard1of1, mobilenet_group28-shard1of1, mobilenet_group29-shard1of1, mobilenet_group3-shard1of1, mobilenet_group30-shard1of1, mobilenet_group31-shard1of1, mobilenet_group32-shard1of1, mobilenet_group33-shard1of1, mobilenet_group34-shard1of1, mobilenet_group35-shard1of1, mobilenet_group36-shard1of1, mobilenet_group37-shard1of1, mobilenet_group38-shard1of1, mobilenet_group39-shard1of1, mobilenet_group4-shard1of1, mobilenet_group40-shard1of1, mobilenet_group41-shard1of1, mobilenet_group42-shard1of1, mobilenet_group43-shard1of1, mobilenet_group44-shard1of1, mobilenet_group45-shard1of1, mobilenet_group46-shard1of1, mobilenet_group47-shard1of1, mobilenet_group48-shard1of1, mobilenet_group49-shard1of1, mobilenet_group5-shard1of1, mobilenet_group50-shard1of1, mobilenet_group51-shard1of1, mobilenet_group52-shard1of1, mobilenet_group53-shard1of1, mobilenet_group54-shard1of1, mobilenet_group55-shard1of1, mobilenet_group6-shard1of1, mobilenet_group7-shard1of1, mobilenet_group8-shard1of1, mobilenet_group9-shard1of1, mobilenet_model.json")
+@UsesAssets(fileNames = "tfjs-1.5.2.js, recorder1.js, chroma.js, spectrogram.js, personal_audio_classifier.html, personal_audio_classifier1.js, mobilenet_group1-shard1of1, mobilenet_group10-shard1of1, mobilenet_group11-shard1of1, mobilenet_group12-shard1of1, mobilenet_group13-shard1of1, mobilenet_group14-shard1of1, mobilenet_group15-shard1of1, mobilenet_group16-shard1of1, mobilenet_group17-shard1of1, mobilenet_group18-shard1of1, mobilenet_group19-shard1of1, mobilenet_group2-shard1of1, mobilenet_group20-shard1of1, mobilenet_group21-shard1of1, mobilenet_group22-shard1of1, mobilenet_group23-shard1of1, mobilenet_group24-shard1of1, mobilenet_group25-shard1of1, mobilenet_group26-shard1of1, mobilenet_group27-shard1of1, mobilenet_group28-shard1of1, mobilenet_group29-shard1of1, mobilenet_group3-shard1of1, mobilenet_group30-shard1of1, mobilenet_group31-shard1of1, mobilenet_group32-shard1of1, mobilenet_group33-shard1of1, mobilenet_group34-shard1of1, mobilenet_group35-shard1of1, mobilenet_group36-shard1of1, mobilenet_group37-shard1of1, mobilenet_group38-shard1of1, mobilenet_group39-shard1of1, mobilenet_group4-shard1of1, mobilenet_group40-shard1of1, mobilenet_group41-shard1of1, mobilenet_group42-shard1of1, mobilenet_group43-shard1of1, mobilenet_group44-shard1of1, mobilenet_group45-shard1of1, mobilenet_group46-shard1of1, mobilenet_group47-shard1of1, mobilenet_group48-shard1of1, mobilenet_group49-shard1of1, mobilenet_group5-shard1of1, mobilenet_group50-shard1of1, mobilenet_group51-shard1of1, mobilenet_group52-shard1of1, mobilenet_group53-shard1of1, mobilenet_group54-shard1of1, mobilenet_group55-shard1of1, mobilenet_group6-shard1of1, mobilenet_group7-shard1of1, mobilenet_group8-shard1of1, mobilenet_group9-shard1of1, mobilenet_model.json")
 @UsesPermissions(permissionNames = "android.permission.INTERNET, android.permission.CAMERA, android.permission.RECORD_AUDIO, android.permission.MODIFY_AUDIO_SETTINGS")
 public final class PersonalAudioClassifier extends AndroidNonvisibleComponent implements Component {
   private static final String LOG_TAG = PersonalAudioClassifier.class.getSimpleName();
@@ -95,10 +84,6 @@ public final class PersonalAudioClassifier extends AndroidNonvisibleComponent im
   // other error codes are defined in personal_image_classifier.js
   private static final int ERROR_CLASSIFICATION_NOT_SUPPORTED = -1;
   private static final int ERROR_CLASSIFICATION_FAILED = -2;
-  private static final int ERROR_CANNOT_TOGGLE_CAMERA_IN_IMAGE_MODE = -3;
-  private static final int ERROR_CANNOT_CLASSIFY_IMAGE_IN_VIDEO_MODE = -4;
-  private static final int ERROR_CANNOT_CLASSIFY_VIDEO_IN_IMAGE_MODE = -5;
-  private static final int ERROR_INVALID_INPUT_MODE = -6;
   private static final int ERROR_WEBVIEWER_REQUIRED = -7;
   private static final int ERROR_INVALID_MODEL_FILE = -8;
   private static final int ERROR_MODEL_REQUIRED = -9;
@@ -154,37 +139,26 @@ public final class PersonalAudioClassifier extends AndroidNonvisibleComponent im
               if (zipEntry.getName().equals(fileName)) {
                 int zipEntrySize = (int) zipEntry.getSize();
                 byte[] fileBytes = new byte[zipEntrySize];
-                
+
                 Log.d(LOG_TAG, "(length) zipEntrySize: " + zipEntrySize);
 
                 int start = 0;
                 int read = 0;
                 while ((read = zipInputStream.read(fileBytes, start, zipEntrySize)) > 0) {
-                    Log.d(LOG_TAG, "(in loop) start: " + start);
-                    Log.d(LOG_TAG, "(in loop) read: " + read);
-                    start += read;
-                    zipEntrySize -= read;
+                  Log.d(LOG_TAG, "(in loop) start: " + start);
+                  Log.d(LOG_TAG, "(in loop) read: " + read);
+                  start += read;
+                  zipEntrySize -= read;
                 }
                 Log.d(LOG_TAG, "(end) start: " + start);
                 Log.d(LOG_TAG, "(end) read: " + read);
-
-//                zipInputStream.read(fileBytes, 0, zipEntrySize);
-                
-//                Log.d(LOG_TAG, "LEN: " + Arrays.to);
-
-//                Log.d(LOG_TAG, "LEN: " + fileBytes.length);
-//                Log.d(LOG_TAG, "0: " + Array.getByte(fileBytes, 0));
-//                Log.d(LOG_TAG, "1: " + Array.getByte(fileBytes, 1));
-//                Log.d(LOG_TAG, "511: " + Array.getByte(fileBytes, 511));
-//                Log.d(LOG_TAG, "512: " + Array.getByte(fileBytes, 512));
-
 
                 file = new ByteArrayInputStream(fileBytes);
                 size = fileBytes.length;
                 break;
               }
             }
-            
+
             zipInputStream.close();
           }
 
@@ -197,7 +171,7 @@ public final class PersonalAudioClassifier extends AndroidNonvisibleComponent im
             } else {
               return new WebResourceResponse(contentType, charSet, file);
             }
-          }  
+          }
         } catch (IOException e) {
           e.printStackTrace();
           return super.shouldInterceptRequest(view, url);
@@ -211,9 +185,7 @@ public final class PersonalAudioClassifier extends AndroidNonvisibleComponent im
       @Override
       public void onPermissionRequest(PermissionRequest request) {
         Log.d(LOG_TAG, "onPermissionRequest called");
-        
-//        request.grant(request.getResources());
-        
+
         String[] requestedResources = request.getResources();
         for (String r : requestedResources) {
           Log.d(LOG_TAG, r);
@@ -225,19 +197,13 @@ public final class PersonalAudioClassifier extends AndroidNonvisibleComponent im
           }
         }
       }
-      
+
       @Override
       public void onConsoleMessage(String message, int lineNumber, String sourceID) {
-          Log.d(LOG_TAG, "(JS) " + message + " -- From line "
-                               + lineNumber + " of "
-                               + sourceID);
+        Log.d(LOG_TAG, "(JS) " + message + " -- From line "
+            + lineNumber + " of "
+            + sourceID);
       }
-      
-//      @Override
-//      public void onPermissionRequest(PermissionRequest request) {
-//          request.grant(request.getResources());
-//      }
- 
     });
     WebView.setWebContentsDebuggingEnabled(true);
   }
@@ -283,9 +249,9 @@ public final class PersonalAudioClassifier extends AndroidNonvisibleComponent im
       next.run();
     }
   }
- 
+
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_ASSET,
-    defaultValue = "")
+      defaultValue = "")
   @SimpleProperty(userVisible = false)
   public void Model(String path) {
     Log.d(LOG_TAG, "Personal model path: " + path);
@@ -294,78 +260,52 @@ public final class PersonalAudioClassifier extends AndroidNonvisibleComponent im
       modelPath = path;
     } else {
       form.dispatchErrorOccurredEvent(this, "Model",
-        ErrorMessages.ERROR_EXTENSION_ERROR, ERROR_INVALID_MODEL_FILE, LOG_TAG,
-        "Invalid model file format: files must be of format " + MODEL_PATH_SUFFIX);
+          ErrorMessages.ERROR_EXTENSION_ERROR, ERROR_INVALID_MODEL_FILE, LOG_TAG,
+          "Invalid model file format: files must be of format " + MODEL_PATH_SUFFIX);
     }
   }
-  
+
   static boolean shouldAskForPermission(Form form) {
-      return form.getApplicationInfo().targetSdkVersion >= 23 &&
-          Build.VERSION.SDK_INT >= Build.VERSION_CODES.M;
+    return form.getApplicationInfo().targetSdkVersion >= 23 &&
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.M;
   }
 
-  static void askForPermission(final PersonalAudioClassifier personalAudioClassifier, final Runnable next) {
-      personalAudioClassifier.getForm().askPermission(Manifest.permission.RECORD_AUDIO, new PermissionResultHandler() {
-        @Override
-        public void HandlePermissionResponse(String permission, boolean granted) {
-          if (granted) {
-              personalAudioClassifier.getForm().askPermission(Manifest.permission.MODIFY_AUDIO_SETTINGS, new PermissionResultHandler() {
-                  @Override
-                  public void HandlePermissionResponse(String permission1, boolean granted1) {
-                    if (granted1) {
-                      Log.d(LOG_TAG, "Record audio + modify audio both granted...");
-                      next.run();
-                    } else {
-                      personalAudioClassifier.getForm().PermissionDenied(personalAudioClassifier, "WebViewer", permission1);
-                    }
-                  }
-                });
-          } else {
-            personalAudioClassifier.getForm().PermissionDenied(personalAudioClassifier, "WebViewer", permission);
-          }
+  void askForPermission(final PersonalAudioClassifier personalAudioClassifier, final Runnable next) {
+    form.askPermission(Manifest.permission.RECORD_AUDIO, new PermissionResultHandler() {
+      @Override
+      public void HandlePermissionResponse(String permission, boolean granted) {
+        if (granted) {
+          form.askPermission(Manifest.permission.MODIFY_AUDIO_SETTINGS, new PermissionResultHandler() {
+            @Override
+            public void HandlePermissionResponse(String permission1, boolean granted1) {
+              if (granted1 || form instanceof ReplForm) {
+                Log.d(LOG_TAG, "Record audio + modify audio both granted...");
+                next.run();
+              } else {
+                personalAudioClassifier.getForm().PermissionDenied(personalAudioClassifier, "WebViewer", permission1);
+              }
+            }
+          });
+        } else {
+          personalAudioClassifier.getForm().PermissionDenied(personalAudioClassifier, "WebViewer", permission);
         }
-      });
+      }
+    });
   }
 
-//  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_CHOICES,
-//      editorArgs = {MODE_VIDEO, MODE_IMAGE})
-//  @SimpleProperty
-//  public void InputMode(String mode) {
-//    if (webview == null) {
-//      inputMode = mode;
-//      return;
-//    }
-//    if (MODE_VIDEO.equalsIgnoreCase(mode)) {
-//      webview.evaluateJavascript("setInputMode(\"video\");", null);
-//      inputMode = MODE_VIDEO;
-//    } else if (MODE_IMAGE.equalsIgnoreCase(mode)) {
-//      webview.evaluateJavascript("setInputMode(\"image\");", null);
-//      inputMode = MODE_IMAGE;
-//    } else {
-//      form.dispatchErrorOccurredEvent(this, "InputMode", ErrorMessages.ERROR_EXTENSION_ERROR, ERROR_INVALID_INPUT_MODE, LOG_TAG, "Invalid input mode " + mode);
-//    }
-//  }
-
-//  @SimpleProperty(category = PropertyCategory.BEHAVIOR,
-//      description = "Gets or sets the input mode for classification. Valid values are \"Video\" " +
-//          "(the default) and \"Image\".")
-//  public String InputMode() {
-//    return inputMode;
-//  }
-  
   private static String encodeFileToBase64(File file) {
-      String base64File = "";
-      try (FileInputStream imageInFile = new FileInputStream(file)) {
-          // Reading a file from file system
-          byte fileData[] = new byte[(int) file.length()];
-          imageInFile.read(fileData);
-          base64File = Base64.encodeToString(fileData, 0).replace("\n", "");
-      } catch (FileNotFoundException e) {
-          System.out.println("File not found" + e);
-      } catch (IOException ioe) {
-          System.out.println("Exception while reading the file " + ioe);
-      }
-      return base64File;
+    String base64File = "";
+    try (FileInputStream imageInFile = new FileInputStream(file)) {
+      // Reading a file from file system
+      byte fileData[] = new byte[(int) file.length()];
+      imageInFile.read(fileData);
+      base64File = Base64.encodeToString(fileData, 0).replace("\n", "");
+    } catch (FileNotFoundException e) {
+      System.out.println("File not found" + e);
+    } catch (IOException ioe) {
+      System.out.println("Exception while reading the file " + ioe);
+    }
+    return base64File;
   }
 
   @SimpleFunction(description = "Performs classification on the image at the given path and triggers the GotClassification event when classification is finished successfully.")
@@ -375,7 +315,7 @@ public final class PersonalAudioClassifier extends AndroidNonvisibleComponent im
 
     String soundPath = (sound == null) ? "" : sound;
     Log.d(LOG_TAG, "soundPath: " + soundPath);
-    
+
     File soundFile = new File(soundPath);
     Log.d(LOG_TAG, "soundFile: " + soundFile);
 
@@ -386,63 +326,25 @@ public final class PersonalAudioClassifier extends AndroidNonvisibleComponent im
      * 1. get sound object from sound path √
      * 2. convert sound object to some sort of encoded string √
      * 3. pass encoded string to getSpectrogram endpoint √
-     * 
+     *
      * DECODE AUDIO CLIP AND CONVERT TO SPECTROGRAM (JAVASCRIPT)
      * 1. convert encoded string to javascript audio blob √
      * 2. pass audio blob through spectrogram.js √
      * 3. convert spectrogram.js output to encoded string √
      * 4. pass encoded string back to Java via reportSpectrogram endpoint √
-     * 
+     *
      * CLASSIFY SPECTROGRAM (JAVA):
      * 1. convert encoded string to image
      * 2. classify image (refer to commented PIC code)
      */
-    
+
     webview.evaluateJavascript("getSpectrogram(\"" + encodedSound + "\");", null);
 
     Log.d(LOG_TAG, "encodedSound sent to Javascript!");
-    
-    /*
-   
-    BitmapDrawable imageDrawable;
-    Bitmap scaledImageBitmap = null;
-
-    try {
-      imageDrawable = MediaUtil.getBitmapDrawable(form.$form(), imagePath);
-      scaledImageBitmap = Bitmap.createScaledBitmap(imageDrawable.getBitmap(), IMAGE_WIDTH, (int) (imageDrawable.getBitmap().getHeight() * ((float) IMAGE_WIDTH) / imageDrawable.getBitmap().getWidth()), false);
-    } catch (IOException ioe) {
-      Log.e(LOG_TAG, "Unable to load " + imagePath);
-    }
-
-    // compression format of PNG -> not lossy
-    Bitmap immagex = scaledImageBitmap;
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    immagex.compress(Bitmap.CompressFormat.PNG, IMAGE_QUALITY, baos);
-    byte[] b = baos.toByteArray();
-
-    String imageEncodedbase64String = Base64.encodeToString(b, 0).replace("\n", "");
-    Log.d(LOG_TAG, "imageEncodedbase64String: " + imageEncodedbase64String);
-
-    webview.evaluateJavascript("classifyImageData(\"" + imageEncodedbase64String + "\");", null);
-    
-    */
   }
-
-//  @SimpleFunction(description = "Toggles between user-facing and environment-facing camera.")
-//  public void ToggleCameraFacingMode() {
-//    assertWebView("ToggleCameraFacingMode");
-//    webview.evaluateJavascript("toggleCameraFacingMode();", null);
-//  }
-
-//  @SimpleFunction(description = "Performs classification on current video frame and triggers the GotClassification event when classification is finished successfully.")
-//  public void ClassifyVideoData() {
-//    assertWebView("ClassifyVideoData");
-//    webview.evaluateJavascript("classifyVideoData();", null);
-//  }
 
   @SimpleEvent(description = "Event indicating that the classifier is ready.")
   public void ClassifierReady() {
-//    InputMode(inputMode);
     EventDispatcher.dispatchEvent(this, "ClassifierReady");
   }
 
@@ -453,8 +355,8 @@ public final class PersonalAudioClassifier extends AndroidNonvisibleComponent im
   }
 
   @SimpleEvent(description = "Event indicating that an error has occurred.")
-  public void Error(final int errorCode) {
-    EventDispatcher.dispatchEvent(this, "Error", errorCode);
+  public void Error(final int errorCode, final String errorMessage) {
+    EventDispatcher.dispatchEvent(this, "Error", errorCode, errorMessage);
   }
 
   Form getForm() {
@@ -482,7 +384,7 @@ public final class PersonalAudioClassifier extends AndroidNonvisibleComponent im
         }
       });
     }
-    
+
     @JavascriptInterface
     public void reportImage(final String dataURL) {
       Log.d(LOG_TAG, "Entered reportImage: " + dataURL);
@@ -509,17 +411,17 @@ public final class PersonalAudioClassifier extends AndroidNonvisibleComponent im
       } catch (JSONException e) {
         Log.d(LOG_TAG, "Entered catch of reportResult");
         e.printStackTrace();
-        Error(ERROR_CLASSIFICATION_FAILED);
+        Error(ERROR_CLASSIFICATION_FAILED, e.toString());
       }
     }
 
     @JavascriptInterface
-    public void error(final int errorCode) {
+    public void error(final int errorCode, final String errorMessage) {
       Log.d(LOG_TAG, "Entered error: " + errorCode);
       form.runOnUiThread(new Runnable() {
         @Override
         public void run() {
-          Error(errorCode);
+          Error(errorCode, errorMessage);
         }
       });
     }
