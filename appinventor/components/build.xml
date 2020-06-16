@@ -297,6 +297,21 @@
     </ai.dojunit>
   </target>
 
+  <path id="libsForBluetoothTests.path">
+    <path refid="libsForAndroidRuntimeTests.path"/>
+  </path>
+  <path id="BluetoothTests.path">
+    <path refid="libsForBluetoothTests.path"/>
+    <pathelement location="${local.build.dir}/BluetoothTests.jar"/>
+  </path>
+
+  <target name="BluetoothTests"
+          depends="AndroidRuntime">
+    <ai.dojunit aij-testingtarget="BluetoothTests"
+                aij-dir="edu/mit/appinventor/ble">
+    </ai.dojunit>
+  </target>
+
   <!-- =====================================================================
        AnnotationProcessors: plugins for processing component annotations
        Note that AnnotationProcessors.jar, produced here, will contain all

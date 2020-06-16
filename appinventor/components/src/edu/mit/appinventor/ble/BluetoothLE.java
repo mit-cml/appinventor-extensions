@@ -56,7 +56,7 @@ import java.util.UUID;
  * @author William Byrne (will2596@gmail.com) (minor bugfixes)
  * @author Evan W. Patton (ewpatton@mit.edu)
  */
-@DesignerComponent(version = 20200423,
+@DesignerComponent(version = 20200616,
     description = "Bluetooth Low Energy, also referred to as Bluetooth LE " +
         "or simply BLE, is a new communication protocol similar to classic Bluetooth except " +
         "that it is designed to consume less power while maintaining comparable " +
@@ -98,6 +98,10 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
     }
     public void onWrite(String serviceUuid, String characteristicUuid, List<T> values) {
     }
+  }
+
+  public interface BLEPacketHandler {
+    void onPacketReceived(String serviceUuid, String characteristicUuid, BLEPacketReader packet);
   }
 
   public interface BluetoothConnectionListener {
@@ -2607,6 +2611,31 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
     }
   }
 
+  //region Packet Reading
+
+  public void ExReadPacket(String serviceUuid, String characteristicUuid,
+      BLEPacketHandler callback) {
+    if (inner != null) {
+      inner.ReadPacket(serviceUuid, characteristicUuid, callback);
+    }
+  }
+
+  public void ExRegisterForPackets(String serviceUuid, String characteristicUuid,
+      BLEPacketHandler callback) {
+    if (inner != null) {
+      inner.RegisterForPackets(serviceUuid, characteristicUuid, callback);
+    }
+  }
+
+  public void ExUnregisterForPackets(String serviceUuid, String characteristicUuid,
+      BLEPacketHandler callback) {
+    if (inner != null) {
+      inner.UnregisterForPackets(serviceUuid, characteristicUuid, callback);
+    }
+  }
+
+  //endregion
+
   public boolean isServicePublished(String serviceUuid) {
     if (inner != null) {
       return inner.isServicePublished(serviceUuid);
@@ -2785,5 +2814,3 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
     }
   }
 }
-
-

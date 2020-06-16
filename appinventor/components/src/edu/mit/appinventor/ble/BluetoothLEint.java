@@ -492,7 +492,7 @@ final class BluetoothLEint {
      * Read one or more values from the characteristic.
      * @return A list of values read from the characteristic
      */
-    private List<T> readCharacteristic() {
+    protected List<T> readCharacteristic() {
       Log.d(LOG_TAG, "Received bytes = " + Arrays.toString(characteristic.getValue()));
       if (type == FORMAT_UTF8S || type == FORMAT_UTF16S) {
         Reader reader = null;
@@ -969,6 +969,33 @@ final class BluetoothLEint {
               characteristic.getUuid().toString(), yailList);
         }
       });
+    }
+  }
+
+  class BLEReadPacketOperation extends BLEReadOperation<BLEPacketReader> {
+
+    private final BluetoothLE.BLEPacketHandler handler;
+
+    BLEReadPacketOperation(BluetoothGattCharacteristic characteristic, boolean notify, BluetoothLE.BLEPacketHandler handler) {
+      super(BLEPacketReader.class, characteristic, BluetoothGattCharacteristic.FORMAT_SINT8, null, notify);
+      this.handler = handler;
+    }
+
+    @Override
+    protected void onReceive(List<BLEPacketReader> values) {
+      final BLEPacketReader packet = values.get(0);
+      mHandler.post(new Runnable() {
+        @Override
+        public void run() {
+          handler.onPacketReceived(characteristic.getService().getUuid().toString(),
+              characteristic.getUuid().toString(), packet);
+        }
+      });
+    }
+
+    @Override
+    protected List<BLEPacketReader> readCharacteristic() {
+      return Collections.singletonList(new BLEPacketReader(characteristic.getValue()));
     }
   }
 
@@ -2280,6 +2307,60 @@ final class BluetoothLEint {
       }
     }.run();
   }
+
+  //region Packet Reading
+
+  void ReadPacket(final String serviceUuid, final String characteristicUuid,
+      final BluetoothLE.BLEPacketHandler callback) {
+    final String METHOD = "ReadPacket";
+    new BLEAction<Void>(METHOD) {
+      @Override
+      public Void action() {
+        BluetoothGattCharacteristic characteristic = findMGattChar(BLEUtil.bleStringToUuid(serviceUuid),
+            BLEUtil.bleStringToUuid(characteristicUuid));
+        schedulePendingOperation(new BLEReadPacketOperation(characteristic, false, callback));
+        return null;
+      }
+    }.run();
+  }
+
+  void RegisterForPackets(final String serviceUuid, final String characteristicUuid,
+      final BluetoothLE.BLEPacketHandler callback) {
+    final String METHOD = "RegisterForPackets";
+    new BLEAction<Void>(METHOD) {
+      @Override
+      public Void action() {
+        BluetoothGattCharacteristic characteristic = findMGattChar(BLEUtil.bleStringToUuid(serviceUuid),
+            BLEUtil.bleStringToUuid(characteristicUuid));
+        schedulePendingOperation(new BLEReadPacketOperation(characteristic, true, callback));
+        return null;
+      }
+    }.run();
+  }
+
+  @SuppressWarnings("unused")
+  void UnregisterForPackets(final String serviceUuid, final String characteristicUuid,
+      final BluetoothLE.BLEPacketHandler callback) {
+    final String METHOD = "UnregisterForPackets";
+    new BLEAction<Void>(METHOD) {
+      @Override
+      public Void action() {
+        UUID characteristic = BLEUtil.bleStringToUuid(characteristicUuid);
+        List<BLEOperation> operations = pendingOperationsByUuid.get(characteristic);
+        if (operations != null) {
+          List<BLEOperation> readOnlyList = new ArrayList<>(operations);
+          for (BLEOperation operation : readOnlyList) {
+            if (operation.isNotify()) {
+              operation.unsubscribe(mBluetoothGatt);
+            }
+          }
+        }
+        return null;
+      }
+    }.run();
+  }
+
+  //endregion
 
   int FoundDeviceRssi(final int index) {
     if (index < 1 || index > mLeDevices.size()) {
