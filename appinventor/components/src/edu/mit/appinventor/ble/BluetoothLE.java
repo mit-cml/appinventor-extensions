@@ -1881,6 +1881,94 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
     }
   }
 
+  /**
+   * Tests whether the given characteristic can be read.
+   *
+   * __Parameters__:
+   *
+   *     * <code>serviceUuid</code> (<a href="http://appinventor.mit.edu/explore/ai2/support/blocks/text.html#string">_text_</a>) &mdash;
+   *       The unique identifier of the service to test for read capability.
+   *     * <code>characteristicUuid</code> (<a href="http://appinventor.mit.edu/explore/ai2/support/blocks/text.html#string">_text_</a>) &mdash;
+   *       The unique identifier of the characteristic to test for read capability.
+   *
+   * @param serviceUuid the service uuid of interest
+   * @param characteristicUuid the characteristic uuid of interest
+   * @return true if the characteristic can be read, otherwise false
+   */
+  @SimpleFunction
+  public boolean CanReadCharacteristic(String serviceUuid, String characteristicUuid) {
+    if (inner != null) {
+      return inner.canReadCharacteristic(serviceUuid, characteristicUuid);
+    }
+    return false;
+  }
+
+  /**
+   * Tests whether the given characteristic can be used to register for notifications.
+   *
+   * __Parameters__:
+   *
+   *     * <code>serviceUuid</code> (<a href="http://appinventor.mit.edu/explore/ai2/support/blocks/text.html#string">_text_</a>) &mdash;
+   *       The unique identifier of the service to test for notification capability.
+   *     * <code>characteristicUuid</code> (<a href="http://appinventor.mit.edu/explore/ai2/support/blocks/text.html#string">_text_</a>) &mdash;
+   *       The unique identifier of the characteristic to test for notification capability.
+   *
+   * @param serviceUuid the service uuid of interest
+   * @param characteristicUuid the characteristic uuid of interest
+   * @return true if the characteristic can be used for notifications, otherwise false
+   */
+  @SimpleFunction
+  public boolean CanRegisterForCharacteristic(String serviceUuid, String characteristicUuid) {
+    if (inner != null) {
+      return inner.canRegisterForCharacteristic(serviceUuid, characteristicUuid);
+    }
+    return false;
+  }
+
+  /**
+   * Tests whether the given characteristic can be written.
+   *
+   * __Parameters__:
+   *
+   *     * <code>serviceUuid</code> (<a href="http://appinventor.mit.edu/explore/ai2/support/blocks/text.html#string">_text_</a>) &mdash;
+   *       The unique identifier of the service to test for write capability.
+   *     * <code>characteristicUuid</code> (<a href="http://appinventor.mit.edu/explore/ai2/support/blocks/text.html#string">_text_</a>) &mdash;
+   *       The unique identifier of the characteristic to test for write capability.
+   *
+   * @param serviceUuid the service uuid of interest
+   * @param characteristicUuid the characteristic uuid of interest
+   * @return true if the characteristic can be written, otherwise false
+   */
+  @SimpleFunction
+  public boolean CanWriteCharacteristic(String serviceUuid, String characteristicUuid) {
+    if (inner != null) {
+      return inner.canWriteCharacteristic(serviceUuid, characteristicUuid);
+    }
+    return false;
+  }
+
+  /**
+   * Tests whether the given characteristic can be written with an acknowledgement by the device.
+   *
+   * __Parameters__:
+   *
+   *     * <code>serviceUuid</code> (<a href="http://appinventor.mit.edu/explore/ai2/support/blocks/text.html#string">_text_</a>) &mdash;
+   *       The unique identifier of the service to test for write with response capability.
+   *     * <code>characteristicUuid</code> (<a href="http://appinventor.mit.edu/explore/ai2/support/blocks/text.html#string">_text_</a>) &mdash;
+   *       The unique identifier of the characteristic to test for write with response capability.
+   *
+   * @param serviceUuid the service uuid of interest
+   * @param characteristicUuid the characteristic uuid of interest
+   * @return true if the characteristica can be written with a response, otherwise false
+   */
+  @SimpleFunction
+  public boolean CanWriteCharacteristicWithResponse(String serviceUuid, String characteristicUuid) {
+    if (inner != null) {
+      return inner.canWriteCharacteristicWithResponse(serviceUuid, characteristicUuid);
+    }
+    return false;
+  }
+
   // Helper methods for profile extensions for BLE
   /**
    * Read bytes from the given characteristic. Bytes on the wire are

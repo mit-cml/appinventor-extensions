@@ -2769,6 +2769,73 @@ final class BluetoothLEint {
     }
   }
 
+  boolean canReadCharacteristic(final String serviceUuid, final String characteristicUuid) {
+    Boolean result = new BLEAction<Boolean>("CanReadCharacteristic") {
+      @Override
+      public Boolean action() {
+        UUID service = BLEUtil.bleStringToUuid(serviceUuid);
+        UUID characteristic = BLEUtil.bleStringToUuid(characteristicUuid);
+        BluetoothGattCharacteristic bleChar = findMGattChar(service, characteristic);
+        if (bleChar != null) {
+          return (bleChar.getProperties() & BluetoothGattCharacteristic.PROPERTY_READ) != 0;
+        }
+        return false;
+      }
+    }.run();
+    return result == null ? false : result;
+  }
+
+  boolean canRegisterForCharacteristic(final String serviceUuid, final String characteristicUuid) {
+    Boolean result = new BLEAction<Boolean>("CanRegisterForCharacteristic") {
+      @Override
+      public Boolean action() {
+        UUID service = BLEUtil.bleStringToUuid(serviceUuid);
+        UUID characteristic = BLEUtil.bleStringToUuid(characteristicUuid);
+        BluetoothGattCharacteristic bleChar = findMGattChar(service, characteristic);
+        if (bleChar != null) {
+          return (bleChar.getProperties() & BluetoothGattCharacteristic.PROPERTY_NOTIFY) != 0
+              || (bleChar.getProperties() & BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0;
+        }
+        return false;
+      }
+    }.run();
+    return result == null ? false : result;
+  }
+
+  boolean canWriteCharacteristic(final String serviceUuid, final String characteristicUuid) {
+    Boolean result = new BLEAction<Boolean>("CanWriteCharacteristic") {
+      @Override
+      public Boolean action() {
+        UUID service = BLEUtil.bleStringToUuid(serviceUuid);
+        UUID characteristic = BLEUtil.bleStringToUuid(characteristicUuid);
+        BluetoothGattCharacteristic bleChar = findMGattChar(service, characteristic);
+        if (bleChar != null) {
+          return (bleChar.getProperties() & BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE)
+              != 0;
+        }
+        return false;
+      }
+    }.run();
+    return result == null ? false : result;
+  }
+
+  boolean canWriteCharacteristicWithResponse(final String serviceUuid,
+      final String characteristicUuid) {
+    Boolean result = new BLEAction<Boolean>("CanWriteCharacteristicWithResponse") {
+      @Override
+      public Boolean action() {
+        UUID service = BLEUtil.bleStringToUuid(serviceUuid);
+        UUID characteristic = BLEUtil.bleStringToUuid(characteristicUuid);
+        BluetoothGattCharacteristic bleChar = findMGattChar(service, characteristic);
+        if (bleChar != null) {
+          return (bleChar.getProperties() & BluetoothGattCharacteristic.PROPERTY_WRITE) != 0;
+        }
+        return false;
+      }
+    }.run();
+    return result == null ? false : result;
+  }
+
   /*
    * Non-static helper functions. For static helpers, see {@link edu.mit.appinventor.ble.BLEUtil}.
    */
