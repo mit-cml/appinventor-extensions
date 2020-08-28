@@ -56,7 +56,7 @@ import java.util.UUID;
  * @author William Byrne (will2596@gmail.com) (minor bugfixes)
  * @author Evan W. Patton (ewpatton@mit.edu)
  */
-@DesignerComponent(version = 20200616,
+@DesignerComponent(version = 20200828,
     description = "Bluetooth Low Energy, also referred to as Bluetooth LE " +
         "or simply BLE, is a new communication protocol similar to classic Bluetooth except " +
         "that it is designed to consume less power while maintaining comparable " +
