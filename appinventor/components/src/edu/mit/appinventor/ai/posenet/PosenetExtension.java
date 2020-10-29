@@ -262,8 +262,7 @@ public class PosenetExtension extends AndroidNonvisibleComponent
   }
 
   private void addIfValid(YailList point1, YailList point2, List<YailList> skeleton) {
-    //if (point1.size() == 3 && point2.size() == 3 && ((Double)point1.getObject(2) * (Double)point2.getObject(2) > minSkeletonConfidence)) {
-    if (point1.size() == 3 && point2.size() == 3) {
+    if (point1.size() == 3 && point2.size() == 3 && ((Double)point1.getObject(2) * (Double)point2.getObject(2) > minSkeletonConfidence)) {
       skeleton.add(YailList.makeList(new Object[] { point1, point2 }));
     }
   }
