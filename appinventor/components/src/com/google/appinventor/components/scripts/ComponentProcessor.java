@@ -1,6 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2017 MIT, All rights reserved
+// Copyright 2011-2019 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -8,18 +8,23 @@ package com.google.appinventor.components.scripts;
 
 import com.google.appinventor.components.annotations.DesignerComponent;
 import com.google.appinventor.components.annotations.DesignerProperty;
+import com.google.appinventor.components.annotations.IsColor;
 import com.google.appinventor.components.annotations.PropertyCategory;
 import com.google.appinventor.components.annotations.SimpleEvent;
 import com.google.appinventor.components.annotations.SimpleFunction;
 import com.google.appinventor.components.annotations.SimpleObject;
 import com.google.appinventor.components.annotations.SimpleProperty;
 import com.google.appinventor.components.annotations.SimpleBroadcastReceiver;
+import com.google.appinventor.components.annotations.UsesActivityMetadata;
+import com.google.appinventor.components.annotations.UsesApplicationMetadata;
 import com.google.appinventor.components.annotations.UsesAssets;
 import com.google.appinventor.components.annotations.UsesLibraries;
 import com.google.appinventor.components.annotations.UsesNativeLibraries;
 import com.google.appinventor.components.annotations.UsesPermissions;
 import com.google.appinventor.components.annotations.UsesActivities;
 import com.google.appinventor.components.annotations.UsesBroadcastReceivers;
+import com.google.appinventor.components.annotations.UsesContentProviders;
+import com.google.appinventor.components.annotations.UsesServices;
 import com.google.appinventor.components.annotations.androidmanifest.ActivityElement;
 import com.google.appinventor.components.annotations.androidmanifest.ReceiverElement;
 import com.google.appinventor.components.annotations.androidmanifest.IntentFilterElement;
@@ -27,6 +32,11 @@ import com.google.appinventor.components.annotations.androidmanifest.MetaDataEle
 import com.google.appinventor.components.annotations.androidmanifest.ActionElement;
 import com.google.appinventor.components.annotations.androidmanifest.DataElement;
 import com.google.appinventor.components.annotations.androidmanifest.CategoryElement;
+import com.google.appinventor.components.annotations.androidmanifest.ServiceElement;
+import com.google.appinventor.components.annotations.androidmanifest.ProviderElement;
+import com.google.appinventor.components.annotations.androidmanifest.PathPermissionElement;
+import com.google.appinventor.components.annotations.androidmanifest.GrantUriPermissionElement;
+import com.google.appinventor.components.common.PropertyTypeConstants;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -37,6 +47,7 @@ import java.io.Writer;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -49,6 +60,7 @@ import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Messager;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.RoundEnvironment;
+import javax.lang.model.SourceVersion;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.AnnotationValueVisitor;
@@ -69,6 +81,8 @@ import javax.lang.model.util.Types;
 import java.lang.annotation.Annotation;
 
 import java.lang.reflect.InvocationTargetException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.tools.Diagnostic;
 import javax.tools.Diagnostic.Kind;
@@ -110,8 +124,10 @@ import javax.tools.StandardLocation;
 public abstract class ComponentProcessor extends AbstractProcessor {
   private static final String OUTPUT_PACKAGE = "";
 
-  public static final String MISSING_SIMPLE_PROPERTY_ANNOTATION =
+  private static final String MISSING_SIMPLE_PROPERTY_ANNOTATION =
       "Designer property %s does not have a corresponding @SimpleProperty annotation.";
+  private static final String BOXED_TYPE_ERROR =
+      "Found use of boxed type %s. Please use the primitive type %s instead";
 
   // Returned by getSupportedAnnotationTypes()
   private static final Set<String> SUPPORTED_ANNOTATION_TYPES = ImmutableSet.of(
@@ -131,7 +147,9 @@ public abstract class ComponentProcessor extends AbstractProcessor {
       "com.google.appinventor.components.annotations.UsesNativeLibraries",
       "com.google.appinventor.components.annotations.UsesActivities",
       "com.google.appinventor.components.annotations.UsesBroadcastReceivers",
-      "com.google.appinventor.components.annotations.UsesPermissions");
+      "com.google.appinventor.components.annotations.UsesPermissions",
+      "com.google.appinventor.components.annotations.UsesServices",
+      "com.google.appinventor.components.annotations.UsesContentProviders");
 
   // Returned by getRwString()
   private static final String READ_WRITE = "read-write";
@@ -144,6 +162,21 @@ public abstract class ComponentProcessor extends AbstractProcessor {
   private static final String ARM64_V8A_SUFFIX = "-v8a";
   // Must match buildserver.compiler.X86_64_SUFFIX
   private static final String X86_64_SUFFIX = "-x8a";
+
+  private static final String TYPE_PLACEHOLDER = "%type%";
+
+  private static final Map<String, String> BOXED_TYPES = new HashMap<>();
+
+  static {
+    BOXED_TYPES.put("java.lang.Boolean", "boolean");
+    BOXED_TYPES.put("java.lang.Byte", "byte");
+    BOXED_TYPES.put("java.lang.Char", "char");
+    BOXED_TYPES.put("java.lang.Short", "short");
+    BOXED_TYPES.put("java.lang.Integer", "int");
+    BOXED_TYPES.put("java.lang.Long", "long");
+    BOXED_TYPES.put("java.lang.Float", "float");
+    BOXED_TYPES.put("java.lang.Double", "double");
+  }
 
   // The next two fields are set in init().
   /**
@@ -198,6 +231,8 @@ public abstract class ComponentProcessor extends AbstractProcessor {
      */
     protected final String type;
 
+    protected final boolean color;
+
     /**
      * Constructs a Parameter.
      *
@@ -205,8 +240,13 @@ public abstract class ComponentProcessor extends AbstractProcessor {
      * @param type the parameter's Java type (such as "int" or "java.lang.String")
      */
     protected Parameter(String name, String type) {
+      this(name, type, false);
+    }
+
+    protected Parameter(String name, String type, boolean color) {
       this.name = name;
       this.type = type;
+      this.color = color;
     }
 
     /**
@@ -229,18 +269,144 @@ public abstract class ComponentProcessor extends AbstractProcessor {
    * Represents a component feature that has a name and a description.
    */
   protected abstract static class Feature {
+    private static final Pattern AT_SIGN = Pattern.compile("[^\\\\]@");
+    private static final Pattern LINK_FORM = Pattern.compile("\\{@link ([A-Za-z]*#?)([A-Za-z]*)[^}]*}");
+    private static final Pattern CODE_FORM = Pattern.compile("\\{@code ([^}]*)}");
+
+    private final String featureType;
     protected final String name;
     protected String description;
+    protected boolean defaultDescription = false;
+    protected String longDescription;
+    protected boolean userVisible;
+    protected boolean deprecated;
 
-    protected Feature(String name, String description, String featureType) {
+    protected Feature(String name, String description, String longDescription, String featureType,
+        boolean userVisible, boolean deprecated) {
+      this.featureType = featureType;
       this.name = name;
+      setDescription(description);
+      setLongDescription(longDescription);
+      this.userVisible = userVisible;
+      this.deprecated = deprecated;
+    }
+
+    public boolean isDefaultDescription() {
+      return defaultDescription;
+    }
+
+    public void setDescription(String description) {
       if (description == null || description.isEmpty()) {
         this.description = featureType + " for " + name;
+        defaultDescription = true;
       } else {
         // Throw out the first @ or { and everything after it,
         // in order to strip out @param, @author, {@link ...}, etc.
         this.description = description.split("[@{]")[0].trim();
+        defaultDescription = false;
       }
+    }
+
+    public void setLongDescription(String longDescription) {
+      if (longDescription == null || longDescription.isEmpty()) {
+        this.longDescription = this.description;
+      } else if (longDescription.contains("@suppressdoc")) {
+        this.longDescription = "";
+      } else {
+        this.longDescription = longDescription;
+      }
+      // Handle links
+      Matcher linkMatcher = LINK_FORM.matcher(this.longDescription);
+      StringBuffer sb = new StringBuffer();
+      int lastEnd = 0;
+      while (linkMatcher.find(lastEnd)) {
+        sb.append(this.longDescription, lastEnd, linkMatcher.start());
+        String clazz = linkMatcher.group(1);
+        if (clazz.endsWith("#")) {
+          clazz = clazz.substring(0, clazz.length() - 1);
+        }
+        if ("Form".equals(clazz)) {
+          clazz = "Screen";
+        }
+        String func = linkMatcher.group(2);
+        sb.append("[");
+        if (!clazz.isEmpty()) {
+          sb.append("`");
+          sb.append(clazz);
+          sb.append("`");
+          if (!func.isEmpty()) {
+            sb.append("'s ");
+          }
+        }
+        if (!func.isEmpty()) {
+          sb.append("`");
+          sb.append(func);
+          sb.append("`");
+        }
+        sb.append("](#");
+        if (clazz.isEmpty()) {
+          sb.append("%type%.");
+        } else {
+          sb.append(clazz);
+          if (!func.isEmpty()) {
+            sb.append(".");
+          }
+        }
+        if (!func.isEmpty()) {
+          sb.append(func);
+        }
+        sb.append(")");
+        lastEnd = linkMatcher.end();
+      }
+      sb.append(this.longDescription.substring(lastEnd));
+      this.longDescription = sb.toString();
+      // Map {@code foo} to `foo`
+      sb = new StringBuffer();
+      Matcher codeMatcher = CODE_FORM.matcher(this.longDescription);
+      lastEnd = 0;
+      while (codeMatcher.find(lastEnd)) {
+        sb.append(this.longDescription, lastEnd, codeMatcher.start());
+        sb.append("`");
+        sb.append(codeMatcher.group(1));
+        sb.append("`");
+        lastEnd = codeMatcher.end();
+      }
+      sb.append(this.longDescription.substring(lastEnd));
+      this.longDescription = sb.toString();
+      // Strip out the Javadoc annotations (@param, etc.) for end-user documentation
+      Matcher m = AT_SIGN.matcher(this.longDescription);
+      if (m.find()) {
+        this.longDescription = this.longDescription.substring(0, m.start() + 1);
+      }
+      // Replace escaped @ with just @, e.g., so we can use @ in email address examples.
+      this.longDescription = this.longDescription.replaceAll("\\\\@", "@").trim();
+    }
+
+    public String getLongDescription(ComponentInfo component) {
+      if (longDescription == null || longDescription.isEmpty()) {
+        return description;
+      }
+      String name = component.name.equals("Form") ? "Screen" : component.name;
+      return longDescription.replaceAll("%type%", name).trim();
+    }
+
+    /**
+     * Returns whether this property is visible in the Blocks Editor, as retrieved
+     * from {@link SimpleProperty#userVisible()}.
+     *
+     * @return whether the property is visible in the Blocks Editor
+     */
+    protected boolean isUserVisible() {
+      return userVisible;
+    }
+
+    /**
+     * Returns whether this property is deprecated in the Blocks Editor.
+     *
+     * @return whether the property is visible in the Blocks Editor
+     */
+    protected boolean isDeprecated() {
+      return deprecated;
     }
   }
 
@@ -251,19 +417,19 @@ public abstract class ComponentProcessor extends AbstractProcessor {
   protected abstract class ParameterizedFeature extends Feature {
     // Inherits name, description
     protected final List<Parameter> parameters;
-    protected final boolean userVisible;
-    protected final boolean deprecated; // [lyn, 2015/12/29] added
 
-    protected ParameterizedFeature(String name, String description, String feature,
-        boolean userVisible, boolean deprecated) {
-      super(name, description, feature);
-      this.userVisible = userVisible;
-      this.deprecated = deprecated;
+    protected ParameterizedFeature(String name, String description, String longDescription,
+        String feature, boolean userVisible, boolean deprecated) {
+      super(name, description, longDescription, feature, userVisible, deprecated);
       parameters = Lists.newArrayList();
     }
 
     protected void addParameter(String name, String type) {
       parameters.add(new Parameter(name, type));
+    }
+
+    protected void addParameter(String name, String type, boolean color) {
+      parameters.add(new Parameter(name, type, color));
     }
 
     /**
@@ -296,13 +462,13 @@ public abstract class ComponentProcessor extends AbstractProcessor {
       implements Cloneable, Comparable<Event> {
     // Inherits name, description, and parameters
 
-    protected Event(String name, String description, boolean userVisible, boolean deprecated) {
-      super(name, description, "Event", userVisible, deprecated);
+    protected Event(String name, String description, String longDescription, boolean userVisible, boolean deprecated) {
+      super(name, description, longDescription, "Event", userVisible, deprecated);
     }
 
     @Override
     public Event clone() {
-      Event that = new Event(name, description, userVisible, deprecated);
+      Event that = new Event(name, description, longDescription, userVisible, deprecated);
       for (Parameter p : parameters) {
         that.addParameter(p.name, p.type);
       }
@@ -323,9 +489,11 @@ public abstract class ComponentProcessor extends AbstractProcessor {
       implements Cloneable, Comparable<Method> {
     // Inherits name, description, and parameters
     private String returnType;
+    private boolean color;
 
-    protected Method(String name, String description, boolean userVisible, boolean deprecated) {
-      super(name, description, "Method", userVisible, deprecated);
+    protected Method(String name, String description, String longDescription, boolean userVisible,
+        boolean deprecated) {
+      super(name, description, longDescription, "Method", userVisible, deprecated);
       // returnType defaults to null
     }
 
@@ -333,9 +501,13 @@ public abstract class ComponentProcessor extends AbstractProcessor {
       return returnType;
     }
 
+    protected boolean isColor() {
+      return color;
+    }
+
     @Override
     public Method clone() {
-      Method that = new Method(name, description, userVisible, deprecated);
+      Method that = new Method(name, description, longDescription, userVisible, deprecated);
       for (Parameter p : parameters) {
         that.addParameter(p.name, p.type);
       }
@@ -353,35 +525,33 @@ public abstract class ComponentProcessor extends AbstractProcessor {
    * Represents an App Inventor component property (annotated with
    * {@link SimpleProperty}).
    */
-  protected static final class Property implements Cloneable {
+  protected static final class Property extends Feature implements Cloneable {
     protected final String name;
-    private String description;
     private PropertyCategory propertyCategory;
-    private boolean userVisible;
-    private boolean deprecated;
     private String type;
     private boolean readable;
     private boolean writable;
     private String componentInfoName;
+    private boolean color;
 
-    protected Property(String name, String description,
+    protected Property(String name, String description, String longDescription,
                        PropertyCategory category, boolean userVisible, boolean deprecated) {
+      super(name, description, longDescription, "Property", userVisible, deprecated);
       this.name = name;
-      this.description = description;
       this.propertyCategory = category;
-      this.userVisible = userVisible;
-      this.deprecated = deprecated;
       // type defaults to null
       // readable and writable default to false
     }
 
     @Override
     public Property clone() {
-      Property that = new Property(name, description, propertyCategory, userVisible, deprecated);
+      Property that = new Property(name, description, longDescription, propertyCategory,
+          isUserVisible(), isDeprecated());
       that.type = type;
       that.readable = readable;
       that.writable = writable;
       that.componentInfoName = componentInfoName;
+      that.color = color;
       return that;
     }
 
@@ -412,25 +582,6 @@ public abstract class ComponentProcessor extends AbstractProcessor {
     }
 
     /**
-     * Returns whether this property is visible in the Blocks Editor, as retrieved
-     * from {@link SimpleProperty#userVisible()}.
-     *
-     * @return whether the property is visible in the Blocks Editor
-     */
-    protected boolean isUserVisible() {
-      return userVisible;
-    }
-
-    /**
-     * Returns whether this property is deprecated in the Blocks Editor.
-     *
-     * @return whether the property is visible in the Blocks Editor
-     */
-    protected boolean isDeprecated() {
-      return deprecated;
-    }
-
-    /**
      * Returns this property's Java type (e.g., "int", "double", or "java.lang.String").
      *
      * @return the feature's Java type
@@ -455,6 +606,10 @@ public abstract class ComponentProcessor extends AbstractProcessor {
      */
     protected boolean isWritable() {
       return writable;
+    }
+
+    protected boolean isColor() {
+      return color;
     }
 
     /**
@@ -495,6 +650,30 @@ public abstract class ComponentProcessor extends AbstractProcessor {
     protected final Set<String> permissions;
 
     /**
+     * Mapping of component block names to permissions that should be included
+     * if the block is used.
+     */
+    protected final Map<String, String[]> conditionalPermissions;
+
+    /**
+     * Mapping of component block names to broadcast receivers that should be
+     * included if the block is used.
+     */
+    protected final Map<String, String[]> conditionalBroadcastReceivers;
+
+    /**
+     * Mapping of component block names to services that should be
+     * included if the block is used.
+     */
+    protected final Map<String, String[]> conditionalServices;
+
+    /**
+     * Mapping of component block names to content providers that should be
+     * included if the block is used.
+     */
+    protected final Map<String, String[]> conditionalContentProviders;
+
+    /**
      * Libraries required by this component.
      */
     protected final Set<String> libraries;
@@ -515,10 +694,30 @@ public abstract class ComponentProcessor extends AbstractProcessor {
     protected final Set<String> activities;
 
     /**
+     * Metadata required by this component.
+     */
+    protected final Set<String> metadata;
+
+    /**
+     * Activity metadata required by this component.
+     */
+    protected final Set<String> activityMetadata;
+
+    /**
      * Broadcast receivers required by this component.
      */
     protected final Set<String> broadcastReceivers;
-  
+
+    /**
+     * Services required by this component.
+     */
+    protected final Set<String> services;
+
+    /**
+     * Content providers required by this component.
+     */
+    protected final Set<String> contentProviders;
+
     /**
      * TODO(Will): Remove the following field once the deprecated {@link SimpleBroadcastReceiver}
      *             annotation is removed. It should should remain for the time being
@@ -581,19 +780,29 @@ public abstract class ComponentProcessor extends AbstractProcessor {
     private int androidMinSdk;
     private String versionName;
     private String dateBuilt;
+    private String licenseName;
 
     protected ComponentInfo(Element element) {
       super(element.getSimpleName().toString(),  // Short name
             elementUtils.getDocComment(element),
-            "Component");
+            elementUtils.getDocComment(element),
+            "Component", false, elementUtils.isDeprecated(element));
       type = element.asType().toString();
       displayName = getDisplayNameForComponentType(name);
       permissions = Sets.newHashSet();
+      conditionalPermissions = Maps.newTreeMap();
+      conditionalBroadcastReceivers = Maps.newTreeMap();
+      conditionalServices = Maps.newTreeMap();
+      conditionalContentProviders = Maps.newTreeMap();
       libraries = Sets.newHashSet();
       nativeLibraries = Sets.newHashSet();
       assets = Sets.newHashSet();
       activities = Sets.newHashSet();
+      metadata = Sets.newHashSet();
+      activityMetadata = Sets.newHashSet();
       broadcastReceivers = Sets.newHashSet();
+      services = Sets.newHashSet();
+      contentProviders = Sets.newHashSet();
       classNameAndActionsBR = Sets.newHashSet();
       designerProperties = Maps.newTreeMap();
       properties = Maps.newTreeMap();
@@ -641,7 +850,7 @@ public abstract class ComponentProcessor extends AbstractProcessor {
           // if provided.
           String explicitDescription = designerComponentAnnotation.description();
           if (!explicitDescription.isEmpty()) {
-            description = explicitDescription;
+            setDescription(explicitDescription);
           }
 
           // Set helpDescription to the designerHelpDescription field if
@@ -661,8 +870,10 @@ public abstract class ComponentProcessor extends AbstractProcessor {
           showOnPalette = designerComponentAnnotation.showOnPalette();
           nonVisible = designerComponentAnnotation.nonVisible();
           iconName = designerComponentAnnotation.iconName();
+          licenseName = designerComponentAnnotation.licenseName();
           androidMinSdk = designerComponentAnnotation.androidMinSdk();
           versionName = designerComponentAnnotation.versionName();
+          userVisible = designerComponentAnnotation.showOnPalette();
         }
       }
     }
@@ -780,9 +991,27 @@ public abstract class ComponentProcessor extends AbstractProcessor {
       return dateBuilt;
     }
 
+    /**
+     * Returns the name of the license file used by external components
+     * {@link DesignerComponent#licenseName()}.
+     *
+     * @return the name of the license file
+     */
+    protected String getLicenseName() {
+      return licenseName;
+    }
+
     private String getDisplayNameForComponentType(String componentTypeName) {
       // Users don't know what a 'Form' is.  They know it as a 'Screen'.
       return "Form".equals(componentTypeName) ? "Screen" : componentTypeName;
+    }
+
+    protected String getName() {
+      if (name.equals("Form")) {
+        return "Screen";
+      } else {
+        return name;
+      }
     }
 
   }
@@ -796,6 +1025,11 @@ public abstract class ComponentProcessor extends AbstractProcessor {
   @Override
   public Set<String> getSupportedAnnotationTypes() {
     return SUPPORTED_ANNOTATION_TYPES;
+  }
+
+  @Override
+  public SourceVersion getSupportedSourceVersion() {
+    return SourceVersion.RELEASE_7;
   }
 
   @Override
@@ -871,8 +1105,8 @@ public abstract class ComponentProcessor extends AbstractProcessor {
       throw new RuntimeException(e);
     }
 
-    // Indicate that we have successfully handled the annotations.
-    return true;
+    // We need to return false here so that sibling annotation processors can run
+    return false;
   }
 
     /*
@@ -882,9 +1116,9 @@ public abstract class ComponentProcessor extends AbstractProcessor {
      * superclass.
      */
   private void processComponent(Element element) {
+    boolean isForDesigner = element.getAnnotation(DesignerComponent.class) != null;
     // If the element is not a component (e.g., Float), return early.
-    if (element.getAnnotation(SimpleObject.class) == null &&
-        element.getAnnotation(DesignerComponent.class) == null) {
+    if (element.getAnnotation(SimpleObject.class) == null && !isForDesigner) {
       return;
     }
 
@@ -925,7 +1159,11 @@ public abstract class ComponentProcessor extends AbstractProcessor {
         componentInfo.nativeLibraries.addAll(parentComponent.nativeLibraries);
         componentInfo.assets.addAll(parentComponent.assets);
         componentInfo.activities.addAll(parentComponent.activities);
+        componentInfo.metadata.addAll(parentComponent.metadata);
+        componentInfo.activityMetadata.addAll(parentComponent.activityMetadata);
         componentInfo.broadcastReceivers.addAll(parentComponent.broadcastReceivers);
+        componentInfo.services.addAll(parentComponent.services);
+        componentInfo.contentProviders.addAll(parentComponent.contentProviders);
         // TODO(Will): Remove the following call once the deprecated
         //             @SimpleBroadcastReceiver annotation is removed. It should
         //             should remain for the time being because otherwise we'll break
@@ -957,6 +1195,7 @@ public abstract class ComponentProcessor extends AbstractProcessor {
       for (String permission : usesPermissions.permissionNames().split(",")) {
         updateWithNonEmptyValue(componentInfo.permissions, permission);
       }
+      Collections.addAll(componentInfo.permissions, usesPermissions.value());
     }
 
     // Gather library names.
@@ -965,6 +1204,7 @@ public abstract class ComponentProcessor extends AbstractProcessor {
       for (String library : usesLibraries.libraries().split(",")) {
         updateWithNonEmptyValue(componentInfo.libraries, library);
       }
+      Collections.addAll(componentInfo.libraries, usesLibraries.value());
     }
 
     // Gather native library names.
@@ -1011,6 +1251,42 @@ public abstract class ComponentProcessor extends AbstractProcessor {
       }
     }
 
+    // Gather the required metadata and build their element strings.
+    UsesApplicationMetadata usesApplicationMetadata = element.getAnnotation(UsesApplicationMetadata.class);
+    if (usesApplicationMetadata != null) {
+      try {
+        for (MetaDataElement me : usesApplicationMetadata.metaDataElements()) {
+          updateWithNonEmptyValue(componentInfo.metadata, metaDataElementToString(me));
+        }
+      } catch (IllegalAccessException e) {
+        messager.printMessage(Diagnostic.Kind.ERROR, "IllegalAccessException when gathering " +
+            "application metadata and subelements for component " + componentInfo.name);
+        throw new RuntimeException(e);
+      } catch (InvocationTargetException e) {
+        messager.printMessage(Diagnostic.Kind.ERROR, "InvocationTargetException when gathering " +
+            "application metadata and subelements for component " + componentInfo.name);
+        throw new RuntimeException(e);
+      }
+    }
+
+    // Gather the required activity metadata and build their element strings.
+    UsesActivityMetadata usesActivityMetadata = element.getAnnotation(UsesActivityMetadata.class);
+    if (usesActivityMetadata != null) {
+      try {
+        for (MetaDataElement me : usesActivityMetadata.metaDataElements()) {
+          updateWithNonEmptyValue(componentInfo.activityMetadata, metaDataElementToString(me));
+        }
+      } catch (IllegalAccessException e) {
+        messager.printMessage(Diagnostic.Kind.ERROR, "IllegalAccessException when gathering " +
+                "application metadata and subelements for component " + componentInfo.name);
+        throw new RuntimeException(e);
+      } catch (InvocationTargetException e) {
+        messager.printMessage(Diagnostic.Kind.ERROR, "InvocationTargetException when gathering " +
+                "application metadata and subelements for component " + componentInfo.name);
+        throw new RuntimeException(e);
+      }
+    }
+
     // Gather the required broadcast receivers and build their element strings.
     UsesBroadcastReceivers usesBroadcastReceivers = element.getAnnotation(UsesBroadcastReceivers.class);
     if (usesBroadcastReceivers != null) {
@@ -1028,7 +1304,43 @@ public abstract class ComponentProcessor extends AbstractProcessor {
         throw new RuntimeException(e);
       }
     }
-  
+
+    // Gather the required services and build their element strings.
+    UsesServices usesServices = element.getAnnotation(UsesServices.class);
+    if (usesServices != null) {
+      try {
+        for (ServiceElement se : usesServices.services()) {
+          updateWithNonEmptyValue(componentInfo.services, serviceElementToString(se));
+        }
+      } catch (IllegalAccessException e) {
+        messager.printMessage(Diagnostic.Kind.ERROR, "IllegalAccessException when gathering " +
+            "service attributes and subelements for component " + componentInfo.name);
+        throw new RuntimeException(e);
+      } catch (InvocationTargetException e) {
+        messager.printMessage(Diagnostic.Kind.ERROR, "InvocationTargetException when gathering " +
+            "service attributes and subelements for component " + componentInfo.name);
+        throw new RuntimeException(e);
+      }
+    }
+
+    // Gather the required content providers and build their element strings.
+    UsesContentProviders usesContentProviders = element.getAnnotation(UsesContentProviders.class);
+    if (usesContentProviders != null) {
+      try {
+        for (ProviderElement pe : usesContentProviders.providers()) {
+          updateWithNonEmptyValue(componentInfo.contentProviders, providerElementToString(pe));
+        }
+      } catch (IllegalAccessException e) {
+        messager.printMessage(Diagnostic.Kind.ERROR, "IllegalAccessException when gathering " +
+            "provider attributes and subelements for component " + componentInfo.name);
+        throw new RuntimeException(e);
+      } catch (InvocationTargetException e) {
+        messager.printMessage(Diagnostic.Kind.ERROR, "InvocationTargetException when gathering " +
+            "provider attributes and subelements for component " + componentInfo.name);
+        throw new RuntimeException(e);
+      }
+    }
+
     // TODO(Will): Remove the following legacy code once the deprecated
     //             @SimpleBroadcastReceiver annotation is removed. It should
     //             should remain for the time being because otherwise we'll break
@@ -1038,7 +1350,7 @@ public abstract class ComponentProcessor extends AbstractProcessor {
     // has a Class Name and zero or more Filter Actions.  In the
     // resulting String, Class name will go first, and each Action
     // will be added, separated by a comma.
-  
+
     SimpleBroadcastReceiver simpleBroadcastReceiver = element.getAnnotation(SimpleBroadcastReceiver.class);
     if (simpleBroadcastReceiver != null) {
       for (String className : simpleBroadcastReceiver.className().split(",")){
@@ -1061,8 +1373,27 @@ public abstract class ComponentProcessor extends AbstractProcessor {
     // Build up method information.
     processMethods(componentInfo, element);
 
+    if (isForDesigner) {
+      processDescriptions(componentInfo);
+    }
+
     // Add it to our components map.
     components.put(longComponentName, componentInfo);
+  }
+
+  private void processDescriptions(ComponentInfo info) {
+    final String name = info.displayName;
+    info.description = info.description.replaceAll(TYPE_PLACEHOLDER, name);
+    info.helpUrl = info.helpUrl.replaceAll(TYPE_PLACEHOLDER, name);
+    for (Property property : info.properties.values()) {
+      property.description = property.description.replaceAll(TYPE_PLACEHOLDER, name);
+    }
+    for (Event event : info.events.values()) {
+      event.description = event.description.replaceAll(TYPE_PLACEHOLDER, name);
+    }
+    for (Method method : info.methods.values()) {
+      method.description = method.description.replaceAll(TYPE_PLACEHOLDER, name);
+    }
   }
 
   private boolean isPublicMethod(Element element) {
@@ -1079,8 +1410,21 @@ public abstract class ComponentProcessor extends AbstractProcessor {
                                  propertyName);
     }
 
+    // Use Javadoc for property unless description is set to a non-empty string.
+    String description = elementUtils.getDocComment(element);
+    String longDescription = description;
+    if (!simpleProperty.description().isEmpty()) {
+      description = simpleProperty.description();
+    }
+    if (description == null) {
+      description = "";
+    }
+    // Read only until the first javadoc parameter
+    description = description.split("[^\\\\][@{]")[0].trim();
+
     Property property = new Property(propertyName,
-                                     simpleProperty.description(),
+                                     description,
+                                     longDescription,
                                      simpleProperty.category(),
                                      simpleProperty.userVisible(),
                                      elementUtils.isDeprecated(element));
@@ -1100,6 +1444,9 @@ public abstract class ComponentProcessor extends AbstractProcessor {
         throw new RuntimeException("Property method is void and has no parameters: "
                                    + propertyName);
       }
+      if (element.getAnnotation(IsColor.class) != null) {
+        property.color = true;
+      }
     } else {
       // It is a setter.
       property.writable = true;
@@ -1108,6 +1455,11 @@ public abstract class ComponentProcessor extends AbstractProcessor {
                                    propertyName);
       }
       typeMirror = parameters.get(0);
+      for (VariableElement ve : ((ExecutableElement) element).getParameters()) {
+        if (ve.getAnnotation(IsColor.class) != null) {
+          property.color = true;
+        }
+      }
     }
 
     // Use typeMirror to set the property's type.
@@ -1157,6 +1509,43 @@ public abstract class ComponentProcessor extends AbstractProcessor {
     return elementString.append("    </receiver>\\n").toString();
   }
 
+  // Transform a @ServiceElement into an XML element String for use later
+  // in creating AndroidManifest.xml.
+  private static String serviceElementToString(ServiceElement element)
+      throws IllegalAccessException, InvocationTargetException {
+    // First, we build the <service> element's opening tag including any
+    // service element attributes.
+    StringBuilder elementString = new StringBuilder("    <service ");
+    elementString.append(elementAttributesToString(element));
+    elementString.append(">\\n");
+
+    // Now, we collect any <service> subelements.
+    elementString.append(subelementsToString(element.metaDataElements()));
+    elementString.append(subelementsToString(element.intentFilters()));
+
+    // Finally, we close the <service> element and create its String.
+    return elementString.append("    </service>\\n").toString();
+  }
+
+  // Transform a @ProviderElement into an XML element String for use later
+  // in creating AndroidManifest.xml.
+  private static String providerElementToString(ProviderElement element)
+      throws IllegalAccessException, InvocationTargetException {
+    // First, we build the <provider> element's opening tag including any
+    // content provider element attributes.
+    StringBuilder elementString = new StringBuilder("    <provider ");
+    elementString.append(elementAttributesToString(element));
+    elementString.append(">\\n");
+
+    // Now, we collect any <provider> subelements.
+    elementString.append(subelementsToString(element.metaDataElements()));
+    elementString.append(subelementsToString(element.pathPermissionElement()));
+    elementString.append(subelementsToString(element.grantUriPermissionElement()));
+
+    // Finally, we close the <provider> element and create its String.
+    return elementString.append("    </provider>\\n").toString();
+  }
+
   // Transform a @MetaDataElement into an XML element String for use later
   // in creating AndroidManifest.xml.
   private static String metaDataElementToString(MetaDataElement element)
@@ -1178,7 +1567,7 @@ public abstract class ComponentProcessor extends AbstractProcessor {
     StringBuilder elementString = new StringBuilder("      <intent-filter ");
     elementString.append(elementAttributesToString(element));
     elementString.append(">\\n");
-    
+
     // Now, we collect any <intent-filter> subelements.
     elementString.append(subelementsToString(element.actionElements()));
     elementString.append(subelementsToString(element.categoryElements()));
@@ -1200,7 +1589,7 @@ public abstract class ComponentProcessor extends AbstractProcessor {
     return elementString.append("/>\\n").toString();
   }
 
-  // Transform an @CategoryElement into an XML element String for use later
+  // Transform a @CategoryElement into an XML element String for use later
   // in creating AndroidManifest.xml.
   private static String categoryElementToString(CategoryElement element)
       throws IllegalAccessException, InvocationTargetException {
@@ -1212,7 +1601,7 @@ public abstract class ComponentProcessor extends AbstractProcessor {
     return elementString.append("/>\\n").toString();
   }
 
-  // Transform an @DataElement into an XML element String for use later
+  // Transform a @DataElement into an XML element String for use later
   // in creating AndroidManifest.xml.
   private static String dataElementToString(DataElement element)
       throws IllegalAccessException, InvocationTargetException {
@@ -1221,6 +1610,30 @@ public abstract class ComponentProcessor extends AbstractProcessor {
     StringBuilder elementString = new StringBuilder("        <data ");
     elementString.append(elementAttributesToString(element));
     // Finally, we close the <data> element and create its String.
+    return elementString.append("/>\\n").toString();
+  }
+
+  // Transform a @PathPermissionElement into an XML element String for use later
+  // in creating AndroidManifest.xml.
+  private static String pathPermissionElementToString(PathPermissionElement element)
+      throws IllegalAccessException, InvocationTargetException {
+    // First, we build the <path-permission> element's opening tag including any
+    // receiver element attributes.
+    StringBuilder elementString = new StringBuilder("        <path-permission ");
+    elementString.append(elementAttributesToString(element));
+    // Finally, we close the <path-permission> element and create its String.
+    return elementString.append("/>\\n").toString();
+  }
+
+  // Transform a @GrantUriPermissionElement into an XML element String for use later
+  // in creating AndroidManifest.xml.
+  private static String grantUriPermissionElementToString(GrantUriPermissionElement element)
+      throws IllegalAccessException, InvocationTargetException {
+    // First, we build the <grant-uri-permission> element's opening tag including any
+    // receiver element attributes.
+    StringBuilder elementString = new StringBuilder("        <grant-uri-permission ");
+    elementString.append(elementAttributesToString(element));
+    // Finally, we close the <grant-uri-permission> element and create its String.
     return elementString.append("/>\\n").toString();
   }
 
@@ -1256,7 +1669,7 @@ public abstract class ComponentProcessor extends AbstractProcessor {
     }
     return attributeString.toString();
   }
-  
+
   // Build the subelement String for a given array of XML elements modeled by
   // corresponding annotations.
   private static String subelementsToString(Annotation[] subelements)
@@ -1273,6 +1686,10 @@ public abstract class ComponentProcessor extends AbstractProcessor {
         subelementString.append(categoryElementToString((CategoryElement) subelement));
       } else if (subelement instanceof DataElement) {
         subelementString.append(dataElementToString((DataElement) subelement));
+      } else if (subelement instanceof PathPermissionElement) {
+        subelementString.append(pathPermissionElementToString((PathPermissionElement) subelement));
+      } else if (subelement instanceof GrantUriPermissionElement) {
+        subelementString.append(grantUriPermissionElementToString((GrantUriPermissionElement) subelement));
       }
     }
     return subelementString.toString();
@@ -1291,6 +1708,7 @@ public abstract class ComponentProcessor extends AbstractProcessor {
 
       // Get the name of the prospective property.
       String propertyName = element.getSimpleName().toString();
+      processConditionalAnnotations(componentInfo, element, propertyName);
 
       // Designer property information
       DesignerProperty designerProperty = element.getAnnotation(DesignerProperty.class);
@@ -1322,6 +1740,11 @@ public abstract class ComponentProcessor extends AbstractProcessor {
         // prior Property element with the same property name, verifying that
         // they are consistent.
         Property newProperty = executableElementToProperty(element, componentInfo.name);
+        if (designerProperty != null
+            && designerProperty.editorType().equals(PropertyTypeConstants.PROPERTY_TYPE_COLOR)) {
+          // Properties that use a color editor should be marked as a color property
+          newProperty.color = true;
+        }
 
         if (componentInfo.properties.containsKey(propertyName)) {
           Property priorProperty = componentInfo.properties.get(propertyName);
@@ -1342,9 +1765,15 @@ public abstract class ComponentProcessor extends AbstractProcessor {
           }
 
           // Merge newProperty into priorProperty, which is already in the properties map.
-          if (priorProperty.description.isEmpty() && !newProperty.description.isEmpty()) {
-            priorProperty.description = newProperty.description;
+          if ((priorProperty.description.isEmpty() || priorProperty.isDefaultDescription()
+               || element.getAnnotation(Override.class) != null)
+              && !newProperty.description.isEmpty() && !newProperty.isDefaultDescription()) {
+            priorProperty.setDescription(newProperty.description);
           }
+          if (!newProperty.longDescription.isEmpty() && !newProperty.isDefaultDescription()) {  /* Latter descriptions of the same property override earlier descriptions. */
+            priorProperty.longDescription = newProperty.longDescription;
+          }
+
           if (priorProperty.propertyCategory == PropertyCategory.UNSET) {
             priorProperty.propertyCategory = newProperty.propertyCategory;
           } else if (newProperty.propertyCategory != priorProperty.propertyCategory &&
@@ -1357,9 +1786,10 @@ public abstract class ComponentProcessor extends AbstractProcessor {
           }
           priorProperty.readable = priorProperty.readable || newProperty.readable;
           priorProperty.writable = priorProperty.writable || newProperty.writable;
-          priorProperty.userVisible = priorProperty.userVisible && newProperty.userVisible;
-          priorProperty.deprecated = priorProperty.deprecated && newProperty.deprecated;
+          priorProperty.userVisible = priorProperty.isUserVisible() && newProperty.isUserVisible();
+          priorProperty.deprecated = priorProperty.isDeprecated() && newProperty.isDeprecated();
           priorProperty.componentInfoName = componentInfo.name;
+          priorProperty.color = newProperty.color || priorProperty.color;
         } else {
           // Add the new property to the properties map.
           componentInfo.properties.put(propertyName, newProperty);
@@ -1394,6 +1824,8 @@ public abstract class ComponentProcessor extends AbstractProcessor {
 
       // Get the name of the prospective event.
       String eventName = element.getSimpleName().toString();
+      processConditionalAnnotations(componentInfo, element, eventName);
+
       SimpleEvent simpleEventAnnotation = element.getAnnotation(SimpleEvent.class);
 
       // Remove overriden events unless SimpleEvent is again specified.
@@ -1404,8 +1836,9 @@ public abstract class ComponentProcessor extends AbstractProcessor {
         }
       } else {
         String eventDescription = simpleEventAnnotation.description();
+        String longEventDescription = elementUtils.getDocComment(element);
         if (eventDescription.isEmpty()) {
-          eventDescription = elementUtils.getDocComment(element);
+          eventDescription = longEventDescription;
           if (eventDescription == null) {
             messager.printMessage(Diagnostic.Kind.WARNING,
                                   "In component " + componentInfo.name +
@@ -1416,7 +1849,7 @@ public abstract class ComponentProcessor extends AbstractProcessor {
         }
         boolean userVisible = simpleEventAnnotation.userVisible();
         boolean deprecated = elementUtils.isDeprecated(element);
-        Event event = new Event(eventName, eventDescription, userVisible, deprecated);
+        Event event = new Event(eventName, eventDescription, longEventDescription, userVisible, deprecated);
         componentInfo.events.put(event.name, event);
 
         // Verify that this element has an ExecutableType.
@@ -1430,7 +1863,8 @@ public abstract class ComponentProcessor extends AbstractProcessor {
         // Extract the parameters.
         for (VariableElement ve : e.getParameters()) {
           event.addParameter(ve.getSimpleName().toString(),
-                             ve.asType().toString());
+                             ve.asType().toString(),
+                             ve.getAnnotation(IsColor.class) != null);
           updateComponentTypes(ve.asType());
         }
       }
@@ -1446,6 +1880,8 @@ public abstract class ComponentProcessor extends AbstractProcessor {
 
       // Get the name of the prospective method.
       String methodName = element.getSimpleName().toString();
+      processConditionalAnnotations(componentInfo, element, methodName);
+
       SimpleFunction simpleFunctionAnnotation = element.getAnnotation(SimpleFunction.class);
 
       // Remove overriden methods unless SimpleFunction is again specified.
@@ -1455,9 +1891,10 @@ public abstract class ComponentProcessor extends AbstractProcessor {
           componentInfo.methods.remove(methodName);
         }
       } else {
+        String methodLongDescription = elementUtils.getDocComment(element);
         String methodDescription = simpleFunctionAnnotation.description();
         if (methodDescription.isEmpty()) {
-          methodDescription = elementUtils.getDocComment(element);
+          methodDescription = methodLongDescription;
           if (methodDescription == null) {
             messager.printMessage(Diagnostic.Kind.WARNING,
                                   "In component " + componentInfo.name +
@@ -1468,7 +1905,7 @@ public abstract class ComponentProcessor extends AbstractProcessor {
         }
         boolean userVisible = simpleFunctionAnnotation.userVisible();
         boolean deprecated = elementUtils.isDeprecated(element);
-        Method method = new Method(methodName, methodDescription, userVisible, deprecated);
+        Method method = new Method(methodName, methodDescription, methodLongDescription, userVisible, deprecated);
         componentInfo.methods.put(method.name, method);
 
         // Verify that this element has an ExecutableType.
@@ -1482,13 +1919,17 @@ public abstract class ComponentProcessor extends AbstractProcessor {
         // Extract the parameters.
         for (VariableElement ve : e.getParameters()) {
           method.addParameter(ve.getSimpleName().toString(),
-                              ve.asType().toString());
+                              ve.asType().toString(),
+                              ve.getAnnotation(IsColor.class) != null);
           updateComponentTypes(ve.asType());
         }
 
         // Extract the return type.
         if (e.getReturnType().getKind() != TypeKind.VOID) {
           method.returnType = e.getReturnType().toString();
+          if (e.getAnnotation(IsColor.class) != null) {
+            method.color = true;
+          }
           updateComponentTypes(e.getReturnType());
         }
       }
@@ -1496,7 +1937,64 @@ public abstract class ComponentProcessor extends AbstractProcessor {
   }
 
   /**
-   * <p>Outputs the required component information in the desired format.  It is called by
+   * Processes the conditional annotations for a component into a dictionary
+   * mapping blocks to those annotations.
+   *
+   * @param componentInfo Component info in which to store the conditional information.
+   * @param element The currently processed Java language element. This should be a method
+   *                annotated with either @UsesPermission, @UsesBroadcastReceivers, @UsesServices or @UsesContentProviders
+   * @param blockName The name of the block as it appears in the sources.
+   */
+  private void processConditionalAnnotations(ComponentInfo componentInfo, Element element,
+                                             String blockName) {
+    // Conditional UsesPermissions
+    UsesPermissions usesPermissions = element.getAnnotation(UsesPermissions.class);
+    if (usesPermissions != null) {
+      componentInfo.conditionalPermissions.put(blockName, usesPermissions.value());
+    }
+
+    UsesBroadcastReceivers broadcastReceiver = element.getAnnotation(UsesBroadcastReceivers.class);
+    if (broadcastReceiver != null) {
+      try {
+        Set<String> receivers = new HashSet<>();
+        for (ReceiverElement re : broadcastReceiver.receivers()) {
+          updateWithNonEmptyValue(receivers, receiverElementToString(re));
+        }
+        componentInfo.conditionalBroadcastReceivers.put(blockName, receivers.toArray(new String[0]));
+      } catch (Exception e) {
+        messager.printMessage(Kind.ERROR, "Unable to process broadcast receiver", element);
+      }
+    }
+
+    UsesServices service = element.getAnnotation(UsesServices.class);
+    if (service != null) {
+      try {
+        Set<String> services = new HashSet<>();
+        for (ServiceElement se : service.services()) {
+          updateWithNonEmptyValue(services, serviceElementToString(se));
+        }
+        componentInfo.conditionalServices.put(blockName, services.toArray(new String[0]));
+      } catch (Exception e) {
+        messager.printMessage(Kind.ERROR, "Unable to process service", element);
+      }
+    }
+
+    UsesContentProviders contentProvider = element.getAnnotation(UsesContentProviders.class);
+    if (contentProvider != null) {
+      try {
+        Set<String> providers = new HashSet<>();
+        for (ProviderElement pe : contentProvider.providers()) {
+          updateWithNonEmptyValue(providers, providerElementToString(pe));
+        }
+        componentInfo.conditionalContentProviders.put(blockName, providers.toArray(new String[0]));
+      } catch (Exception e) {
+        messager.printMessage(Kind.ERROR, "Unable to process content provider", element);
+      }
+    }
+  }
+
+  /**
+   * <p>Outputs the required component information in the desired format. It is called by
    * {@link #process} after the fields {@link #components} and {@link #messager}
    * have been populated.</p>
    *
@@ -1517,6 +2015,10 @@ public abstract class ComponentProcessor extends AbstractProcessor {
    *         legal return values
    */
   protected final String javaTypeToYailType(String type) {
+    if (BOXED_TYPES.containsKey(type)) {
+      throw new IllegalArgumentException(String.format(BOXED_TYPE_ERROR, type,
+          BOXED_TYPES.get(type)));
+    }
     // boolean -> boolean
     if (type.equals("boolean")) {
       return type;
@@ -1538,6 +2040,12 @@ public abstract class ComponentProcessor extends AbstractProcessor {
     if (type.startsWith("java.util.List")) {
       return "list";
     }
+    if (type.equals("com.google.appinventor.components.runtime.util.YailDictionary")) {
+      return "dictionary";
+    }
+    if (type.equals("com.google.appinventor.components.runtime.util.YailObject")) {
+      return "yailobject";
+    }
 
     // Calendar -> InstantInTime
     if (type.equals("java.util.Calendar")) {
@@ -1557,8 +2065,7 @@ public abstract class ComponentProcessor extends AbstractProcessor {
       return "component";
     }
 
-    throw new RuntimeException("Cannot convert Java type '" + type +
-                               "' to Yail type");
+    throw new IllegalArgumentException("Cannot convert Java type '" + type + "' to Yail type");
   }
 
   /**

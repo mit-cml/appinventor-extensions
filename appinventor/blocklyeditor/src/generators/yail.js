@@ -1,5 +1,5 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2012-2017 Massachusetts Institute of Technology. All rights reserved.
+// Copyright 2012-2019 Massachusetts Institute of Technology. All rights reserved.
 
 /**
  * @fileoverview Helper functions for generating Yail for blocks.
@@ -32,6 +32,7 @@ Blockly.Yail.RESERVED_WORDS_ = '';
 Blockly.Yail.ORDER_ATOMIC = 0;         // 0 "" ...
 Blockly.Yail.ORDER_NONE = 99;          // (...)
 
+Blockly.Yail.YAIL_ACTIVE_FORM = "(SimpleForm:getActiveForm)";
 Blockly.Yail.YAIL_ADD_COMPONENT = "(add-component ";
 Blockly.Yail.YAIL_ADD_TO_LIST = "(add-to-list ";
 Blockly.Yail.YAIL_BEGIN = "(begin ";
@@ -51,8 +52,10 @@ Blockly.Yail.YAIL_CLOSE_BLOCK = ")\n";
 Blockly.Yail.YAIL_COMMENT_MAJOR = ";;; ";
 Blockly.Yail.YAIL_COMPONENT_REMOVE = "(remove-component ";
 Blockly.Yail.YAIL_COMPONENT_TYPE = "component";
+Blockly.Yail.YAIL_CONSTANT_ALL = '(static-field com.google.appinventor.components.runtime.util.YailDictionary \'ALL)';
 Blockly.Yail.YAIL_DEFINE = "(def ";
 Blockly.Yail.YAIL_DEFINE_EVENT = "(define-event ";
+Blockly.Yail.YAIL_DEFINE_GENERIC_EVENT = '(define-generic-event ';
 Blockly.Yail.YAIL_DEFINE_FORM = "(define-form ";
 Blockly.Yail.YAIL_DO_AFTER_FORM_CREATION = "(do-after-form-creation ";
 Blockly.Yail.YAIL_DOUBLE_QUOTE = "\"";
@@ -74,6 +77,8 @@ Blockly.Yail.YAIL_SET_LEXICAL_VALUE = "(set-lexical! ";
 Blockly.Yail.YAIL_LINE_FEED = "\n";
 Blockly.Yail.YAIL_NULL = "(get-var *the-null-value*)";
 Blockly.Yail.YAIL_EMPTY_LIST = "'()";
+Blockly.Yail.YAIL_EMPTY_YAIL_LIST = "'(*list*)";
+Blockly.Yail.YAIL_EMPTY_DICT = "(make com.google.appinventor.components.runtime.util.YailDictionary)";
 Blockly.Yail.YAIL_OPEN_BLOCK = "(";
 Blockly.Yail.YAIL_OPEN_COMBINATION = "(";
 Blockly.Yail.YAIL_QUOTE = "'";
@@ -85,6 +90,8 @@ Blockly.Yail.YAIL_SET_VARIABLE = "(set-var! ";
 Blockly.Yail.YAIL_SET_THIS_FORM = "(set-this-form)\n ";
 Blockly.Yail.YAIL_SPACER = " ";
 Blockly.Yail.YAIL_TRUE = "#t";
+Blockly.Yail.YAIL_UNREGISTER =
+  "com.google.appinventor.components.runtime.EventDispatcher:unregisterEventForDelegation";
 Blockly.Yail.YAIL_WHILE = "(while ";
 Blockly.Yail.YAIL_LIST_CONSTRUCTOR = "*list-for-runtime*";
 
@@ -381,12 +388,34 @@ Blockly.Yail.getFormPropertiesLines = function(formName, componentJson, includeC
  */
 Blockly.Yail.getPropertySettersLines = function(componentJson, componentName, componentDb) {
   var code = [];
-  for (var prop in componentJson) {
-    if (prop.charAt(0) != "$" && prop != "Uuid" && prop != "TutorialURL") {
-      code.push(Blockly.Yail.getPropertySetterString(componentName, componentJson.$Type, prop, 
-        componentJson[prop], componentDb));
+  var type = componentDb.getType(componentJson['$Type']);
+  function shouldSendProperty(prop, info) {
+    return (prop.charAt(0) !== '$' && prop !== 'Uuid' &&
+      prop !== 'TutorialURL' && prop !== 'BlocksToolkit') ||
+      (info && info['alwaysSend']);
+  }
+  // Gather all of the properties together
+  var propsToSend = Object.keys(componentJson);
+  for (var prop in type['properties']) {
+    var property = type['properties'][prop];
+    if (property['alwaysSend'] && !(prop in componentJson)) {
+      propsToSend.push(property['name']);
     }
   }
+  // Keep ordering so default properties will still be sent in the right position.
+  propsToSend.sort();
+  // Construct the code
+  propsToSend.forEach(function(prop) {
+    var info = type['properties'][prop];
+    if (shouldSendProperty(prop, info)) {
+      var value = componentJson[prop];
+      if (!Boolean(value) && value !== '') {
+        value = info['defaultValue'];
+      }
+      code.push(Blockly.Yail.getPropertySetterString(componentName, componentJson['$Type'], prop,
+        value, componentDb));
+    }
+  });
   return code;
 };
 
@@ -641,4 +670,19 @@ Blockly.Yail.blockToCode1 = function(block) {
     }
     return this.scrub_(block, code, true);
   }
+};
+
+/**
+ * Generates YAIL that will unregister an event if the corresponding block is disabled in the
+ * workspace.
+ *
+ * @param {!Blockly.BlockSvg} block
+ * @returns {string}
+ */
+Blockly.Yail.disabledEventBlockToCode = function(block) {
+  return Blockly.Yail.YAIL_OPEN_BLOCK + Blockly.Yail.YAIL_UNREGISTER + Blockly.Yail.YAIL_SPACER +
+    Blockly.Yail.YAIL_ACTIVE_FORM + Blockly.Yail.YAIL_SPACER +
+    Blockly.Yail.YAIL_QUOTE + block.getFieldValue('COMPONENT_SELECTOR') +
+    Blockly.Yail.YAIL_SPACER + Blockly.Yail.YAIL_QUOTE + block.eventName +
+    Blockly.Yail.YAIL_CLOSE_BLOCK;
 };

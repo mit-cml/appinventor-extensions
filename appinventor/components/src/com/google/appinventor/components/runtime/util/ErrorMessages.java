@@ -1,6 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2018 MIT, All rights reserved
+// Copyright 2011-2019 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -15,6 +15,7 @@ import java.util.Map;
  * @author lizlooney@google.com (Liz Looney)
  */
 public final class ErrorMessages {
+  public static final int ERROR_DEFAULT = 0;
   // Phone version errors
   public static final int ERROR_FUNCTIONALITY_NOT_SUPPORTED_CONTACT_EMAIL = 1;
   public static final int ERROR_FUNCTIONALITY_NOT_SUPPORTED_EMAIL_PICKER = 2;
@@ -121,6 +122,7 @@ public final class ErrorMessages {
   public static final int ERROR_CANVAS_BITMAP_ERROR = 1001;
   public static final int ERROR_CANVAS_WIDTH_ERROR = 1002;
   public static final int ERROR_CANVAS_HEIGHT_ERROR = 1003;
+  public static final int ERROR_CANVAS_DRAW_SHAPE_BAD_ARGUMENT = 1004;
   // Web errors
   public static final int ERROR_WEB_UNABLE_TO_GET = 1101;
   public static final int ERROR_WEB_UNSUPPORTED_ENCODING = 1102;
@@ -136,6 +138,8 @@ public final class ErrorMessages {
   public static final int ERROR_WEB_BUILD_REQUEST_DATA_NOT_TWO_ELEMENTS = 1113;
   public static final int ERROR_WEB_UNABLE_TO_DELETE = 1114;
   public static final int ERROR_WEB_XML_TEXT_DECODE_FAILED = 1115;
+  public static final int ERROR_WEB_REQUEST_TIMED_OUT = 1117; //Continuing from number after contact picker
+  public static final int ERROR_WEB_JSON_TEXT_ENCODE_FAILED = 1118;
   // Contact picker (and PhoneNumberPicker) errors
   public static final int ERROR_PHONE_UNSUPPORTED_CONTACT_PICKER = 1107;
   public static final int ERROR_PHONE_UNSUPPORTED_SEARCH_IN_CONTACT_PICKING = 1108;
@@ -215,6 +219,9 @@ public final class ErrorMessages {
 
   // Form errors that are signalled in runtime.scm
   public static final int ERROR_DIVISION_BY_ZERO = 3200;
+  public static final int ERROR_INDEX_MISSING_IN_LIST = 3201;
+  public static final int ERROR_NUMBER_FORMAT_EXCEPTION = 3202;
+  public static final int ERROR_INVALID_VALUE_IN_PATH = 3203;
 
   // Extension errors are signalled from extensions
   public static final int ERROR_EXTENSION_ERROR = 3300;
@@ -245,12 +252,41 @@ public final class ErrorMessages {
   // Phone Call Errors
   public static final int ERROR_NO_CALL_PERMISSION = 3501;
 
-  // Start the next group of errors at 3600
+  // REPL Errors
+  public static final int ERROR_UNABLE_TO_INSTALL_PACKAGE = 3601;
+
+  // Augmented Reality Errors
+  public static final int ERROR_INVALID_CONFIGURATION_VALUE = 3700;
+
+  //SpeechRecognizer Errors
+  public static final int ERROR_AUDIO = 3801;
+  public static final int ERROR_CLIENT = 3802;
+  public static final int ERROR_INSUFFICIENT_PERMISSIONS = 3803;
+  public static final int ERROR_NETWORK = 3804;
+  public static final int ERROR_NETWORK_TIMEOUT = 3805;
+  public static final int ERROR_NO_MATCH = 3806;
+  public static final int ERROR_RECOGNIZER_BUSY = 3807;
+  public static final int ERROR_SERVER = 3808;
+  public static final int ERROR_SPEECH_TIMEOUT = 3809;
+
+  // Serial errors
+  public static final int ERROR_SERIAL_NOT_INITIALIZED = 3901;
+  public static final int ERROR_SERIAL_WRITING = 3902;
+
+  // Navigation Errors
+  public static final int ERROR_INVALID_API_KEY = 4001;
+  public static final int ERROR_UNABLE_TO_REQUEST_DIRECTIONS = 4002;
+  public static final int ERROR_ROUTING_SERVICE_ERROR = 4003;
+  public static final int ERROR_NO_ROUTE_FOUND = 4004;
+
+
+  // Start the next group of errors at 4100
 
   // Mapping of error numbers to error message format strings.
   private static final Map<Integer, String> errorMessages;
   static {
     errorMessages = new HashMap<Integer, String>();
+    errorMessages.put(ERROR_DEFAULT, "Try Again.");
     // Phone version errors
     errorMessages.put(ERROR_FUNCTIONALITY_NOT_SUPPORTED_CONTACT_EMAIL,
         "Warning: This app contains functionality that does not work on this phone: " +
@@ -426,7 +462,7 @@ public final class ErrorMessages {
         "Unable to grant exclusive lock of audio output stream to %s.");
     errorMessages.put(ERROR_SOUND_NOT_READY, "The sound is not ready to play: %s.");
     errorMessages.put(ERROR_OUT_OF_MEMORY_LOADING_MEDIA, "Not Enough Memory to load: %s.");
-    errorMessages.put(ERROR_PLAYER_INVALID_VOLUME, "Invalid volume: %s. Volume must be set to a number between 0 and 100.");  
+    errorMessages.put(ERROR_PLAYER_INVALID_VOLUME, "Invalid volume: %s. Volume must be set to a number between 0 and 100.");
     // SoundRecorder errors
     errorMessages.put(ERROR_SOUND_RECORDER, "An unexpected error occurred while recording sound.");
     errorMessages.put(ERROR_SOUND_RECORDER_CANNOT_CREATE, "Cannot start recording: %s");
@@ -454,6 +490,7 @@ public final class ErrorMessages {
     errorMessages.put(ERROR_CANVAS_BITMAP_ERROR, "Error getting Canvas contents to save");
     errorMessages.put(ERROR_CANVAS_WIDTH_ERROR, "Canvas width cannot be set to non-positive number");
     errorMessages.put(ERROR_CANVAS_HEIGHT_ERROR, "Canvas height cannot be set to non-positive number");
+    errorMessages.put(ERROR_CANVAS_DRAW_SHAPE_BAD_ARGUMENT, "Canvas cannot draw the shape with a bad point list");
     // Web errors
     errorMessages.put(ERROR_WEB_UNABLE_TO_GET,
         "Unable to get a response with the specified URL: %s");
@@ -480,7 +517,11 @@ public final class ErrorMessages {
     errorMessages.put(ERROR_WEB_BUILD_REQUEST_DATA_NOT_TWO_ELEMENTS,
         "Unable to build request data: element %s does not contain two elements");
     errorMessages.put(ERROR_WEB_UNABLE_TO_DELETE,
-            "Unable to delete a resource with the specified URL: %s");
+        "Unable to delete a resource with the specified URL: %s");
+    errorMessages.put(ERROR_WEB_REQUEST_TIMED_OUT,
+        "Took longer then timeout period to receive data from the URL: %s");
+    errorMessages.put(ERROR_WEB_JSON_TEXT_ENCODE_FAILED,
+        "Unable to encode as JSON the object %s");
     // Contact picker (and PhoneNumberPicker) errors
     errorMessages.put(ERROR_PHONE_UNSUPPORTED_CONTACT_PICKER,
         "The software used in this app cannot extract contacts from this type of phone.");
@@ -564,6 +605,12 @@ public final class ErrorMessages {
     // signal-runtime-form-error must match the error number used here.
     errorMessages.put(ERROR_DIVISION_BY_ZERO,
         "Trying to divide %s by 0.  The result might not be valid.");
+    errorMessages.put(ERROR_INDEX_MISSING_IN_LIST,
+        "Index %d out of bounds in list %s.");
+    errorMessages.put(ERROR_NUMBER_FORMAT_EXCEPTION,
+        "Expected a number for an index, but got \"%s\" instead.");
+    errorMessages.put(ERROR_INVALID_VALUE_IN_PATH,
+        "Expected a list or dictionary, but found a %s when walking path.");
     // Extension errors
     errorMessages.put(ERROR_EXTENSION_ERROR,
         "Error %d in extension %s: %s");
@@ -614,6 +661,36 @@ public final class ErrorMessages {
     // Phone Call errors
     errorMessages.put(ERROR_NO_CALL_PERMISSION,
         "You do not have permission to make phone calls.");
+
+    // REPL errors
+    errorMessages.put(ERROR_UNABLE_TO_INSTALL_PACKAGE,
+        "Unable to launch the package installer for %1$s.");
+
+    // Augmented Reality errors
+    errorMessages.put(ERROR_INVALID_CONFIGURATION_VALUE,
+        "Invalid value %1$d given for ARConfigurationType.  Valid settings are 1, 2, or 3.");
+
+    //SpeechRecognizer Errors
+    errorMessages.put(ERROR_AUDIO, "Audio Recording Error");
+    errorMessages.put(ERROR_CLIENT, "Client Side Error");
+    errorMessages.put(ERROR_INSUFFICIENT_PERMISSIONS, "Insufficient Permissions");
+    errorMessages.put(ERROR_NETWORK, "Network Error");
+    errorMessages.put(ERROR_NETWORK_TIMEOUT, "Network Timeout");
+    errorMessages.put(ERROR_NO_MATCH, "No Match");
+    errorMessages.put(ERROR_RECOGNIZER_BUSY, "RecognitionService Busy");
+    errorMessages.put(ERROR_SERVER, "Error From Server");
+    errorMessages.put(ERROR_SPEECH_TIMEOUT, "No Speech Input");
+
+    // Serial
+    errorMessages.put(ERROR_SERIAL_NOT_INITIALIZED, "Serial was not initialized");
+    errorMessages.put(ERROR_SERIAL_WRITING, "Error writing data to serial");
+
+    // Navigation Errors
+    errorMessages.put(ERROR_INVALID_API_KEY, "No api key provided");
+    errorMessages.put(ERROR_UNABLE_TO_REQUEST_DIRECTIONS,
+        "Unable to request directions. Reason: %s");
+    errorMessages.put(ERROR_ROUTING_SERVICE_ERROR, "Routing service failed with status %d %s");
+    errorMessages.put(ERROR_NO_ROUTE_FOUND, "No route returned by the routing service.");
   }
 
   private ErrorMessages() {

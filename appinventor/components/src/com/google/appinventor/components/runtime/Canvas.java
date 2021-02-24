@@ -1,74 +1,109 @@
 // -*- mode: java; c-basic-offset: 2; -*-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2018 MIT, All rights reserved
+// Copyright 2011-2020 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
 package com.google.appinventor.components.runtime;
 
+import android.Manifest;
+import android.app.Activity;
+
+import android.content.Context;
+
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Path;
+import android.graphics.PorterDuff;
+import android.graphics.Rect;
+import android.graphics.RectF;
+import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
+
+import android.text.TextUtils;
+
+import android.util.Base64;
+import android.util.Log;
+
+import android.view.GestureDetector;
+import android.view.MotionEvent;
+import android.view.View;
+
+import androidx.annotation.RequiresApi;
+
 import com.google.appinventor.components.annotations.DesignerComponent;
 import com.google.appinventor.components.annotations.DesignerProperty;
+import com.google.appinventor.components.annotations.IsColor;
 import com.google.appinventor.components.annotations.PropertyCategory;
 import com.google.appinventor.components.annotations.SimpleEvent;
 import com.google.appinventor.components.annotations.SimpleFunction;
 import com.google.appinventor.components.annotations.SimpleObject;
 import com.google.appinventor.components.annotations.SimpleProperty;
 import com.google.appinventor.components.annotations.UsesPermissions;
+
 import com.google.appinventor.components.common.ComponentCategory;
 import com.google.appinventor.components.common.ComponentConstants;
 import com.google.appinventor.components.common.PropertyTypeConstants;
 import com.google.appinventor.components.common.YaVersion;
+
 import com.google.appinventor.components.runtime.collect.Sets;
+
 import com.google.appinventor.components.runtime.errors.PermissionException;
+
 import com.google.appinventor.components.runtime.util.BoundingBox;
+import com.google.appinventor.components.runtime.util.BulkPermissionRequest;
 import com.google.appinventor.components.runtime.util.ErrorMessages;
 import com.google.appinventor.components.runtime.util.FileUtil;
 import com.google.appinventor.components.runtime.util.MediaUtil;
 import com.google.appinventor.components.runtime.util.PaintUtil;
-
-import android.app.Activity;
-import android.content.Context;
-import android.graphics.Bitmap;
-import android.graphics.Color;
-import android.graphics.Paint;
-import android.graphics.PorterDuff;
-import android.graphics.Rect;
-import android.graphics.RectF;
-import android.graphics.drawable.BitmapDrawable;
-import android.text.TextUtils;
-import android.util.Log;
-import android.view.GestureDetector;
-import android.view.MotionEvent;
-import android.view.View;
+import com.google.appinventor.components.runtime.util.SdkLevel;
+import com.google.appinventor.components.runtime.util.YailList;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
 /**
- * <p>A two-dimensional touch-sensitive rectangular panel on which drawing can
- * be done and sprites can be moved.</p>
+ * A two-dimensional touch-sensitive rectangular panel on which drawing can
+ * be done and sprites can be moved.
  *
- * <p>Conceptually, a sprite consists of the following layers, from back
+ * The {@link #BackgroundColor()}, {@link #PaintColor()}, {@link #BackgroundImage()},
+ * {@link #Width()}, and {@link #Height()} of the `Canvas` can be set in either the Designer or in
+ * the Blocks Editor. The `Width` and `Height` are measured in pixels and must be positive.
+ *
+ * Any location on the `Canvas` can be specified as a pair of `(X, Y)` values, where
+ *
+ * * X is the number of pixels away from the left edge of the `Canvas`
+ * * Y is the number of pixels away from the top edge of the `Canvas`
+ *
+ * There are events to tell when and where a `Canvas` has been touched or a Sprite
+ * ({@link ImageSprite} or {@link Ball}) has been dragged. There are also methods for drawing
+ * points, lines, circles, shapes, arcs, and text.
+ *
+ * @internaldoc
+ *
+ * Conceptually, a sprite consists of the following layers, from back
  * to front (with items in front being drawn on top):
- * <ul>
- * <li> background color
- * <li> background image
- * <li> the "drawing layer", populated through calls to
- *      {@link #DrawPoint(int,int)}, {@link #DrawCircle(int,int,float)},
+ *
+ * * background color
+ * * background image
+ * * the "drawing layer", populated through calls to
+ *      {@link #DrawPoint(int,int)}, {@link #DrawCircle(int,int,float,boolean)},
  *      {@link #DrawText(String,int,int)}, and
  *      {@link #DrawTextAtAngle(String,int,int,float)}, and
  *      {@link #SetBackgroundPixelColor(int,int,int)}
- * <li> the sprite layer, where sprites with higher Z values are drawn
+ * * the sprite layer, where sprites with higher Z values are drawn
  *      in front of (after) sprites with lower Z values.
- * </ul>
+ *
  * To the user, the first three layers are all the background, in terms
  * of the behavior of {@link #SetBackgroundPixelColor(int,int,int)} and
  * {@link #GetBackgroundPixelColor(int,int)}.  For historical reasons,
@@ -93,8 +128,7 @@ import java.util.Set;
     "and circles.</p>",
     category = ComponentCategory.ANIMATION)
 @SimpleObject
-@UsesPermissions(permissionNames = "android.permission.INTERNET," +
-                 "android.permission.WRITE_EXTERNAL_STORAGE")
+@UsesPermissions(permissionNames = "android.permission.INTERNET")
 public final class Canvas extends AndroidViewComponent implements ComponentContainer {
   private static final String LOG_TAG = "Canvas";
 
@@ -111,6 +145,7 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
   private int backgroundColor;
   private String backgroundImagePath = "";
   private int textAlignment;
+  private boolean extendMovesOutsideCanvas = false;
 
   // Default values
   private static final int MIN_WIDTH_HEIGHT = 1;
@@ -136,6 +171,11 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
   // will typically be implemented by extension components that add the detector to this set.
 
   private final Set<ExtensionGestureDetector> extensionGestureDetectors = Sets.newHashSet();
+
+  private Form form = $form();
+
+  // Do we have storage permission?
+  private boolean havePermission = false;
 
   // additional gesture detectors must implement this interface
   public interface ExtensionGestureDetector {
@@ -192,7 +232,7 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
     public static final int FINGER_WIDTH = 24;
 
     /**
-     * The width of a finger.  This is used in determining whether a sprite is
+     * The height of a finger.  This is used in determining whether a sprite is
      * touched.  Specifically, this is used to determine the vertical extent
      * of a bounding box that is tested for collision with each sprite.  The
      * horizontal extent is determined by {@link #FINGER_WIDTH}.
@@ -275,6 +315,13 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
           // Otherwise, it's a drag.
           isDrag = true;
           drag = true;
+
+          // Don't let MOVE extend beyond the bounds of the canvas
+          // if ExtendMovesOutsideCanvas is false
+          if (((x <= 0) || (x > width) || (y <= 0) || (y > height))
+              && (! extendMovesOutsideCanvas)) {
+            break;
+          }
 
           // Update draggedSprites by adding any that are currently being
           // touched.
@@ -561,6 +608,22 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
       clearDrawingLayer();  // will call invalidate()
     }
 
+    @RequiresApi(api = android.os.Build.VERSION_CODES.FROYO)
+    void setBackgroundImageBase64(String imageUrl) {
+      backgroundImagePath = (imageUrl == null) ? "" : imageUrl;
+      backgroundDrawable = null;
+      scaledBackgroundBitmap = null;
+
+      if (!TextUtils.isEmpty(backgroundImagePath)) {
+        byte[] decodedString = Base64.decode(backgroundImagePath, Base64.DEFAULT);
+        android.graphics.Bitmap decodedByte = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length);
+        backgroundDrawable = new BitmapDrawable(decodedByte);
+      }
+
+      setBackground();
+      clearDrawingLayer();  // will call invalidate()
+    }
+
     private void setBackground() {
       Drawable setDraw = backgroundDrawable;
       if (backgroundImagePath != "" && backgroundDrawable != null) {
@@ -705,6 +768,24 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
     sprites = new LinkedList<Sprite>();
     motionEventParser = new MotionEventParser();
     mGestureDetector = new GestureDetector(context, new FlingGestureListener());
+  }
+
+  public void Initialize() {
+    // Note: The code below does not call ourselves after the
+    // onGranted because we don't do anything beyond getting
+    // permissions. If we ever add code to this Initialize method,
+    // that requires permissions, then be sure to call ourselves in
+    // onGranted().
+    if (!havePermission && form.doesAppDeclarePermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+      final Canvas me = this;
+      form.askPermission(new BulkPermissionRequest(this, "Canvas",
+          Manifest.permission.WRITE_EXTERNAL_STORAGE) {
+          @Override
+          public void onGranted() {
+            me.havePermission = true;
+          }
+        });
+    }
   }
 
   @Override
@@ -877,8 +958,9 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
   // Properties
 
  /**
-  * Set the canvas width
+  * Specifies the horizontal width of the `%type%`, measured in pixels.
   *
+  * @internaldoc
   * The width can only be set to >0 or -1 (automatic) or -2 (fill parent)
   * or to a value less then or equal to LENGTH_PERCENT_TAG (which is later
   * converted to pixels.
@@ -900,8 +982,9 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
   }
 
   /**
-   * Set the canvas height
+   * Specifies the `%type%`'s vertical height, measured in pixels.
    *
+   * @internaldoc
    * The height can only be set to >0 or -1 (automatic) or -2 (fill parent) or
    * to a value less then or equal to LENGTH_PERCENT_TAG (which is later
    * converted to pixels.
@@ -934,6 +1017,7 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
   @SimpleProperty(
       description = "The color of the canvas background.",
       category = PropertyCategory.APPEARANCE)
+  @IsColor
   public int BackgroundColor() {
     return backgroundColor;
   }
@@ -967,8 +1051,9 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
   }
 
   /**
-   * Specifies the path of the canvas background image.
+   * Specifies the name of a file containing the background image for the `Canvas`.
    *
+   * @internaldoc
    * <p/>See {@link MediaUtil#determineMediaSource} for information about what
    * a path can be.
    *
@@ -982,6 +1067,26 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
   }
 
   /**
+   * Specifies the backgound image in Base64 format
+   * imageUrl will be in format of: iVBORw0KG...s//f+4z/6Z
+   * @suppressdoc
+   * @param imageUrl the base64 format for an image
+   */
+  @RequiresApi(api = android.os.Build.VERSION_CODES.FROYO)
+  @SimpleProperty (
+      description = "Set the background image in Base64 format. This requires API level >= 8. For "
+          + "devices with API level less than 8, setting this will end up with an empty background."
+  )
+  public void BackgroundImageinBase64(String imageUrl) {
+    if (SdkLevel.getLevel() >= SdkLevel.LEVEL_FROYO) {
+      view.setBackgroundImageBase64(imageUrl);
+    } else {
+      view.setBackgroundImageBase64("");
+    }
+
+  }
+
+  /**
    * Returns the currently specified paint color as an alpha-red-green-blue
    * integer, i.e., {@code 0xAARRGGBB}.  An alpha of {@code 00}
    * indicates fully transparent and {@code FF} means opaque.
@@ -992,6 +1097,7 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
   @SimpleProperty(
       description = "The color in which lines are drawn",
       category = PropertyCategory.APPEARANCE)
+  @IsColor
   public int PaintColor() {
     return paintColor;
   }
@@ -1031,6 +1137,10 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
     return paint.getTextSize() / scale;
   }
 
+  /**
+   * Specifies the font size of text drawn on the Canvas.
+   * @param size
+   */
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_NON_NEGATIVE_FLOAT,
       defaultValue = Component.FONT_DEFAULT_SIZE + "")
   @SimpleProperty
@@ -1051,7 +1161,7 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
   }
 
   /**
-   * Specifies the stroke width
+   * Specifies the width of lines drawn on the Canvas.
    *
    * @param width
    */
@@ -1084,9 +1194,11 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
 
   /**
    * Specifies the alignment of the canvas's text: center, normal
-   * (starting at the specified point in DrawText() or DrawAngle()),
-   * or opposite (ending at the specified point in DrawText() or
-   * DrawAngle()).
+   * (starting at the specified point in {@link #DrawText} or
+   * {@link #DrawTextAtAngle(String, int, int, float)}),
+   * or opposite (ending at the specified point in
+   * {@link #DrawText(String, int, int)} or
+   * {@link #DrawTextAtAngle(String, int, int, float)}).
    *
    * @param alignment  one of {@link Component#ALIGNMENT_NORMAL},
    *                   {@link Component#ALIGNMENT_CENTER} or
@@ -1110,6 +1222,25 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
     }
   }
 
+  @SimpleProperty(description = 
+      "Determines whether moves can extend beyond the canvas borders.  "  +
+      " Default is false. This should normally be false, and the property " +
+      "is provided for backwards compatibility.",
+      category = PropertyCategory.BEHAVIOR,
+      userVisible = true)
+  public boolean ExtendMovesOutsideCanvas() {
+    return extendMovesOutsideCanvas;
+  }
+
+  /**
+   * @suppressdoc
+   * @param extend
+   */
+  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN, defaultValue = "False")
+  @SimpleProperty(userVisible = true)
+  public void ExtendMovesOutsideCanvas(boolean extend){
+    extendMovesOutsideCanvas = extend;   
+  }
 
   // Methods supporting event handling
 
@@ -1229,7 +1360,8 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
   }
 
  /**
-   * Draws a circle (filled in) with the given radius centered at the given coordinates on the canvas
+   * Draws a circle (filled in) with the given radius centered at the given coordinates on the
+   * Canvas.
    *
    * @param centerX  x-coordinate of the center of the circle
    * @param centerY  y-coordinate of the center of the circle
@@ -1262,6 +1394,113 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
     float correctedX2 = x2 * $form().deviceDensity();
     float correctedY2 = y2 * $form().deviceDensity();
     view.canvas.drawLine(correctedX1, correctedY1, correctedX2, correctedY2, paint);
+    view.invalidate();
+  }
+
+  /**
+   * Draws a shape on the canvas.
+   * pointList should be a list contains sub-lists with two number which represents a coordinate.
+   * The first point and last point does not need to be the same. e.g. ((x1 y1) (x2 y2) (x3 y3))
+   * When fill is true, the shape will be filled.
+   *
+   * @param pointList  A list of points, should contains sub-lists with two number which represents a coordinate.
+   *                   The first point and last point does not need to be the same. e.g. ((x1 y1) (x2 y2) (x3 y3))
+   * @param fill  true for filled shape; false for shape outline
+   */
+  @SimpleFunction(description = 
+      "Draws a shape on the canvas. " +
+      "pointList should be a list contains sub-lists with two number which represents a coordinate. " +
+      "The first point and last point does not need to be the same. e.g. ((x1 y1) (x2 y2) (x3 y3)) " +
+      "When fill is true, the shape will be filled.")
+  public void DrawShape(YailList pointList, boolean fill) {
+    Path path;
+    try {
+      path = parsePath(parsePointList(pointList));
+    } catch (IllegalArgumentException e) {
+      $form().dispatchErrorOccurredEvent(this, "DrawShape", ErrorMessages.ERROR_CANVAS_DRAW_SHAPE_BAD_ARGUMENT);
+      return;
+    }
+    path.close();
+    Paint p = new Paint(paint);
+    p.setStyle(fill ? Paint.Style.FILL : Paint.Style.STROKE);
+    view.canvas.drawPath(path, p);
+    view.invalidate();
+  }
+
+  private Path parsePath(float[][] points) throws IllegalArgumentException {
+    if (points == null || points.length == 0) {
+      throw new IllegalArgumentException();
+    }
+    float scalingFactor = $form().deviceDensity();
+
+    Path path = new Path();
+    path.moveTo(points[0][0] * scalingFactor, points[0][1] * scalingFactor);
+    for (int i = 1; i < points.length; i++) {
+      path.lineTo(points[i][0] * scalingFactor, points[i][1] * scalingFactor);
+    }
+
+    return path;
+  }
+
+  private float[][] parsePointList(YailList pointList) throws IllegalArgumentException {
+    if (pointList == null || pointList.size() == 0) {
+      throw new IllegalArgumentException();
+    }
+    float[][] points = new float[pointList.size()][2];
+    int index = 0;
+    YailList pointYailList;
+    for (Object pointObject : pointList.toArray()) {
+      if (pointObject instanceof YailList) {
+        pointYailList = (YailList) pointObject;
+        if (pointYailList.size() == 2) {
+          try {
+            points[index][0] = Float.parseFloat(pointYailList.getString(0));
+            points[index][1] = Float.parseFloat(pointYailList.getString(1));
+            index++;
+          } catch (NullPointerException e) {
+            throw new IllegalArgumentException(e.fillInStackTrace());
+          } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(e.fillInStackTrace());
+          }
+        } else {
+          throw new IllegalArgumentException("length of item YailList("+ index +") is not 2");
+        }
+      } else {
+        throw new IllegalArgumentException("item("+ index +") in YailList is not a YailList");
+      }
+    }
+    return points;
+  }
+
+  /**
+   * Draw an arc on Canvas, by drawing an arc from a specified oval (specified by left, top, right & bottom).
+   * Start angle is 0 when heading to the right, and increase when rotate clockwise.
+   * When useCenter is true, a sector will be drawed instead of an arc.
+   * When fill is true, a filled arc (or sector) will be drawed instead of just an outline.
+   * 
+   * @param left   the left end of the oval
+   * @param top    the top of the oval
+   * @param right  the right end of the oval
+   * @param bottom the bottom of the oval
+   * @param startAngle the start angle of the arc, rightward as 0, clockwise as positive, in degree
+   * @param sweepAngle the sweep angle of the arc, clockwise as positive, in degree
+   * @param useCenter  fill a sector instead of just an arc (when true)
+   * @param fill  true for filled arc (or sector); false for outline only
+   */
+  @SimpleFunction(description = 
+      "Draw an arc on Canvas, by drawing an arc from a specified oval (specified by left, top, right & bottom). " +
+      "Start angle is 0 when heading to the right, and increase when rotate clockwise. " +
+      "When useCenter is true, a sector will be drawed instead of an arc. " +
+      "When fill is true, a filled arc (or sector) will be drawed instead of just an outline.")
+  public void DrawArc(int left, int top, int right, int bottom, 
+      float startAngle, float sweepAngle, boolean useCenter, boolean fill) {
+    float scalingFactor = $form().deviceDensity();
+    Paint p = new Paint(paint);
+    p.setStyle(fill ? Paint.Style.FILL : Paint.Style.STROKE);
+    view.canvas.drawArc(
+      new RectF(scalingFactor * left, scalingFactor * top,
+                scalingFactor * right, scalingFactor * bottom),
+      startAngle, sweepAngle, useCenter, p);
     view.invalidate();
   }
 
@@ -1303,7 +1542,7 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
   }
 
   /**
-   * <p>Gets the color of the given pixel, ignoring sprites.</p>
+   * Gets the color of the given pixel, ignoring sprites.
    *
    * @param x the x-coordinate
    * @param y the y-coordinate
@@ -1313,6 +1552,7 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
   @SimpleFunction(description = "Gets the color of the specified point. "
       + "This includes the background and any drawn points, lines, or "
       + "circles but not sprites.")
+  @IsColor
   public int GetBackgroundPixelColor(int x, int y) {
     int correctedX = (int) (x * $form().deviceDensity());
     int correctedY = (int) (y * $form().deviceDensity());
@@ -1320,8 +1560,8 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
   }
 
   /**
-   * <p>Sets the color of the given pixel.  This has no effect if the
-   * coordinates are out of bounds.</p>
+   * Sets the color of the given pixel.  This has no effect if the
+   * coordinates are out of bounds.
    *
    * @param x the x-coordinate
    * @param y the y-coordinate
@@ -1329,7 +1569,7 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
    */
   @SimpleFunction(description = "Sets the color of the specified point. "
       + "This differs from DrawPoint by having an argument for color.")
-  public void SetBackgroundPixelColor(int x, int y, int color) {
+  public void SetBackgroundPixelColor(int x, int y, @IsColor int color) {
     Paint pixelPaint = new Paint();
     PaintUtil.changePaint(pixelPaint, color);
     int correctedX = (int) (x * $form().deviceDensity());
@@ -1339,7 +1579,7 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
   }
 
   /**
-   * <p>Gets the color of the given pixel, including sprites.</p>
+   * Gets the color of the given pixel, including sprites.
    *
    * @param x the x-coordinate
    * @param y the y-coordinate
@@ -1347,6 +1587,7 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
    *         or {@link Component#COLOR_NONE} if that point is not on this Canvas
    */
   @SimpleFunction(description = "Gets the color of the specified point.")
+  @IsColor
   public int GetPixelColor(int x, int y) {
     int correctedX = (int) (x * $form().deviceDensity());
     int correctedY = (int) (y * $form().deviceDensity());
@@ -1360,12 +1601,13 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
    * @return the full path name of the saved file, or the empty string if the
    *         save failed
    */
-    @SimpleFunction(description = "Saves a picture of this Canvas to the " +
+  @UsesPermissions({Manifest.permission.WRITE_EXTERNAL_STORAGE})
+  @SimpleFunction(description = "Saves a picture of this Canvas to the " +
        "device's external storage. If an error occurs, the Screen's ErrorOccurred " +
        "event will be called.")
   public String Save() {
     try {
-      File file = FileUtil.getPictureFile("png");
+      File file = FileUtil.getPictureFile($form(), "png");
       return saveFile(file, Bitmap.CompressFormat.PNG, "Save");
     } catch (PermissionException e) {
       container.$form().dispatchPermissionDeniedEvent(this, "Save", e);
@@ -1387,6 +1629,7 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
    * @return the full path name of the saved file, or the empty string if the
    *         save failed
    */
+  @UsesPermissions({Manifest.permission.WRITE_EXTERNAL_STORAGE})
   @SimpleFunction(description =  "Saves a picture of this Canvas to the device's " +
    "external storage in the file " +
    "named fileName. fileName must end with one of .jpg, .jpeg, or .png, " +
@@ -1407,7 +1650,7 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
       return "";
     }
     try {
-      File file = FileUtil.getExternalFile(fileName);
+      File file = FileUtil.getExternalFile($form(), fileName);
       return saveFile(file, format, "SaveAs");
     } catch (PermissionException e) {
       container.$form().dispatchPermissionDeniedEvent(this, "SaveAs", e);

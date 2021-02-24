@@ -51,24 +51,25 @@ public abstract class AndroidViewComponent extends VisibleComponent {
   public abstract View getView();
 
   /**
-   * Returns true iff the component is visible.
+   * Returns true iff the `%type%` is visible.
    * @return  true iff the component is visible
    */
   @SimpleProperty(
+      description = "Specifies whether the %type% should be visible on the screen. "
+          + "Value is true if the %type% is showing and false if hidden.",
       category = PropertyCategory.APPEARANCE)
   public boolean Visible() {
     return getView().getVisibility() == View.VISIBLE;
   }
 
   /**
-   * Specifies whether the component should be visible on the screen.  Value is true if the 
-   * component is showing and false if hidden.
+   * Specifies whether the `%type%` should be visible on the screen.  Value is `true`{:.logic.block}
+   * if the `%type%` is showing and `false`{:.logic.block} if hidden.
    * @param  visibility desired state
    */
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_VISIBILITY,
       defaultValue = "True")
-  @SimpleProperty(description = "Specifies whether the component should be visible on the screen. "
-      + "Value is true if the component is showing and false if hidden.")
+  @SimpleProperty
   public void Visible(boolean visibility) {
     // The principle of least astonishment suggests we not offer the
     // Android option INVISIBLE.
@@ -76,7 +77,7 @@ public abstract class AndroidViewComponent extends VisibleComponent {
   }
 
   /**
-   * Returns the component's horizontal width, measured in pixels.
+   * Returns the horizontal width of the `%type%`, measured in pixels.
    *
    * @return  width in pixels
    */
@@ -89,28 +90,32 @@ public abstract class AndroidViewComponent extends VisibleComponent {
   }
 
   /**
-   * Specifies the component's horizontal width, measured in pixels.
+   * Specifies the horizontal width of the `%type%`, measured in pixels.
    *
    * @param  width in pixels
    */
   @Override
-  @SimpleProperty
+  @SimpleProperty(description = "Specifies the horizontal width of the %type%, measured in pixels.")
   public void Width(int width) {
     container.setChildWidth(this, width);
     lastSetWidth = width;
-    if (width <= Component.LENGTH_PERCENT_TAG)
+    if (width <= Component.LENGTH_PERCENT_TAG) {
       container.$form().registerPercentLength(this, width, Form.PercentStorageRecord.Dim.WIDTH);
+    } else {
+      container.$form().unregisterPercentLength(this, Form.PercentStorageRecord.Dim.WIDTH);
+    }
   }
 
   /**
-   * Specifies the component's horizontal width as a percentage
-   * of the Width of its parent Component.
+   * Specifies the horizontal width of the `%type%` as a percentage
+   * of the [`Screen`'s `Width`](userinterface.html#Screen.Width).
    *
-   * @param width in percent
+   * @param pCent width in percent
    */
 
   @Override
-  @SimpleProperty
+  @SimpleProperty(description = "Specifies the horizontal width of the %type% as a percentage of "
+      + "the width of the Screen.")
   public void WidthPercent(int pCent) {
     if (pCent < 0 || pCent > 100) {
       container.$form().dispatchErrorOccurredEvent(this, "WidthPercent",
@@ -164,7 +169,7 @@ public abstract class AndroidViewComponent extends VisibleComponent {
   }
 
   /**
-   * Returns the component's vertical height, measured in pixels.
+   * Returns the `%type%`'s vertical height, measured in pixels.
    *
    * @return  height in pixels
    */
@@ -175,28 +180,32 @@ public abstract class AndroidViewComponent extends VisibleComponent {
   }
 
   /**
-   * Specifies the component's vertical height, measured in pixels.
+   * Specifies the `%type%`'s vertical height, measured in pixels.
    *
    * @param  height in pixels
    */
   @Override
-  @SimpleProperty
+  @SimpleProperty(description = "Specifies the vertical height of the %type%, measured in pixels.")
   public void Height(int height) {
     container.setChildHeight(this, height);
     lastSetHeight = height;
-    if (height <= Component.LENGTH_PERCENT_TAG)
+    if (height <= Component.LENGTH_PERCENT_TAG) {
       container.$form().registerPercentLength(this, height, Form.PercentStorageRecord.Dim.HEIGHT);
+    } else {
+      container.$form().unregisterPercentLength(this, Form.PercentStorageRecord.Dim.HEIGHT);
+    }
   }
 
   /**
-   * Specifies the component's vertical height as a percentage
-   * of the height of its parent Component.
+   * Specifies the `%type%`'s vertical height as a percentage
+   * of the [`Screen`'s `Height`](userinterface.html#Screen.Height).
    *
-   * @param height in percent
+   * @param pCent height in percent
    */
 
   @Override
-  @SimpleProperty
+  @SimpleProperty(description = "Specifies the vertical height of the %type% as a percentage of "
+      + "the height of the Screen.")
   public void HeightPercent(int pCent) {
     if (pCent < 0 || pCent > 100) {
       container.$form().dispatchErrorOccurredEvent(this, "HeightPercent",

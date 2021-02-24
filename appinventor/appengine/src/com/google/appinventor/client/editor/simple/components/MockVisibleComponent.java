@@ -11,6 +11,7 @@ import com.google.appinventor.client.editor.simple.SimpleEditor;
 import com.google.appinventor.client.editor.youngandroid.properties.YoungAndroidLengthPropertyEditor;
 import com.google.appinventor.client.widgets.properties.TextPropertyEditor;
 import com.google.appinventor.components.common.ComponentConstants;
+import com.google.appinventor.components.common.PropertyTypeConstants;
 import com.google.gwt.resources.client.ImageResource;
 import com.google.gwt.user.client.ui.Image;
 import com.google.gwt.user.client.ui.Widget;
@@ -26,6 +27,10 @@ public abstract class MockVisibleComponent extends MockComponent {
   protected static final String PROPERTY_NAME_BUTTONSHAPE= "Shape";
   protected static final String PROPERTY_NAME_BACKGROUNDCOLOR = "BackgroundColor";
   protected static final String PROPERTY_NAME_BACKGROUNDIMAGE = "BackgroundImage";
+  protected static final String PROPERTY_NAME_THUMBCOLORACTIVE = "ThumbColorActive";
+  protected static final String PROPERTY_NAME_THUMBCOLORINACTIVE = "ThumbColorInactive";
+  protected static final String PROPERTY_NAME_TRACKCOLORACTIVE = "TrackColorActive";
+  protected static final String PROPERTY_NAME_TRACKCOLORINACTIVE = "TrackColorInactive";
   protected static final String PROPERTY_NAME_ENABLED = "Enabled";
   protected static final String PROPERTY_NAME_FONTBOLD = "FontBold";
   protected static final String PROPERTY_NAME_FONTITALIC = "FontItalic";
@@ -36,13 +41,14 @@ public abstract class MockVisibleComponent extends MockComponent {
   protected static final String PROPERTY_NAME_SHOW_FILTER_BAR = "ShowFilterBar";
   protected static final String PROPERTY_NAME_TEXTCOLOR = "TextColor";
   protected static final String PROPERTY_NAME_CHECKED = "Checked"; // checkbox and radio button
+  protected static final String PROPERTY_NAME_ON = "On"; // toggle switch
   protected static final String PROPERTY_NAME_HINT = "Hint";
   protected static final String PROPERTY_NAME_HTMLFORMAT = "HTMLFormat";
   protected static final String PROPERTY_NAME_VISIBLE = "Visible";
   protected static final String PROPERTY_NAME_WIDTH = "Width";
   protected static final String PROPERTY_NAME_HEIGHT = "Height";
-  protected static final String PROPERTY_NAME_COLUMN = "Column";
-  protected static final String PROPERTY_NAME_ROW = "Row";
+  public static final String PROPERTY_NAME_COLUMN = "Column";
+  public static final String PROPERTY_NAME_ROW = "Row";
 
   // Note: the values below are duplicated in Component.java
   // If you change them here, change them there!
@@ -83,8 +89,10 @@ public abstract class MockVisibleComponent extends MockComponent {
 
   protected void addWidthHeightProperties() {
     addProperty(PROPERTY_NAME_WIDTH, "" + LENGTH_PREFERRED, MESSAGES.widthPropertyCaption(),
+        PropertyTypeConstants.PROPERTY_TYPE_LENGTH, null,
         new YoungAndroidLengthPropertyEditor());
     addProperty(PROPERTY_NAME_HEIGHT, "" + LENGTH_PREFERRED, MESSAGES.heightPropertyCaption(),
+        PropertyTypeConstants.PROPERTY_TYPE_LENGTH, null,
         new YoungAndroidLengthPropertyEditor());
   }
 
