@@ -61,7 +61,7 @@ import java.util.zip.ZipInputStream;
  * @author data1013@mit.edu (Danny Tang)
  */
 
-@DesignerComponent(version = 20190123,
+@DesignerComponent(version = 20210224,
         category = ComponentCategory.EXTENSION,
         description = "Component that classifies images using a user trained model from the image " +
             "classification explorer. You must provide a WebViewer component in the PersonalImageClassifier " +
@@ -94,6 +94,7 @@ public final class PersonalImageClassifier extends AndroidNonvisibleComponent im
   private static final int ERROR_WEBVIEWER_REQUIRED = -7;
   private static final int ERROR_INVALID_MODEL_FILE = -8;
   private static final int ERROR_MODEL_REQUIRED = -9;
+  private static final int ERROR_MODEL_LABELS_FAILED = -10;
 
   private WebView webview = null;
   private String inputMode = MODE_VIDEO;
@@ -270,6 +271,12 @@ public final class PersonalImageClassifier extends AndroidNonvisibleComponent im
     return inputMode;
   }
 
+  @SimpleFunction(description = "Gets all of the labels from this model")
+  public void GetModelLabels() {
+    assertWebView("GetModelLabels");
+    this.webview.evaluateJavascript("getModelLabels();", null);
+  }
+
   @SimpleFunction(description = "Performs classification on the image at the given path and triggers the GotClassification event when classification is finished successfully.")
   public void ClassifyImageData(final String image) {
     assertWebView("ClassifyImageData");
@@ -315,6 +322,11 @@ public final class PersonalImageClassifier extends AndroidNonvisibleComponent im
   public void ClassifierReady() {
     InputMode(inputMode);
     EventDispatcher.dispatchEvent(this, "ClassifierReady");
+  }
+
+  @SimpleEvent(description = "Event indicating that we have successfully fetched the model's labels.")
+  public void LabelsReady(YailList result) {
+    EventDispatcher.dispatchEvent(this, "LabelsReady", new Object[]{result});
   }
 
   @SimpleEvent(description = "Event indicating that classification has finished successfully. Result is of the form [[class1, confidence1], [class2, confidence2], ..., [class10, confidence10]].")
@@ -374,6 +386,24 @@ public final class PersonalImageClassifier extends AndroidNonvisibleComponent im
         Log.d(LOG_TAG, "Entered catch of reportResult");
         e.printStackTrace();
         Error(ERROR_CLASSIFICATION_FAILED);
+      }
+    }
+
+    @JavascriptInterface
+    public void reportModelLabels(String result) {
+      Log.d(PersonalImageClassifier.LOG_TAG, "Entered reportModelLabels: " + result);
+      try {
+        Log.d(PersonalImageClassifier.LOG_TAG, "Entered try of reportModelLabels");
+        final YailList resultList = YailList.makeList(JsonUtil.getListFromJsonArray(new JSONArray(result)));
+        PersonalImageClassifier.this.form.runOnUiThread(new Runnable() {
+            public void run() {
+              PersonalImageClassifier.this.LabelsReady(resultList);
+            }
+          });
+      } catch (JSONException e) {
+        Log.d(PersonalImageClassifier.LOG_TAG, "Entered catch of reportModelLabels");
+        e.printStackTrace();
+        PersonalImageClassifier.this.Error(PersonalImageClassifier.ERROR_MODEL_LABELS_FAILED);
       }
     }
 
