@@ -194,6 +194,10 @@ function classifyVideoData() {
   }
 }
 
+function getModelLabels() {
+  PersonalImageClassifier.reportModelLabels(JSON.stringify(Object.values(modelLabels)));
+}
+
 function setInputMode(inputMode) {
   if (inputMode === "image" && isVideoMode) {
     stopVideo();
