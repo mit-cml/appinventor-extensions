@@ -89,17 +89,37 @@ const loadModel = async () => {
   }
 };
 
-async function predict(pixels) {
+/**
+ * Crops an image tensor so we get a square image with no white space.
+ * @param {tf.tensor4d} img An input image Tensor to crop.
+ */
+function cropImage(img) {
+  const size = Math.min(img.shape[0], img.shape[1]);
+  const centerHeight = img.shape[0] / 2;
+  const beginHeight = centerHeight - (size / 2);
+  const centerWidth = img.shape[1] / 2;
+  const beginWidth = centerWidth - (size / 2);
+  return img.slice([beginHeight, beginWidth, 0], [size, size, 3]);
+}
+
+/**
+ * Predict the class of an image.
+ *
+ * @param {HTMLImageElement|HTMLVideoElement} pixels
+ * @param {boolean=false} crop
+ * @returns {Promise<void>}
+ */
+async function predict(pixels, crop) {
   try {
     const logits = tf.tidy(() => {
-      const img = tf.image.resizeBilinear(tf.fromPixels(pixels).toFloat(), [IMAGE_SIZE, IMAGE_SIZE]);
-      const offset = tf.scalar(127.5);
-      const normalized = img.sub(offset).div(offset);
-      const batched = normalized.reshape([1, IMAGE_SIZE, IMAGE_SIZE, 3]);
+      const img = crop ? cropImage(tf.fromPixels(pixels)) :
+        tf.image.resizeBilinear(tf.fromPixels(pixels).toFloat(), [IMAGE_SIZE, IMAGE_SIZE]);
+      const batchedImage = img.expandDims(0);
+      const scaled = batchedImage.toFloat().div(tf.scalar(127)).sub(tf.scalar(1));
 
       // Make a prediction, first using the transfer model activation and then
       // feeding that into the user provided model
-      const activation = transferModel.predict(batched);
+      const activation = transferModel.predict(scaled);
       const predictions = model.predict(activation);
       return predictions.as1D();
     });
@@ -133,34 +153,48 @@ var img = document.createElement("img");
 img.width = window.innerWidth;
 img.style.display = "block";
 
-var video = document.createElement("video");
-video.setAttribute("autoplay", "");
-video.setAttribute("playsinline", "");
-video.width = window.innerWidth;
+var webcamHolder = document.getElementById('webcam-box');
+var video = document.getElementById('webcam');
+webcamHolder.style.display = 'none';
 video.style.display = "none";
+
+video.addEventListener('loadeddata' , () => {
+  var previewWidth = webcamHolder.offsetWidth;
+  var previewHeight = webcamHolder.offsetHeight;
+  var width = video.videoWidth;
+  var height = video.videoHeight;
+  var aspectRatio = width / height;
+  if (width >= height) {
+    video.width = aspectRatio * video.height;
+  } else {
+    video.height = video.width / aspectRatio;
+  }
+}, false);
 
 var frontFacing = false;
 var isVideoMode = false;
 
 document.body.appendChild(img);
-document.body.appendChild(video);
-
-video.addEventListener("loadedmetadata", function() {
-  video.height = this.videoHeight * video.width / this.videoWidth;
-}, false);
 
 function startVideo() {
   if (isVideoMode) {
     navigator.mediaDevices.getUserMedia({video: {facingMode: frontFacing ? "user" : "environment"}, audio: false})
     .then(stream => (video.srcObject = stream))
     .catch(e => log(e));
+    webcamHolder.style.display = 'block';
     video.style.display = "block";
+    if (frontFacing) {  // flip the front facing camera to make it 'natural'
+      video.style.transform = 'scaleX(-1);';
+    } else {
+      video.style.transform = '';
+    }
   }
 }
 
 function stopVideo() {
   if (isVideoMode && video.srcObject) {
     video.srcObject.getTracks().forEach(t => t.stop());
+    webcamHolder.style.display = 'none';
     video.style.display = "none";
   }
 }
@@ -188,7 +222,7 @@ function classifyImageData(imageData) {
 
 function classifyVideoData() {
   if (isVideoMode) {
-    predict(video);
+    predict(video, true);
   } else {
     PersonalImageClassifier.error(ERROR_CANNOT_CLASSIFY_VIDEO_IN_IMAGE_MODE);
   }
