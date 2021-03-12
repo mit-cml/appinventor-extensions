@@ -39,10 +39,9 @@ import com.google.appinventor.components.runtime.OnResumeListener;
 import com.google.appinventor.components.runtime.WebViewer;
 import com.google.appinventor.components.runtime.errors.YailRuntimeError;
 import com.google.appinventor.components.runtime.util.ErrorMessages;
-import com.google.appinventor.components.runtime.util.JsonUtil;
 import com.google.appinventor.components.runtime.util.MediaUtil;
 import com.google.appinventor.components.runtime.util.SdkLevel;
-import com.google.appinventor.components.runtime.util.YailList;
+import com.google.appinventor.components.runtime.util.YailDictionary;
 import java.util.Collections;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -329,7 +328,7 @@ public final class PersonalImageClassifier extends AndroidNonvisibleComponent
   }
 
   @SimpleEvent(description = "Event indicating that classification has finished successfully. Result is of the form [[class1, confidence1], [class2, confidence2], ..., [class10, confidence10]].")
-  public void GotClassification(YailList result) {
+  public void GotClassification(YailDictionary result) {
     EventDispatcher.dispatchEvent(this, "GotClassification", result);
   }
 
@@ -407,15 +406,15 @@ public final class PersonalImageClassifier extends AndroidNonvisibleComponent
       try {
         Log.d(LOG_TAG, "Entered try of reportResult");
         JSONArray list = new JSONArray(result);
-        YailList intermediateList = YailList.makeList(JsonUtil.getListFromJsonArray(list));
-        final List resultList = new ArrayList();
-        for (int i = 0; i < intermediateList.size(); i++) {
-          resultList.add(YailList.makeList((List) intermediateList.getObject(i)));
+        final YailDictionary resultDict = new YailDictionary();
+        for (int i = 0; i < list.length(); i++) {
+          JSONArray pair = list.getJSONArray(i);
+          resultDict.put(pair.getString(0), pair.getDouble(1));
         }
         form.runOnUiThread(new Runnable() {
           @Override
           public void run() {
-            GotClassification(YailList.makeList(resultList));
+            GotClassification(resultDict);
           }
         });
       } catch (JSONException e) {
