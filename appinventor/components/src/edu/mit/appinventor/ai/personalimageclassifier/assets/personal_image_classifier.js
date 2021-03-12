@@ -191,7 +191,7 @@ function startVideo() {
     webcamHolder.style.display = 'block';
     video.style.display = "block";
     if (frontFacing) {  // flip the front facing camera to make it 'natural'
-      video.style.transform = 'scaleX(-1);';
+      video.style.transform = 'scaleX(-1)';
     } else {
       video.style.transform = '';
     }
