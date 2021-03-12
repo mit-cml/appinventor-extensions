@@ -20,6 +20,8 @@ const ERROR_CANNOT_TOGGLE_CAMERA_IN_IMAGE_MODE = -3;
 const ERROR_CANNOT_CLASSIFY_IMAGE_IN_VIDEO_MODE = -4;
 const ERROR_CANNOT_CLASSIFY_VIDEO_IN_IMAGE_MODE = -5;
 const ERROR_INVALID_INPUT_MODE = -6;
+// Error -10 was failure to load labels
+const ERROR_FAILED_TO_START_VIDEO = -11;
 
 // Inputs are passed through an activation of the transfer before being fed into
 // the user provided model
@@ -129,7 +131,7 @@ async function predict(pixels, crop) {
     const predictionIndices = await topPredictions.indices.data();
     const predictionValues = await topPredictions.values.data();
 
-    var result = [];
+    let result = [];
     logits.dispose();
 
     for (let i = 0; i < topk_predictions; i++) {
@@ -178,9 +180,15 @@ document.body.appendChild(img);
 
 function startVideo() {
   if (isVideoMode) {
-    navigator.mediaDevices.getUserMedia({video: {facingMode: frontFacing ? "user" : "environment"}, audio: false})
-    .then(stream => (video.srcObject = stream))
-    .catch(e => log(e));
+    navigator.mediaDevices.getUserMedia({
+      video: {facingMode: frontFacing ? "user" : "environment"},
+      audio: false
+    })
+      .then(stream => (video.srcObject = stream))
+      .catch(e => {
+        PersonalImageClassifier.error(ERROR_FAILED_TO_START_VIDEO);
+        console.error(e);
+      });
     webcamHolder.style.display = 'block';
     video.style.display = "block";
     if (frontFacing) {  // flip the front facing camera to make it 'natural'
@@ -199,20 +207,24 @@ function stopVideo() {
   }
 }
 
+// Called from PersonalImageClassifier.java
+// noinspection JSUnusedGlobalSymbols
 function toggleCameraFacingMode() {
   if (isVideoMode) {
-    frontFacing = !frontFacing;
     stopVideo();
+    frontFacing = !frontFacing;
     startVideo();
   } else {
     PersonalImageClassifier.error(ERROR_CANNOT_TOGGLE_CAMERA_IN_IMAGE_MODE);
   }
 }
 
+// Called from PersonalImageClassifier.java
+// noinspection JSUnusedGlobalSymbols
 function classifyImageData(imageData) {
   if (!isVideoMode) {
     img.onload = function() {
-      predict(img);
+      predict(img).catch(() => PersonalImageClassifier.error(ERROR_CLASSIFICATION_FAILED));
     }
     img.src = "data:image/png;base64," + imageData;
   } else {
@@ -220,9 +232,11 @@ function classifyImageData(imageData) {
   }
 }
 
+// Called from PersonalImageClassifier.java
+// noinspection JSUnusedGlobalSymbols
 function classifyVideoData() {
   if (isVideoMode) {
-    predict(video, true);
+    predict(video, true).catch(() => PersonalImageClassifier.error(ERROR_CLASSIFICATION_FAILED));
   } else {
     PersonalImageClassifier.error(ERROR_CANNOT_CLASSIFY_VIDEO_IN_IMAGE_MODE);
   }
@@ -252,4 +266,4 @@ window.addEventListener("resize", function() {
   video.height = video.videoHeight * window.innerWidth / video.videoWidth;
 });
 
-loadModel();
+loadModel().catch(() => PersonalImageClassifier.error(ERROR_CLASSIFICATION_NOT_SUPPORTED));

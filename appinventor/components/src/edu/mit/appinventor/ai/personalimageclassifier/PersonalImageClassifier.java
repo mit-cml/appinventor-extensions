@@ -141,7 +141,7 @@ public final class PersonalImageClassifier extends AndroidNonvisibleComponent im
 
             String fileName = url.substring(PERSONAL_MODEL_PREFIX.length());
             ZipInputStream zipInputStream = new ZipInputStream(MediaUtil.openMedia(form, modelPath));
-            ZipEntry zipEntry = null;
+            ZipEntry zipEntry;
 
             while ((zipEntry = zipInputStream.getNextEntry()) != null) {
               if (zipEntry.getName().equals(fileName)) {
@@ -159,7 +159,7 @@ public final class PersonalImageClassifier extends AndroidNonvisibleComponent im
 
           if (file != null) {
             if (SdkLevel.getLevel() >= SdkLevel.LEVEL_LOLLIPOP) {
-              Map<String, String> responseHeaders = new HashMap<String, String>();
+              Map<String, String> responseHeaders = new HashMap<>();
               responseHeaders.put("Access-Control-Allow-Origin", "*");
               return new WebResourceResponse(contentType, charSet, 200, "OK", responseHeaders, file);
             } else {
@@ -230,8 +230,7 @@ public final class PersonalImageClassifier extends AndroidNonvisibleComponent im
     }
   }
 
-  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_ASSET,
-    defaultValue = "")
+  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_ASSET)
   @SimpleProperty(userVisible = false)
   public void Model(String path) {
     Log.d(LOG_TAG, "Personal model path: " + path);
