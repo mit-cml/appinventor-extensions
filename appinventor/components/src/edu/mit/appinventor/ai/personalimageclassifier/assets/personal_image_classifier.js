@@ -34,6 +34,17 @@ let transferModelInfo;
 
 let topk_predictions;
 
+let img = document.createElement("img");
+img.width = window.innerWidth;
+img.style.display = "block";
+
+let frontFacing = false;
+let isVideoMode = false;
+let webcamHolder = document.getElementById('webcam-box');
+let video = /** @type {HTMLVideoElement} */ (document.getElementById('webcam'));
+webcamHolder.style.display = 'none';
+video.style.display = "none";
+
 async function loadTransferModel(modelName, modelActivation) {
   const transferModel = await tf.loadModel(TRANSFER_MODEL_PREFIX + modelName + TRANSFER_MODEL_SUFFIX);
 
@@ -151,15 +162,6 @@ async function predict(pixels, crop) {
   }
 }
 
-var img = document.createElement("img");
-img.width = window.innerWidth;
-img.style.display = "block";
-
-var webcamHolder = document.getElementById('webcam-box');
-var video = document.getElementById('webcam');
-webcamHolder.style.display = 'none';
-video.style.display = "none";
-
 video.addEventListener('loadeddata' , () => {
   var previewWidth = webcamHolder.offsetWidth;
   var previewHeight = webcamHolder.offsetHeight;
@@ -172,9 +174,6 @@ video.addEventListener('loadeddata' , () => {
     video.height = video.width / aspectRatio;
   }
 }, false);
-
-var frontFacing = false;
-var isVideoMode = false;
 
 document.body.appendChild(img);
 
