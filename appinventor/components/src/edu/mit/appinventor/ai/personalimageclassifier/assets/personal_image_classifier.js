@@ -41,6 +41,8 @@ img.style.display = "block";
 let frontFacing = false;
 let isVideoMode = false;
 let isRunning = false;
+let minClassTime = 0;
+let lastClassification = new Date();
 let webcamHolder = document.getElementById('webcam-box');
 let video = /** @type {HTMLVideoElement} */ (document.getElementById('webcam'));
 webcamHolder.style.display = 'none';
@@ -260,7 +262,13 @@ function cvcHandler() {
   if (!isRunning || !isVideoMode) {
     return;
   }
-  predict(video, true).then(() => setTimeout(cvcHandler, 16));
+  let now = new Date();
+  if (now.getTime() - lastClassification.getTime() > minClassTime) {
+    lastClassification = now;
+    predict(video, true).then(() => requestAnimationFrame(cvcHandler));
+  } else {
+    requestAnimationFrame(cvcHandler);
+  }
 }
 
 // Called from PersonalImageClassifier.java
