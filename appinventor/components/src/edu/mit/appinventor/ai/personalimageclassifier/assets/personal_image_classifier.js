@@ -40,6 +40,7 @@ img.style.display = "block";
 
 let frontFacing = false;
 let isVideoMode = false;
+let isRunning = false;
 let webcamHolder = document.getElementById('webcam-box');
 let video = /** @type {HTMLVideoElement} */ (document.getElementById('webcam'));
 webcamHolder.style.display = 'none';
@@ -241,6 +242,31 @@ function classifyVideoData() {
   }
 }
 
+function cvcHandler() {
+  if (!isRunning || !isVideoMode) {
+    return;
+  }
+  predict(video, true).then(() => setTimeout(cvcHandler, 16));
+}
+
+// Called from PersonalImageClassifier.java
+// noinspection JSUnusedGlobalSymbols
+function startVideoClassification() {
+  if (isRunning || !isVideoMode) {
+    return;
+  }
+  isRunning = true;
+  setTimeout(cvcHandler, 16);
+}
+
+// Called from PersonalImageClassifier.java
+// noinspection JSUnusedGlobalSymbols
+function stopVideoClassification() {
+  if (!isRunning || !isVideoMode) {
+    return;
+  }
+  isRunning = false;
+}
 
 function setInputMode(inputMode) {
   if (inputMode === "image" && isVideoMode) {

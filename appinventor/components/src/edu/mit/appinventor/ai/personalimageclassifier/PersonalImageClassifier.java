@@ -105,6 +105,7 @@ public final class PersonalImageClassifier extends AndroidNonvisibleComponent
   private String inputMode = MODE_VIDEO;
   private List<String> labels = Collections.emptyList();
   private String modelPath = null;
+  private boolean running = false;
 
   public PersonalImageClassifier(final Form form) {
     super(form);
@@ -280,6 +281,11 @@ public final class PersonalImageClassifier extends AndroidNonvisibleComponent
     return labels;
   }
 
+  @SimpleProperty(category = PropertyCategory.BEHAVIOR)
+  public boolean Running() {
+    return running;
+  }
+
   @SimpleFunction(description = "Performs classification on the image at the given path and triggers the GotClassification event when classification is finished successfully.")
   public void ClassifyImageData(final String image) {
     assertWebView("ClassifyImageData");
@@ -319,6 +325,24 @@ public final class PersonalImageClassifier extends AndroidNonvisibleComponent
   public void ClassifyVideoData() {
     assertWebView("ClassifyVideoData");
     webview.evaluateJavascript("classifyVideoData();", null);
+  }
+
+  @SimpleFunction()
+  public void StartContinuousClassification() {
+    if (MODE_VIDEO.equals(inputMode) && !running) {
+      assertWebView("StartVideoClassification");
+      webview.evaluateJavascript("startVideoClassification();", null);
+      running = true;
+    }
+  }
+
+  @SimpleFunction()
+  public void StopContinuousClassification() {
+    if (MODE_VIDEO.equals(inputMode) && running) {
+      assertWebView("StopVideoClassification");
+      webview.evaluateJavascript("stopVideoClassification();", null);
+      running = false;
+    }
   }
 
   @SimpleEvent(description = "Event indicating that the classifier is ready.")
