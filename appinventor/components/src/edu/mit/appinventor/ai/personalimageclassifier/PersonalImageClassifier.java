@@ -106,6 +106,7 @@ public final class PersonalImageClassifier extends AndroidNonvisibleComponent
   private List<String> labels = Collections.emptyList();
   private String modelPath = null;
   private boolean running = false;
+  private int minClassTime = 0;
 
   public PersonalImageClassifier(final Form form) {
     super(form);
@@ -286,6 +287,21 @@ public final class PersonalImageClassifier extends AndroidNonvisibleComponent
     return running;
   }
 
+  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_NON_NEGATIVE_INTEGER,
+      defaultValue = "0")
+  @SimpleProperty(category = PropertyCategory.BEHAVIOR)
+  public void MinimumInterval(int interval) {
+    minClassTime = interval;
+    if (webview != null) {
+      webview.evaluateJavascript("minClassTime = " + interval + ";", null);
+    }
+  }
+
+  @SimpleProperty
+  public int MinimumInterval() {
+    return minClassTime;
+  }
+
   @SimpleFunction(description = "Performs classification on the image at the given path and triggers the GotClassification event when classification is finished successfully.")
   public void ClassifyImageData(final String image) {
     assertWebView("ClassifyImageData");
@@ -348,6 +364,7 @@ public final class PersonalImageClassifier extends AndroidNonvisibleComponent
   @SimpleEvent(description = "Event indicating that the classifier is ready.")
   public void ClassifierReady() {
     InputMode(inputMode);
+    MinimumInterval(minClassTime);
     EventDispatcher.dispatchEvent(this, "ClassifierReady");
   }
 
