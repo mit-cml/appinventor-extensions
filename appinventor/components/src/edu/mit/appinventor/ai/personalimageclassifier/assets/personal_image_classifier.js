@@ -95,7 +95,7 @@ const loadModel = async () => {
     transferModel.predict(zeros).dispose();
     zeros.dispose();
     console.log("PersonalImageClassifier: transfer model activation and personal model are ready");
-    PersonalImageClassifier.ready();
+    PersonalImageClassifier.ready(JSON.stringify(Object.values(modelLabels)));
   } catch (error) {
     console.log("PersonalImageClassifier: " + error);
     PersonalImageClassifier.error(ERROR_CLASSIFICATION_NOT_SUPPORTED);
@@ -241,9 +241,6 @@ function classifyVideoData() {
   }
 }
 
-function getModelLabels() {
-  PersonalImageClassifier.reportModelLabels(JSON.stringify(Object.values(modelLabels)));
-}
 
 function setInputMode(inputMode) {
   if (inputMode === "image" && isVideoMode) {

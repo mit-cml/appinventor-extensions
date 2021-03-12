@@ -37,11 +37,13 @@ import com.google.appinventor.components.runtime.OnClearListener;
 import com.google.appinventor.components.runtime.OnPauseListener;
 import com.google.appinventor.components.runtime.OnResumeListener;
 import com.google.appinventor.components.runtime.WebViewer;
+import com.google.appinventor.components.runtime.errors.YailRuntimeError;
 import com.google.appinventor.components.runtime.util.ErrorMessages;
 import com.google.appinventor.components.runtime.util.JsonUtil;
 import com.google.appinventor.components.runtime.util.MediaUtil;
 import com.google.appinventor.components.runtime.util.SdkLevel;
 import com.google.appinventor.components.runtime.util.YailList;
+import java.util.Collections;
 import org.json.JSONArray;
 import org.json.JSONException;
 
@@ -99,11 +101,10 @@ public final class PersonalImageClassifier extends AndroidNonvisibleComponent
   private static final int ERROR_WEBVIEWER_REQUIRED = -7;
   private static final int ERROR_INVALID_MODEL_FILE = -8;
   private static final int ERROR_MODEL_REQUIRED = -9;
-  private static final int ERROR_MODEL_LABELS_FAILED = -10;
 
   private WebView webview = null;
   private String inputMode = MODE_VIDEO;
-
+  private List<String> labels = Collections.emptyList();
   private String modelPath = null;
 
   public PersonalImageClassifier(final Form form) {
@@ -275,10 +276,9 @@ public final class PersonalImageClassifier extends AndroidNonvisibleComponent
     return inputMode;
   }
 
-  @SimpleFunction(description = "Gets all of the labels from this model")
-  public void GetModelLabels() {
-    assertWebView("GetModelLabels");
-    this.webview.evaluateJavascript("getModelLabels();", null);
+  @SimpleProperty(description = "Gets all of the labels from this model. Only valid after ClassifierReady is signaled.")
+  public List<String> ModelLabels() {
+    return labels;
   }
 
   @SimpleFunction(description = "Performs classification on the image at the given path and triggers the GotClassification event when classification is finished successfully.")
@@ -328,11 +328,6 @@ public final class PersonalImageClassifier extends AndroidNonvisibleComponent
     EventDispatcher.dispatchEvent(this, "ClassifierReady");
   }
 
-  @SimpleEvent(description = "Event indicating that we have successfully fetched the model's labels.")
-  public void LabelsReady(YailList result) {
-    EventDispatcher.dispatchEvent(this, "LabelsReady", new Object[]{result});
-  }
-
   @SimpleEvent(description = "Event indicating that classification has finished successfully. Result is of the form [[class1, confidence1], [class2, confidence2], ..., [class10, confidence10]].")
   public void GotClassification(YailList result) {
     EventDispatcher.dispatchEvent(this, "GotClassification", result);
@@ -380,10 +375,24 @@ public final class PersonalImageClassifier extends AndroidNonvisibleComponent
     }
   }
 
+  private static List<String> parseLabels(String labels) {
+    List<String> result = new ArrayList<>();
+    try {
+      JSONArray arr = new JSONArray(labels);
+      for (int i = 0; i < arr.length(); i++) {
+        result.add(arr.getString(i));
+      }
+    } catch (JSONException e) {
+      throw new YailRuntimeError("Got unparsable array from Javascript", "RuntimeError");
+    }
+    return result;
+  }
+
   private class JsObject {
     @JavascriptInterface
-    public void ready() {
+    public void ready(String labels) {
       Log.d(LOG_TAG, "Entered ready");
+      PersonalImageClassifier.this.labels = parseLabels(labels);
       form.runOnUiThread(new Runnable() {
         @Override
         public void run() {
@@ -413,24 +422,6 @@ public final class PersonalImageClassifier extends AndroidNonvisibleComponent
         Log.d(LOG_TAG, "Entered catch of reportResult");
         e.printStackTrace();
         Error(ERROR_CLASSIFICATION_FAILED);
-      }
-    }
-
-    @JavascriptInterface
-    public void reportModelLabels(String result) {
-      Log.d(PersonalImageClassifier.LOG_TAG, "Entered reportModelLabels: " + result);
-      try {
-        Log.d(PersonalImageClassifier.LOG_TAG, "Entered try of reportModelLabels");
-        final YailList resultList = YailList.makeList(JsonUtil.getListFromJsonArray(new JSONArray(result)));
-        PersonalImageClassifier.this.form.runOnUiThread(new Runnable() {
-            public void run() {
-              PersonalImageClassifier.this.LabelsReady(resultList);
-            }
-          });
-      } catch (JSONException e) {
-        Log.d(PersonalImageClassifier.LOG_TAG, "Entered catch of reportModelLabels");
-        e.printStackTrace();
-        PersonalImageClassifier.this.Error(PersonalImageClassifier.ERROR_MODEL_LABELS_FAILED);
       }
     }
 
