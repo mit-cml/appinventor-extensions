@@ -113,7 +113,8 @@ function cropImage(img) {
   const beginHeight = centerHeight - (size / 2);
   const centerWidth = img.shape[1] / 2;
   const beginWidth = centerWidth - (size / 2);
-  return img.slice([beginHeight, beginWidth, 0], [size, size, 3]);
+  const slice = img.slice([beginHeight, beginWidth, 0], [size, size, 3]);
+  return size === IMAGE_SIZE ? slice : tf.image.resizeBilinear(slice, [IMAGE_SIZE, IMAGE_SIZE]);
 }
 
 /**
@@ -163,17 +164,30 @@ async function predict(pixels, crop) {
   }
 }
 
-video.addEventListener('loadeddata' , () => {
-  var previewWidth = webcamHolder.offsetWidth;
-  var previewHeight = webcamHolder.offsetHeight;
-  var width = video.videoWidth;
-  var height = video.videoHeight;
-  var aspectRatio = width / height;
+function updateVideoSize() {
+  let windowWidth = document.body.offsetWidth;
+  let windowHeight = document.body.offsetHeight;
+  let size = Math.min(windowWidth, windowHeight);
+  webcamHolder.style.width = size + 'px';
+  webcamHolder.style.height = size + 'px';
+  let width = video.videoWidth;
+  let height = video.videoHeight;
+  let aspectRatio = width / height;
   if (width >= height) {
-    video.width = aspectRatio * video.height;
+    video.width = aspectRatio * size;
+    video.height = size;
+    video.style.left = (size - video.width) / 2.0 + 'px';
+    video.style.top = '0px';
   } else {
-    video.height = video.width / aspectRatio;
+    video.height = size / aspectRatio;
+    video.width = size;
+    video.style.left = '0px';
+    video.style.top = (size - video.height) / 2.0 + 'px';
   }
+}
+
+video.addEventListener('loadeddata' , () => {
+  updateVideoSize();
 }, false);
 
 document.body.appendChild(img);
@@ -289,3 +303,11 @@ window.addEventListener("resize", function() {
 });
 
 loadModel().catch(() => PersonalImageClassifier.error(ERROR_CLASSIFICATION_NOT_SUPPORTED));
+
+window.addEventListener('orientationchange', function() {
+  if (isVideoMode) {
+    // The event fires before the video actually rotates, so we delay updating the frame until
+    // a later time.
+    setTimeout(updateVideoSize, 500);
+  }
+});
