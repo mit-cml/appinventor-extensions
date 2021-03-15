@@ -65,7 +65,7 @@ import java.util.zip.ZipInputStream;
  * @author data1013@mit.edu (Danny Tang)
  */
 
-@DesignerComponent(version = 20210225,
+@DesignerComponent(version = 20210315,
         category = ComponentCategory.EXTENSION,
         description = "Component that classifies images using a user trained model from the image " +
             "classification explorer. You must provide a WebViewer component in the PersonalImageClassifier " +
