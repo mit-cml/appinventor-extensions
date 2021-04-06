@@ -3,7 +3,7 @@
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-package com.example.facemesh;
+package edu.mit.appinventor.ai.facemesh;
 
 import android.Manifest;
 import android.Manifest.permission;
@@ -53,9 +53,9 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-@DesignerComponent(version = 1,
+@DesignerComponent(version = 20210405,
     category = ComponentCategory.EXTENSION,
-    description = "An extension that embeds a facemesh model.",
+    description = "An extension that embeds a Facemesh model.",
     iconName = "aiwebres/icon.png",
     nonVisible = true)
 @SimpleObject(external = true)
