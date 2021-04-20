@@ -28,6 +28,7 @@ import com.google.appinventor.components.annotations.UsesPermissions;
 import com.google.appinventor.components.common.ComponentCategory;
 import com.google.appinventor.components.common.PropertyTypeConstants;
 import com.google.appinventor.components.runtime.AndroidNonvisibleComponent;
+import com.google.appinventor.components.runtime.Canvas;
 import com.google.appinventor.components.runtime.Deleteable;
 import com.google.appinventor.components.runtime.EventDispatcher;
 import com.google.appinventor.components.runtime.Form;
@@ -52,7 +53,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-@DesignerComponent(version = 20200304,
+@DesignerComponent(version = 20210420,
     category = ComponentCategory.EXTENSION,
     description = "An extension that embeds a Posenet model.",
     iconName = "aiwebres/icon.png",
@@ -73,6 +74,7 @@ public class PosenetExtension extends AndroidNonvisibleComponent
   private static final String FRONT_CAMERA = "Front";
 
   private WebView webview = null;
+  private Canvas canvas = null;
   private final Map<String, YailList> keyPoints = new ConcurrentHashMap<>();
   private double minPoseConfidence = 0.1;
   private double minPartConfidence = 0.5;
@@ -187,6 +189,16 @@ public class PosenetExtension extends AndroidNonvisibleComponent
       webview.loadUrl(form.getAssetPathForExtension(this, "index.html"));
     } catch(FileNotFoundException e) {
       Log.e(LOG_TAG, "Unable to load tensorflow", e);
+    }
+  }
+
+  @SuppressWarnings("squid:S00100")
+  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_COMPONENT
+          + ":com.google.appinventor.components.runtime.Canvas")
+  @SimpleProperty(userVisible = false)
+  public void Canvas(Canvas canvas) {
+    if (canvas != null) {
+      this.canvas = canvas;
     }
   }
 
@@ -400,6 +412,10 @@ public class PosenetExtension extends AndroidNonvisibleComponent
   @SuppressWarnings("squid:S00100")
   @SimpleEvent(description = "Event indicating that the classifier is ready.")
   public void ModelReady() {
+    if (canvas != null) {
+      VideoHeight(canvas.Height());
+      VideoWidth(canvas.Width());
+    }
     EventDispatcher.dispatchEvent(this, "ModelReady");
   }
 
@@ -419,6 +435,7 @@ public class PosenetExtension extends AndroidNonvisibleComponent
   @SuppressWarnings("squid:S00100")
   @SimpleEvent(description = "Event indicating that a new video frame is ready. ")
   public void VideoUpdated() {
+    canvas.BackgroundImageinBase64(BackgroundImage);
     EventDispatcher.dispatchEvent(this, "VideoUpdated");
   }
 
@@ -442,6 +459,16 @@ public class PosenetExtension extends AndroidNonvisibleComponent
   @SimpleProperty
   public String UseCamera() {
     return cameraMode;
+  }
+
+  @SimpleProperty (description = "Configure video width.")
+  public void VideoWidth(int width) {
+    webview.evaluateJavascript("setVideoWidth(" + width + ");", null);
+  }
+
+  @SimpleProperty (description = "Configure video height.")
+  public void VideoHeight(int height) {
+    webview.evaluateJavascript("setVideoHeight(" + height + ");", null);
   }
 
   private static void requestHardwareAcceleration(Activity activity) {
