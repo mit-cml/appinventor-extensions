@@ -53,7 +53,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-@DesignerComponent(version = 20200309,
+@DesignerComponent(version = 20210420,
     category = ComponentCategory.EXTENSION,
     description = "An extension that embeds a Posenet model.",
     iconName = "aiwebres/icon.png",
@@ -413,8 +413,8 @@ public class PosenetExtension extends AndroidNonvisibleComponent
   @SimpleEvent(description = "Event indicating that the classifier is ready.")
   public void ModelReady() {
     if (canvas != null) {
-      SetVideoHeight(canvas.Height());
-      SetVideoWidth(canvas.Width());
+      VideoHeight(canvas.Height());
+      VideoWidth(canvas.Width());
     }
     EventDispatcher.dispatchEvent(this, "ModelReady");
   }
@@ -462,12 +462,12 @@ public class PosenetExtension extends AndroidNonvisibleComponent
   }
 
   @SimpleProperty (description = "Configure video width.")
-  public void SetVideoWidth(int width) {
+  public void VideoWidth(int width) {
     webview.evaluateJavascript("setVideoWidth(" + width + ");", null);
   }
 
   @SimpleProperty (description = "Configure video height.")
-  public void SetVideoHeight(int height) {
+  public void VideoHeight(int height) {
     webview.evaluateJavascript("setVideoHeight(" + height + ");", null);
   }
 
