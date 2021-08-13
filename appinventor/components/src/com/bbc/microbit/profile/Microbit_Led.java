@@ -1,7 +1,7 @@
 // -*- mode: java; c-basic-offset: 2; -*-
 // Copyright © 2017 Massachusetts Institute of Technology, All rights reserved.
 
-package temp;
+package com.bbc.microbit.profile;
 
 import com.google.appinventor.components.annotations.DesignerComponent;
 import com.google.appinventor.components.annotations.DesignerProperty;
@@ -244,6 +244,7 @@ public class Microbit_Led extends AndroidNonvisibleComponent {
   public void ScrollingDelayReceived(final int Scrolling_Delay_Value) {
     EventDispatcher.dispatchEvent(this, "ScrollingDelayReceived", Scrolling_Delay_Value);
   }
+
   /**
    * Set the delay between characters displayed on the micro:bit's LED matrix, in milliseconds.
    * After writing the value, the
@@ -264,6 +265,7 @@ public class Microbit_Led extends AndroidNonvisibleComponent {
       reportNullConnection("WriteScrollingDelay");
     }
   }
+
   /**
    * The <code>WroteScrollingDelay</code> event will be run after the micro:bit's scrolling delay
    * is successfully read after a call to the
@@ -280,6 +282,7 @@ public class Microbit_Led extends AndroidNonvisibleComponent {
   public void WroteScrollingDelay(final int Scrolling_Delay_Value) {
     EventDispatcher.dispatchEvent(this, "WroteScrollingDelay", Scrolling_Delay_Value);
   }
+
   private void reportNullConnection(String functionName) {
     form.dispatchErrorOccurredEvent(this, functionName, ErrorMessages.ERROR_EXTENSION_ERROR,
         1, Microbit_Led.class.getSimpleName(), "BluetoothDevice is not set");
