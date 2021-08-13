@@ -1,7 +1,7 @@
 // -*- mode: java; c-basic-offset: 2; -*-
 // Copyright © 2017 Massachusetts Institute of Technology, All rights reserved.
 
-package com.bbc.microbit.profile;
+package temp;
 
 import com.google.appinventor.components.annotations.DesignerComponent;
 import com.google.appinventor.components.annotations.DesignerProperty;
@@ -54,11 +54,11 @@ public class Microbit_Led extends AndroidNonvisibleComponent {
       }
     };
 
-  private final BluetoothLE.BLEResponseHandler<String> lEDTextHandler =
-    new BluetoothLE.BLEResponseHandler<String>() {
+  private final BluetoothLE.BLEResponseHandler<Integer> lEDTextHandler =
+    new BluetoothLE.BLEResponseHandler<Integer>() {
       @Override
-      public void onWrite(String serviceUuid, String characteristicUuid, List<String> values) {
-        WroteLEDText(values.get(0));
+      public void onWrite(String serviceUuid, String characteristicUuid, List<Integer> values) {
+        WroteLEDText(values);
       }
     };
 
@@ -193,7 +193,7 @@ public class Microbit_Led extends AndroidNonvisibleComponent {
   @SimpleFunction
   public void WriteLEDText(final String LED_Text_Value) {
     if (bleConnection != null) {
-      bleConnection.ExWriteStringValuesWithResponse(LED_SERVICE_UUID, LED_TEXT_CHARACTERISTIC_UUID, false, LED_Text_Value, lEDTextHandler);
+      bleConnection.ExWriteByteValuesWithResponse(LED_SERVICE_UUID, LED_TEXT_CHARACTERISTIC_UUID, false, LED_Text_Value, lEDTextHandler);
     } else {
       reportNullConnection("WriteLEDText");
     }
@@ -211,7 +211,7 @@ public class Microbit_Led extends AndroidNonvisibleComponent {
    * @param LED_Text_Value The text written to the LED matrix.
    */
   @SimpleEvent
-  public void WroteLEDText(final String LED_Text_Value) {
+  public void WroteLEDText(final List<Integer> LED_Text_Value) {
     EventDispatcher.dispatchEvent(this, "WroteLEDText", LED_Text_Value);
   }
 
@@ -244,7 +244,6 @@ public class Microbit_Led extends AndroidNonvisibleComponent {
   public void ScrollingDelayReceived(final int Scrolling_Delay_Value) {
     EventDispatcher.dispatchEvent(this, "ScrollingDelayReceived", Scrolling_Delay_Value);
   }
-
   /**
    * Set the delay between characters displayed on the micro:bit's LED matrix, in milliseconds.
    * After writing the value, the
@@ -265,7 +264,6 @@ public class Microbit_Led extends AndroidNonvisibleComponent {
       reportNullConnection("WriteScrollingDelay");
     }
   }
-
   /**
    * The <code>WroteScrollingDelay</code> event will be run after the micro:bit's scrolling delay
    * is successfully read after a call to the
@@ -282,7 +280,6 @@ public class Microbit_Led extends AndroidNonvisibleComponent {
   public void WroteScrollingDelay(final int Scrolling_Delay_Value) {
     EventDispatcher.dispatchEvent(this, "WroteScrollingDelay", Scrolling_Delay_Value);
   }
-
   private void reportNullConnection(String functionName) {
     form.dispatchErrorOccurredEvent(this, functionName, ErrorMessages.ERROR_EXTENSION_ERROR,
         1, Microbit_Led.class.getSimpleName(), "BluetoothDevice is not set");
