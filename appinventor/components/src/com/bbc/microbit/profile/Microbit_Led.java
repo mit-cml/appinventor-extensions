@@ -54,11 +54,11 @@ public class Microbit_Led extends AndroidNonvisibleComponent {
       }
     };
 
-  private final BluetoothLE.BLEResponseHandler<String> lEDTextHandler =
-    new BluetoothLE.BLEResponseHandler<String>() {
+  private final BluetoothLE.BLEResponseHandler<Integer> lEDTextHandler =
+    new BluetoothLE.BLEResponseHandler<Integer>() {
       @Override
-      public void onWrite(String serviceUuid, String characteristicUuid, List<String> values) {
-        WroteLEDText(values.get(0));
+      public void onWrite(String serviceUuid, String characteristicUuid, List<Integer> values) {
+        WroteLEDText(values);
       }
     };
 
@@ -193,7 +193,7 @@ public class Microbit_Led extends AndroidNonvisibleComponent {
   @SimpleFunction
   public void WriteLEDText(final String LED_Text_Value) {
     if (bleConnection != null) {
-      bleConnection.ExWriteStringValuesWithResponse(LED_SERVICE_UUID, LED_TEXT_CHARACTERISTIC_UUID, false, LED_Text_Value, lEDTextHandler);
+      bleConnection.ExWriteByteValuesWithResponse(LED_SERVICE_UUID, LED_TEXT_CHARACTERISTIC_UUID, false, LED_Text_Value, lEDTextHandler);
     } else {
       reportNullConnection("WriteLEDText");
     }
@@ -211,7 +211,7 @@ public class Microbit_Led extends AndroidNonvisibleComponent {
    * @param LED_Text_Value The text written to the LED matrix.
    */
   @SimpleEvent
-  public void WroteLEDText(final String LED_Text_Value) {
+  public void WroteLEDText(final List<Integer> LED_Text_Value) {
     EventDispatcher.dispatchEvent(this, "WroteLEDText", LED_Text_Value);
   }
 
