@@ -376,12 +376,24 @@ None
 
 {:.properties}
 
+{:id="SpeechRecognizer.Language" .text .bo} *Language*
+: Suggests the language to use for recognizing speech. An empty string (the default) will
+ use the system's default language.
+
+     Language is specified using a [language tag](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes)
+     with an optional region suffix, such as en or es-MX. The set of supported languages will
+     vary by device.
+
 {:id="SpeechRecognizer.Result" .text .ro .bo} *Result*
 : Returns the last text produced by the recognizer.
 
 {:id="SpeechRecognizer.UseLegacy" .boolean} *UseLegacy*
 : If true, a separate dialog is used to recognize speech (the default). If false, speech is
- recognized in the background and partial results are also provided. See
+ recognized in the background and updates are received as it recognizes words.
+ [`AfterGettingText`](#SpeechRecognizer.AfterGettingText) may get several calls with `partial` set to `true`{:.logic.block}.
+ Once sufficient time has elapsed since the last utterance, or `StopListening` is called,
+ the last string will be returned with `partial` set to `false`{:.logic.block} to indicate that it is the
+ final recognized string and no more data will be provided until recognition is again started. See
  [`AfterGettingText`](#SpeechRecognizer.AfterGettingText) for more details on partial speech recognition.
 
 ### Events  {#SpeechRecognizer-Events}
@@ -598,8 +610,12 @@ Use this component to translate words and sentences between different languages.
 ### Properties  {#YandexTranslate-Properties}
 
 {:.properties}
-None
 
+{:id="YandexTranslate.ApiKey" .text .wo} *ApiKey*
+: The Yandex API Key to use. If set to DEFAULT the platform default key (if any)
+ will be used. Otherwise should be set to a valid API key which can be obtained
+ from https://tech.yandex.com/translate/. If the platform doesn't have a default
+ key and one isn't provided here, an error will be raised.
 
 ### Events  {#YandexTranslate-Events}
 

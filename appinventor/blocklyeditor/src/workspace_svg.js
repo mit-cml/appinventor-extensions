@@ -230,7 +230,11 @@ Blockly.WorkspaceSvg.prototype.addWarningIndicator = function() {
  */
 Blockly.WorkspaceSvg.prototype.addBackpack = function() {
   if (Blockly.Backpack && !this.options.readOnly) {
-    this.backpack_ = new Blockly.Backpack(this, {scrollbars: true, media: './assets/'});
+    this.backpack_ = new Blockly.Backpack(this, {
+        scrollbars: true,
+        media: './assets/',
+        disabledPatternId: this.options.disabledPatternId,
+      });
     var svgBackpack = this.backpack_.createDom(this);
     this.svgGroup_.appendChild(svgBackpack);
     this.backpack_.init();
@@ -372,6 +376,70 @@ Blockly.WorkspaceSvg.prototype.getProcedureDatabase = function() {
 
 //noinspection JSUnusedGlobalSymbols Called from BlocklyPanel.java
 /**
+ * Adds a screen name to the list tracked by the workspace.
+ * @param {string} name The name of the new screen.
+ */
+Blockly.WorkspaceSvg.prototype.addScreen = function(name) {
+  if (this.screenList_.indexOf(name) == -1) {
+    this.screenList_.push(name);
+    this.typeBlock_.needsReload.screens = true;
+  }
+};
+
+//noinspection JSUnusedGlobalSymbols Called from BlocklyPanel.java
+/**
+ * Removes a screen name from the list tracked by the workspace.
+ * @param {string} name The name of the screen to remove.
+ */
+Blockly.WorkspaceSvg.prototype.removeScreen = function(name) {
+  var index = this.screenList_.indexOf(name);
+  if (index != -1) {
+    this.screenList_.splice(index, 1);
+    this.typeBlock_.needsReload.screens = true;
+  }
+}
+
+/**
+ * Returns the list of screen names tracked by the workspace.
+ * @return {!Array<string>} The list of screen names.
+ */
+Blockly.WorkspaceSvg.prototype.getScreenList = function() {
+  return this.screenList_;
+};
+
+/**
+ * Adds an asset name to the list tracked by the workspace.
+ * @param {string} name The name of the new asset.
+ */
+Blockly.Workspace.prototype.addAsset = function(name) {
+  if (!this.assetList_.includes(name)) {
+    this.assetList_.push(name);
+    this.typeBlock_.needsReload.assets = true;
+  }
+};
+
+/**
+ * Removes an asset name from the list tracked by the workspace.
+ * @param {string} name The name of the asset to remove.
+ */
+Blockly.Workspace.prototype.removeAsset = function(name) {
+  var index = this.assetList_.indexOf(name);
+  if (index != -1) {  // Make sure it is actually an asset.
+    this.assetList_.splice(index, 1);
+    this.typeBlock_.needsReload.assets = true;
+  }
+};
+
+/**
+ * Returns the list of asset names tracked by the workspace.
+ * @return {!Array<string>} The list of asset names.
+ */
+Blockly.Workspace.prototype.getAssetList = function() {
+  return this.assetList_;
+}
+
+//noinspection JSUnusedGlobalSymbols Called from BlocklyPanel.java
+/**
  * Add a new component to the workspace.
  *
  * @param {string} uid
@@ -467,6 +535,7 @@ Blockly.WorkspaceSvg.prototype.loadBlocksFile = function(formJson, blocksContent
   if (blocksContent.length != 0) {
     try {
       Blockly.Events.disable();
+      this.isLoading = true;
       if (Blockly.Versioning.upgrade(formJson, blocksContent, this)) {
         var self = this;
         setTimeout(function() {
@@ -474,6 +543,7 @@ Blockly.WorkspaceSvg.prototype.loadBlocksFile = function(formJson, blocksContent
         });
       }
     } finally {
+      this.isLoading = false;
       Blockly.Events.enable();
     }
     if (this.getCanvas() != null) {
@@ -505,10 +575,11 @@ Blockly.WorkspaceSvg.prototype.verifyAllBlocks = function() {
  * Saves the workspace as an XML file and returns the contents as a
  * string.
  *
+ * @param {boolean} prettify Specify true if the resulting workspace should be pretty-printed.
  * @returns {string} XML serialization of the workspace's blocks.
  */
-Blockly.WorkspaceSvg.prototype.saveBlocksFile = function() {
-  return Blockly.SaveFile.get(this);
+Blockly.WorkspaceSvg.prototype.saveBlocksFile = function(prettify) {
+  return Blockly.SaveFile.get(prettify, this);
 };
 
 /**
@@ -1230,13 +1301,18 @@ Blockly.WorkspaceSvg.prototype.requestRender = function(block) {
   if (!this.pendingRender) {
     this.needsRendering = [];
     this.pendingBlockIds = {};
-    this.pendingRender = setTimeout(function() {
+    this.pendingRenderFunc = function() {
       try {
         this.render(this.needsRendering.length === 0 ? undefined : this.needsRendering);
       } finally {
         this.pendingRender = null;
       }
-    }.bind(this));
+    }.bind(this);
+    if (this.svgGroup_.parentElement.parentElement.parentElement.style.display === 'none') {
+      this.pendingRender = true;
+    } else {
+      this.pendingRender = setTimeout(this.pendingRenderFunc, 0);
+    }
   }
   if (block) {
     // Rendering uses Blockly.BlockSvg.renderDown, so we only need a list of the topmost blocks
