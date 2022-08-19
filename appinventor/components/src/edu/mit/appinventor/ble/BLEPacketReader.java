@@ -79,18 +79,34 @@ public class BLEPacketReader {
    * Reads a signed 16 bit value from the packet.
    */
   public int readInt16() {
+    return readInt16(false);
+  }
+
+  public int readInt16(boolean bigEndian) {
     int lower = readInt8();
     int upper = readInt8();
-    return (upper << 8) | (lower & 0xFF);
+    if (bigEndian) {
+      return (lower << 8) | (upper & 0xFF);
+    } else {
+      return (upper << 8) | (lower & 0xFF);
+    }
   }
 
   /**
    * Reads an unsigned 16 bit value from the packet.
    */
   public int readUint16() {
+    return readUint16(false);
+  }
+
+  public int readUint16(boolean bigEndian) {
     int lower = readUint8();
     int upper = readUint8();
-    return upper << 8 | lower;
+    if (bigEndian) {
+      return lower << 8 | upper;
+    } else {
+      return upper << 8 | lower;
+    }
   }
 
   /**
