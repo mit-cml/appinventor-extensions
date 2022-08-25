@@ -1,0 +1,141 @@
+[{
+ "categoryString": "EXTENSION",
+ "dateBuilt": "2022-08-26T00:03:00+0530",
+ "nonVisible": "true",
+ "iconName": "aiwebres/tm.png",
+ "methods": [
+  {
+   "deprecated": "false",
+   "name": "ClassifyImageData",
+   "description": "Performs classification on the image at the given path and triggers the GotClassification event when classification is finished successfully.",
+   "params": [{
+    "name": "image",
+    "type": "text"
+   }]
+  },
+  {
+   "deprecated": "false",
+   "name": "ClassifyVideoData",
+   "description": "Performs classification on current video frame and triggers the GotClassification event when classification is finished successfully.",
+   "params": []
+  },
+  {
+   "deprecated": "false",
+   "name": "StartContinuousClassification",
+   "description": "Method for StartContinuousClassification",
+   "params": []
+  },
+  {
+   "deprecated": "false",
+   "name": "StopContinuousClassification",
+   "description": "Method for StopContinuousClassification",
+   "params": []
+  },
+  {
+   "deprecated": "false",
+   "name": "ToggleCameraFacingMode",
+   "description": "Toggles between user-facing and environment-facing camera.",
+   "params": []
+  }
+ ],
+ "blockProperties": [
+  {
+   "rw": "read-write",
+   "deprecated": "false",
+   "name": "InputMode",
+   "description": "Gets or sets the input mode for classification. Valid values are \"Video\" (the default) and \"Image\".",
+   "type": "text"
+  },
+  {
+   "rw": "read-write",
+   "deprecated": "false",
+   "name": "MinimumInterval",
+   "description": "Property for MinimumInterval",
+   "type": "number"
+  },
+  {
+   "rw": "read-only",
+   "deprecated": "false",
+   "name": "ModelLabels",
+   "description": "Gets all of the labels from this model. Only valid after ClassifierReady is signaled.",
+   "type": "list"
+  },
+  {
+   "rw": "read-only",
+   "deprecated": "false",
+   "name": "Running",
+   "description": "Property for Running",
+   "type": "boolean"
+  },
+  {
+   "rw": "invisible",
+   "deprecated": "false",
+   "name": "WebViewer",
+   "description": "Property for WebViewer",
+   "type": "component"
+  }
+ ],
+ "helpUrl": "",
+ "licenseName": "",
+ "type": "edu.mit.appinventor.ai.teachablemachine.TeachableMachine",
+ "androidMinSdk": 7,
+ "version": "1",
+ "external": "true",
+ "showOnPalette": "true",
+ "assets": [
+  "teachable_machine.js",
+  "teachable_machine.html",
+  "tfjs-0.13.2.js"
+ ],
+ "name": "TeachableMachine",
+ "helpString": "Component that classifies images using a user trained model from the image classification explorer. You must provide a WebViewer component in the Teachable Machine Extension component's WebViewer property in order for classification to work.",
+ "properties": [
+  {
+   "defaultValue": "",
+   "name": "InputMode",
+   "editorArgs": [
+    "Video",
+    "Image"
+   ],
+   "editorType": "choices"
+  },
+  {
+   "defaultValue": "0",
+   "name": "MinimumInterval",
+   "editorArgs": [],
+   "editorType": "non_negative_integer"
+  },
+  {
+   "defaultValue": "",
+   "name": "WebViewer",
+   "editorArgs": [],
+   "editorType": "component:com.google.appinventor.runtime.components.WebViewer"
+  }
+ ],
+ "events": [
+  {
+   "deprecated": "false",
+   "name": "ClassifierReady",
+   "description": "Event indicating that the classifier is ready.",
+   "params": []
+  },
+  {
+   "deprecated": "false",
+   "name": "Error",
+   "description": "Event indicating that an error has occurred.",
+   "params": [{
+    "name": "errorCode",
+    "type": "number"
+   }]
+  },
+  {
+   "deprecated": "false",
+   "name": "GotClassification",
+   "description": "Event indicating that classification has finished successfully. Result is of the form [[class1, confidence1], [class2, confidence2], ..., [class10, confidence10]].",
+   "params": [{
+    "name": "result",
+    "type": "dictionary"
+   }]
+  }
+ ]
+}]
