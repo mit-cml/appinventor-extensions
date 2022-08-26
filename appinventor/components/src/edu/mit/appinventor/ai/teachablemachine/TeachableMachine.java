@@ -403,6 +403,20 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
         }
     }
 
+    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_STRING)
+    @SimpleProperty(userVisible = false)
+    public void ModelLink(String link) {
+        Log.d(LOG_TAG, "Model Link: " + link);
+
+        if (link.contains(MODEL_URL)) {
+            modelPath = link;
+        }
+        else {
+            form.dispatchErrorOccurredEvent(this, "ModelLink",
+                    ErrorMessages.ERROR_EXTENSION_ERROR, ERROR_INVALID_MODEL_FILE, LOG_TAG,
+                    "Incorrect Model Link: The link should look like " + MODEL_URL);
+        }
+    }
     //continue from here
 
     @SimpleProperty
