@@ -337,10 +337,8 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
                     Log.d(LOG_TAG, "isHardwareAccelerated? " + webview.isHardwareAccelerated());
 //                        webview.loadUrl(form.getAssetPathForExtension("https://localhost/teachable_machine.html"));
                     webview.loadUrl("http://localhost/teachable_machine.html");
-//                    } catch (IOException e) {
-//                        Log.d(LOG_TAG, e.getMessage());
-//                        e.printStackTrace();
-//                    }
+                    // Showing Error
+//                    webview.evaluateJavascript("loadModel();");
                 }
             }
         };

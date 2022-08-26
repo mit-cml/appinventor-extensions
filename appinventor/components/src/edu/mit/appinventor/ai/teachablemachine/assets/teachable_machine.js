@@ -1,15 +1,15 @@
 "use strict";
 
-console.log("PersonalImageClassifier: Using TensorFlow.js version " + tf.version.tfjs);
+console.log("TeachableMachine");
 
-const TRANSFER_MODEL_PREFIX = "https://appinventor.mit.edu/personal-image-classifier/transfer/";
-const TRANSFER_MODEL_SUFFIX = "_model.json";
+// const TRANSFER_MODEL_PREFIX = "https://appinventor.mit.edu/personal-image-classifier/transfer/";
+// const TRANSFER_MODEL_SUFFIX = "_model.json";
 
-const PERSONAL_MODEL_PREFIX = "https://appinventor.mit.edu/personal-image-classifier/personal/";
-const PERSONAL_MODEL_JSON_SUFFIX = "model.json";
-const PERSONAL_MODEL_WEIGHTS_SUFFIX = "model.weights.bin";
-const PERSONAL_MODEL_LABELS_SUFFIX = "model_labels.json";
-const TRANSFER_MODEL_INFO_SUFFIX = "transfer_model.json";
+// const PERSONAL_MODEL_PREFIX = "https://appinventor.mit.edu/personal-image-classifier/personal/";
+// const PERSONAL_MODEL_JSON_SUFFIX = "model.json";
+// const PERSONAL_MODEL_WEIGHTS_SUFFIX = "model.weights.bin";
+// const PERSONAL_MODEL_LABELS_SUFFIX = "model_labels.json";
+// const TRANSFER_MODEL_INFO_SUFFIX = "transfer_model.json";
 
 const IMAGE_SIZE = 224;
 
@@ -51,19 +51,19 @@ video.style.display = "none";
 //testing
 
 // Loading the model
+// import {modelPath} from './TeachableMachine.java'
 
-const URL = "https://teachablemachine.withgoogle.com/models/uZCBCIj3D/";
+const URL = TeachableMachine.modelPath;
 
 
 const modelURL = URL + "model.json"
 const metadataURL = URL + "metadata.json"
 
-model = await tmImage.load(modelURL, metadataURL);
-
-maxPredictions = model.getTotalClasses();
-
-console.log("Model Loaded !!")
-
+async function loadModel() {
+  model = await tmImage.load(modelURL, metadataURL);
+  maxPredictions = model.getTotalClasses();
+  console.log("Model Loaded !!");
+}
 
 
 // Inputing image data
@@ -78,65 +78,6 @@ console.log("Model Loaded !!")
 //   await predict(img);
 //   window.requestAnimationFrame(loop)
 // }
-
-
-// async function loadTransferModel(modelName, modelActivation) {
-//   const transferModel = await tf.loadModel(TRANSFER_MODEL_PREFIX + modelName + TRANSFER_MODEL_SUFFIX);
-
-//   // Return an internal activation of the transfer model.
-//   const layer = transferModel.getLayer(modelActivation);
-//   return tf.model({inputs: transferModel.inputs, outputs: layer.output});
-// }
-
-// async function loadModelFile(url, json) {
-//   const modelFileResponse = await fetch(url);
-
-//   console.log("Done fetching file");
-
-//   if (json) {
-//     return await modelFileResponse.json();
-//   }
-//   return await modelFileResponse.blob();
-// }
-
-// From https://stackoverflow.com/questions/27159179/how-to-convert-blob-to-file-in-javascript
-// function blobToFile(blob, fileName){
-//     // A Blob() is almost a File() - it's just missing the two properties below which we will add
-//     blob.lastModifiedDate = new Date();
-//     blob.name = fileName;
-//     return blob;
-// }
-
-// const loadModel = async () => {
-//   try {
-//     // Loads the transfer model
-//     transferModelInfo = await loadModelFile(PERSONAL_MODEL_PREFIX + TRANSFER_MODEL_INFO_SUFFIX, true);
-//     transferModel = await loadTransferModel(transferModelInfo['name'], transferModelInfo['lastLayer']);
-
-//     // Loads the user's personal model
-//     const modelTopologyBlob = await loadModelFile(PERSONAL_MODEL_PREFIX + PERSONAL_MODEL_JSON_SUFFIX, false);
-//     const modelTopologyFile = blobToFile(modelTopologyBlob, PERSONAL_MODEL_JSON_SUFFIX);
-
-//     const modelWeightsBlob = await loadModelFile(PERSONAL_MODEL_PREFIX + PERSONAL_MODEL_WEIGHTS_SUFFIX, false);
-//     const modelWeightsFile = blobToFile(modelWeightsBlob, PERSONAL_MODEL_WEIGHTS_SUFFIX);
-
-//     model = await tf.loadModel(tf.io.browserFiles([modelTopologyFile, modelWeightsFile]));
-
-//     // Loads the model labels mapping
-//     modelLabels = await loadModelFile(PERSONAL_MODEL_PREFIX + PERSONAL_MODEL_LABELS_SUFFIX, true);
-//     topk_predictions = Math.min(3, Object.keys(modelLabels).length);
-
-//     const zeros = tf.zeros([1, IMAGE_SIZE, IMAGE_SIZE, 3]);
-//     transferModel.predict(zeros).dispose();
-//     zeros.dispose();
-//     console.log("PersonalImageClassifier: transfer model activation and personal model are ready");
-//     PersonalImageClassifier.ready(JSON.stringify(Object.values(modelLabels)));
-//   } catch (error) {
-//     console.log("PersonalImageClassifier: " + error);
-//     PersonalImageClassifier.error(ERROR_CLASSIFICATION_NOT_SUPPORTED);
-//   }
-// };
-
 
 /**
  * Crops an image tensor so we get a square image with no white space.
