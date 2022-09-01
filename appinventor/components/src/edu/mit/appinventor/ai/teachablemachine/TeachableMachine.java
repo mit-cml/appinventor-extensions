@@ -111,12 +111,6 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
     private static final String MODE_IMAGE = "Image";
     private static final String ERROR_WEBVIEWER_NOT_SET =
             "You must specify a WebViewer using the WebViewer designer property before you can call %1s";
-//    private static final String MODEL_PATH_SUFFIX = ".mdl";
-//    private static final String MODEL_PATH_SUFFIX = ".tflite";
-//    private static final String modelPath = ""
-    // Unable to understand
-//    private static final String TRANSFER_MODEL_PREFIX = "https://appinventor.mit.edu/personal-image-classifier/transfer/";
-//    private static final String PERSONAL_MODEL_PREFIX = "https://appinventor.mit.edu/personal-image-classifier/personal/";
 
     // other error codes are defined in teachable_machine.js
     private static final int ERROR_CLASSIFICATION_NOT_SUPPORTED = -1;
@@ -167,6 +161,8 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
 //    }
     private static final String MODEL_URL =
             "https://teachablemachine.withgoogle.com/models/";
+
+
     private static final String BACK_CAMERA = "Back";
     private static final String FRONT_CAMERA = "Front";
 
@@ -186,6 +182,7 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView view, String url) {
                 Log.d(LOG_TAG, "shouldInterceptRequest called");
+                Log.d(LOG_TAG, url);
                 // unable to understand
                 try {
                     if ((url.startsWith(MODEL_URL)) || (url.startsWith("https://cdn.jsdelivr.net/npm/"))) {
@@ -210,29 +207,7 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
 
                     // Unable to understand
 //                try {
-                    if (url.contains(MODEL_URL)) {
-                        Log.d(LOG_TAG, "overriding " + url);
 
-
-                        fileName = url.substring(MODEL_URL.length());
-                        ZipInputStream zipInputStream = new ZipInputStream(MediaUtil.openMedia(form, modelPath));
-                        ZipEntry zipEntry;
-
-
-
-                        while ((zipEntry = zipInputStream.getNextEntry()) != null) {
-                            if (zipEntry.getName().equals(fileName)) {
-                                int zipEntrySize = (int) zipEntry.getSize();
-                                byte[] fileBytes = new byte[zipEntrySize];
-
-                                zipInputStream.read(fileBytes, 0, zipEntrySize);
-//                                file = new ByteArrayInputStream(fileBytes);
-                                break;
-                            }
-                        }
-
-                        zipInputStream.close();
-                    }
 
                     // For android permission
                     if (file != null) {
@@ -250,44 +225,21 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
                     return super.shouldInterceptRequest(view, url);
                 }
 
-                Log.d(LOG_TAG, url);
+//                Log.d(LOG_TAG, url);
                 return super.shouldInterceptRequest(view, url);
             }
-//            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
-//                final String url = request.getUrl().toString();
-//                Log.d(LOG_TAG, "shouldInterceptRequest called");
-//
-//                if (url.startsWith(MODEL_URL)) {
-//                    Log.d(LOG_TAG, "overriding " + url);
-//                    InputStream is;
-//                    try {
-//                        is = form.openAssetForExtension(TeachableMachine.this,
-//                                url.substring(MODEL_URL.length()));
-//                        String contentType, charSet;
-//                        if (url.endsWith(".json")) {
-//                            contentType = "application/json";
-//                            charSet = "UTF-8";
-//                        } else {
-//                            contentType = "application/octet-stream";
-//                            charSet = "binary";
-//                        }
-//                        if (SdkLevel.getLevel() >= SdkLevel.LEVEL_LOLLIPOP) {
-//                            Map<String, String> responseHeaders = new HashMap<>();
-//                            responseHeaders.put("Access-Control-Allow-Origin", "*");
-//                            return new WebResourceResponse(contentType, charSet, 200, "OK", responseHeaders, is);
-//                        } else {
-//                            return new WebResourceResponse(contentType, charSet, is);
-//                        }
-//                    } catch (IOException e) {
-//                        e.printStackTrace();
-//                    }
-//                }
+            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                final String url = request.getUrl().toString();
+                Log.d(LOG_TAG, "shouldInterceptRequest called");
+                return shouldInterceptRequest(view, url);
+
+
 //                Log.d(LOG_TAG, url);
 //                return super.shouldInterceptRequest(view, url);
-//
-//
-//
-//            }
+
+
+
+            }
         });
         // permission to capture video
         webview.setWebChromeClient(new WebChromeClient() {
@@ -340,12 +292,16 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
                 if (webviewer != null) {
                     configureWebView((WebView) webviewer.getView());
                     webview.requestLayout();
-//                    try {
-                    Log.d(LOG_TAG, "isHardwareAccelerated? " + webview.isHardwareAccelerated());
-//                        webview.loadUrl(form.getAssetPathForExtension("https://localhost/teachable_machine.html"));
-                    webview.loadUrl("http://localhost/teachable_machine.html");
-                    // Showing Error
-                    webview.evaluateJavascript("loadModel();",null);
+                    try {
+                        Log.d(LOG_TAG, "isHardwareAccelerated? " + webview.isHardwareAccelerated());
+                        webview.loadUrl(form.getAssetPathForExtension(TeachableMachine.this, "teachable_machine.html"));
+                        webview.evaluateJavascript("loadModel();",null);
+//                    webview.loadUrl("http://localhost/teachable_machine.html");
+                    } catch (FileNotFoundException e) {
+                        Log.d(LOG_TAG, e.getMessage());
+                        e.printStackTrace();
+                    }
+
                 }
             }
         };
