@@ -1,5 +1,4 @@
 "use strict";
-const fs = require('fs');
 
 console.log("TeachableMachine");
 
@@ -46,39 +45,33 @@ let isRunning = false;
 let minClassTime = 0;
 let lastClassification = new Date();
 let webcamHolder = document.getElementById('webcam-box');
-let video = /** @type {HTMLVideoElement} */ (document.getElementById('webcam'));
-webcamHolder.style.display = 'none';
-video.style.display = "none";
 
 //testing
 
 // Loading the model
 
 
-const URL = fs.readFileSync('path.txt','utf-8');
-
-
-const modelURL = URL + "model.json"
-const metadataURL = URL + "metadata.json"
-
-async function loadModel() {
+async function loadModel(baseUrl) {
+  const modelURL = baseUrl + "model.json";
+  const metadataURL = baseUrl + "metadata.json";
   model = await tmImage.load(modelURL, metadataURL);
   maxPredictions = model.getTotalClasses();
   console.log("Model Loaded !!");
+  window.requestAnimationFrame(loop);
 }
 
 
 // Inputing image data
+const flip = true;
 let androidWebcam = new tmImage.Webcam( IMAGE_SIZE,IMAGE_SIZE, flip);
-await androidWebcam.setup()
-await androidWebcam.play()
-window.requestAnimationFrame(loop)
+androidWebcam.setup()
+  .then(() => androidWebcam.play())
+  .then(() => webcamHolder.appendChild(androidWebcam.canvas));
 
 
-async function loop() {
+function loop() {
   androidWebcam.update()
-  await predict();
-  window.requestAnimationFrame(loop)
+  predict().then(() => window.requestAnimationFrame(loop))
 }
 
 /**
@@ -157,10 +150,10 @@ async function predict() {
     // }
     
       
-    const currentValue = predictions[i].probability;
+    const currentValue = prediction[i].probability;
 
       
-    const labelName = predictions[i].className
+    const labelName = prediction[i].className
 
     result.push([labelName, currentValue.toFixed(5)]);
   }
@@ -191,10 +184,6 @@ function updateVideoSize() {
     video.style.top = (size - video.height) / 2.0 + 'px';
   }
 }
-
-video.addEventListener('loadeddata' , () => {
-  updateVideoSize();
-}, false);
 
 document.body.appendChild(img);
 

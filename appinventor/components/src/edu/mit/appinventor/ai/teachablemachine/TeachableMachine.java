@@ -97,7 +97,7 @@ import java.util.zip.ZipInputStream;
         nonVisible = true)
 @SimpleObject(external = true)
 // Defining the assets
-@UsesAssets(fileNames = "teachable_machine.html, teachable_machine.js, tfjs-0.13.2.js")
+@UsesAssets(fileNames = "teachable_machine.html, teachable_machine.js")
 @UsesPermissions({Manifest.permission.CAMERA})
 
 //@UsesPermissions(permissionNames = "android.permission.INTERNET, android.permission.CAMERA")
@@ -295,7 +295,7 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
                     try {
                         Log.d(LOG_TAG, "isHardwareAccelerated? " + webview.isHardwareAccelerated());
                         webview.loadUrl(form.getAssetPathForExtension(TeachableMachine.this, "teachable_machine.html"));
-                        webview.evaluateJavascript("loadModel();",null);
+                        webview.evaluateJavascript("loadModel(\"" + modelPath + "\");",null);
 //                    webview.loadUrl("http://localhost/teachable_machine.html");
                     } catch (FileNotFoundException e) {
                         Log.d(LOG_TAG, e.getMessage());
