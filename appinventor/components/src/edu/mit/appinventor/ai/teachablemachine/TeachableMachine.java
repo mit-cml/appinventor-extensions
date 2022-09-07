@@ -12,8 +12,11 @@ import com.google.appinventor.components.runtime.PermissionResultHandler;
 
 // For writing variable in a file
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
+
+import javax.script.Invocable;
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
+
 
 
 import android.annotation.SuppressLint;
@@ -124,7 +127,7 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
     private static final int ERROR_INVALID_MODEL_FILE = -8;
     private static final int ERROR_MODEL_REQUIRED = -9;
 
-//    Path fileLink = Path.of("assets/path.txt");
+
 
     private WebView webview = null;
     private String inputMode = MODE_VIDEO;
@@ -142,29 +145,8 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
         Log.d(LOG_TAG, "Created TeachableMachine component");
     }
 
+    private static final String MODEL_URL =  "https://teachablemachine.withgoogle.com/models/";
 
-
-    // memory-map the model file in assets
-
-//    private MappedByteBuffer loadModelFile(Activity activity) throws IOException{
-//        AssetFileDescriptor fileDescriptor
-//    }
-
-    // Loading the tflite model
-//    private static final String MODEL_PATH = "xyz.tflite";
-//
-//    public Interpreter(@NotNull File modelFile);
-//
-//    // Initializing the model
-//    try (Interpreter interpreter = new Interpreter(MODEL_PATH)) {
-//        interpreter.run(input, output);
-//    }
-    private static final String MODEL_URL =
-            "https://teachablemachine.withgoogle.com/models/";
-
-
-    private static final String BACK_CAMERA = "Back";
-    private static final String FRONT_CAMERA = "Front";
 
 
 
@@ -205,10 +187,6 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
                         charSet = "binary";
                     }
 
-                    // Unable to understand
-//                try {
-
-
                     // For android permission
                     if (file != null) {
                         if (SdkLevel.getLevel() >= SdkLevel.LEVEL_LOLLIPOP) {
@@ -225,22 +203,15 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
                     return super.shouldInterceptRequest(view, url);
                 }
 
-//                Log.d(LOG_TAG, url);
                 return super.shouldInterceptRequest(view, url);
             }
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
                 final String url = request.getUrl().toString();
                 Log.d(LOG_TAG, "shouldInterceptRequest called");
                 return shouldInterceptRequest(view, url);
-
-
-//                Log.d(LOG_TAG, url);
-//                return super.shouldInterceptRequest(view, url);
-
-
-
             }
         });
+
         // permission to capture video
         webview.setWebChromeClient(new WebChromeClient() {
             @Override
@@ -250,16 +221,6 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
                 for (String r : requestedResources) {
                     if (r.equals(PermissionRequest.RESOURCE_VIDEO_CAPTURE)) {
                         request.grant(new String[]{PermissionRequest.RESOURCE_VIDEO_CAPTURE});
-//                        form.askPermission(permission.CAMERA, new PermissionResultHandler() {
-//                            @Override
-//                            public void HandlePermissionResponse(String permission, boolean granted) {
-//                                if (granted) {
-//                                    request.grant(new String[]{PermissionRequest.RESOURCE_VIDEO_CAPTURE});
-//                                } else {
-//                                    form.dispatchPermissionDeniedEvent(TeachableMachine.this, "Enable", permission);
-//                                }
-//                            }
-//                        });
                     }
                 }
             }
@@ -283,6 +244,24 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
         }
     }
 
+    // Test
+    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_STRING)
+    @SimpleProperty(userVisible = false)
+    public void ModelLink(String link) {
+        Log.d(LOG_TAG, "Model Link: " + link);
+
+        if (link.contains(MODEL_URL)) {
+            modelPath = link;
+
+        }
+
+       else {
+           form.dispatchErrorOccurredEvent(this, "ModelLink",
+                   ErrorMessages.ERROR_EXTENSION_ERROR, ERROR_INVALID_MODEL_FILE, LOG_TAG,
+                   "Incorrect Model Link: The link should look like " + MODEL_URL);
+       }
+    }
+
     // same as other extension[like look]
     @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_COMPONENT + ":com.google.appinventor.runtime.components.WebViewer")
     @SimpleProperty(userVisible = false)
@@ -292,12 +271,17 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
                 if (webviewer != null) {
                     configureWebView((WebView) webviewer.getView());
                     webview.requestLayout();
+//                    Context c = Context.create("js");
                     try {
                         Log.d(LOG_TAG, "isHardwareAccelerated? " + webview.isHardwareAccelerated());
                         webview.loadUrl(form.getAssetPathForExtension(TeachableMachine.this, "teachable_machine.html"));
-                        webview.evaluateJavascript("loadModel(\"" + modelPath + "\");",null);
-//                    webview.loadUrl("http://localhost/teachable_machine.html");
-                    } catch (FileNotFoundException e) {
+                        String js = "loadModel(\"" + modelPath + "\");";
+                        Log.d(LOG_TAG, js);
+                        webview.evaluateJavascript(js,null);
+
+                        Log.d(LOG_TAG, "working?");
+
+                    } catch (Exception e) {
                         Log.d(LOG_TAG, e.getMessage());
                         e.printStackTrace();
                     }
@@ -364,29 +348,8 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
         }
     }
 
-    @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_STRING)
-    @SimpleProperty(userVisible = false)
-    public void ModelLink(String link) {
-        Log.d(LOG_TAG, "Model Link: " + link);
 
-        if (link.contains(MODEL_URL)) {
-            modelPath = link;
-//            Files.writeString(fileLink, modelPath);
-            try {
-                PrintWriter writer = new PrintWriter("assets/path.txt", "UTF-8");
-                writer.println(modelPath);
-                writer.close();
-            }
-            catch (Exception e) {
-                Log.d(LOG_TAG, "File not Found for storing the model link");
-            }
-        }
-        else {
-            form.dispatchErrorOccurredEvent(this, "ModelLink",
-                    ErrorMessages.ERROR_EXTENSION_ERROR, ERROR_INVALID_MODEL_FILE, LOG_TAG,
-                    "Incorrect Model Link: The link should look like " + MODEL_URL);
-        }
-    }
+
     //continue from here
 
     @SimpleProperty
@@ -578,5 +541,21 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
                 }
             });
         }
+
+        @JavascriptInterface
+        public String isLoaded(boolean isComplete) {
+            String modelLink;
+            if (isComplete) {
+                modelLink = modelPath;
+                Initialize();
+                Log.d(LOG_TAG, "initialize");
+                return modelLink;
+            }
+            Initialize();
+            return modelPath;
+        }
+
+
     }
+
 }
