@@ -1,15 +1,11 @@
 "use strict";
 
 console.log("TeachableMachine");
+loaded();
+// const fs = require('fs');
 
-// const TRANSFER_MODEL_PREFIX = "https://appinventor.mit.edu/personal-image-classifier/transfer/";
-// const TRANSFER_MODEL_SUFFIX = "_model.json";
 
-// const PERSONAL_MODEL_PREFIX = "https://appinventor.mit.edu/personal-image-classifier/personal/";
-// const PERSONAL_MODEL_JSON_SUFFIX = "model.json";
-// const PERSONAL_MODEL_WEIGHTS_SUFFIX = "model.weights.bin";
-// const PERSONAL_MODEL_LABELS_SUFFIX = "model_labels.json";
-// const TRANSFER_MODEL_INFO_SUFFIX = "transfer_model.json";
+
 
 const IMAGE_SIZE = 224;
 
@@ -31,9 +27,7 @@ var prediction;
 
 // Data required to use the model
 let modelLabels;
-let transferModelInfo;
 
-let topk_predictions;
 
 let img = document.createElement("img");
 img.width = window.innerWidth;
@@ -45,16 +39,18 @@ let isRunning = false;
 let minClassTime = 0;
 let lastClassification = new Date();
 let webcamHolder = document.getElementById('webcam-box');
-
-//testing
-
-// Loading the model
+let androidWebcam;
 
 
 async function loadModel(baseUrl) {
+  console.log(typeof baseUrl);
+  // const URL = fs.readFileSync('path.txt','utf-8');
+  // const modelURL = "https://teachablemachine.withgoogle.com/models/1pFPFr9fA/" + "model.json";
   const modelURL = baseUrl + "model.json";
+  console.log(modelURL);
   const metadataURL = baseUrl + "metadata.json";
   model = await tmImage.load(modelURL, metadataURL);
+  console.log('2nd part')
   maxPredictions = model.getTotalClasses();
   console.log("Model Loaded !!");
   window.requestAnimationFrame(loop);
@@ -63,99 +59,36 @@ async function loadModel(baseUrl) {
 
 // Inputing image data
 const flip = true;
-let androidWebcam = new tmImage.Webcam( IMAGE_SIZE,IMAGE_SIZE, flip);
+androidWebcam = new tmImage.Webcam( IMAGE_SIZE,IMAGE_SIZE, flip);
 androidWebcam.setup()
   .then(() => androidWebcam.play())
-  .then(() => webcamHolder.appendChild(androidWebcam.canvas));
+  .then(() => webcamHolder.appendChild(androidWebcam.canvas))
+
 
 
 function loop() {
   androidWebcam.update()
-  predict().then(() => window.requestAnimationFrame(loop))
+  console.log(webcamHolder);
+  predict().then(() =>window.requestAnimationFrame(loop))
 }
 
-/**
- * Crops an image tensor so we get a square image with no white space.
- * @param {tf.tensor4d} img An input image Tensor to crop.
- */
-// function cropImage(img) {
-//   const size = Math.min(img.shape[0], img.shape[1]);
-//   const centerHeight = img.shape[0] / 2;
-//   const beginHeight = centerHeight - (size / 2);
-//   const centerWidth = img.shape[1] / 2;
-//   const beginWidth = centerWidth - (size / 2);
-//   const slice = img.slice([beginHeight, beginWidth, 0], [size, size, 3]);
-//   return size === IMAGE_SIZE ? slice : tf.image.resizeBilinear(slice, [IMAGE_SIZE, IMAGE_SIZE]);
-// }
 
-/**
- * Predict the class of an image.
- *
- * @param {HTMLImageElement|HTMLVideoElement} pixels
- * @param {boolean=false} crop
- * @returns {Promise<void>}
- */
-// async function predict(pixels, crop) {
-//   let predictions;
-//   try {
-//     const logits = tf.tidy(() => {
-//       const img = crop ? cropImage(tf.fromPixels(pixels)) :
-//         tf.image.resizeBilinear(tf.fromPixels(pixels).toFloat(), [IMAGE_SIZE, IMAGE_SIZE]);
-//       const batchedImage = img.expandDims(0);
-//       const scaled = batchedImage.toFloat().div(tf.scalar(127)).sub(tf.scalar(1));
 
-//       // Make a prediction, first using the transfer model activation and then
-//       // feeding that into the user provided model
-//       // const activation = transferModel.predict(scaled);
-//       predictions = await model.predict(scaled);
-//       return predictions.as1D();
-//     });
 
-//     const topPredictions = await logits.topk(topk_predictions);
-
-//     const predictionIndices = await topPredictions.indices.data();
-//     const predictionValues = await topPredictions.values.data();
-
-//     let result = [];
-//     logits.dispose();
-
-//     // var prediction = 
-
-//     for (let i = 0; i < maxPredictions; i++) {
-//       // const currentIndex = predictionIndices[i];
-//       // const currentValue = predictionValues[i];
-//       const currentValue = predictions[i].probability;
-
-//       // const labelName = modelLabels[currentIndex];
-//       const labelName = predictions[i].className
-
-//       result.push([labelName, currentValue.toFixed(5)]);
-//     }
-
-//     console.log("TeachableMachine: prediction is " + JSON.stringify(result));
-//     TeachableMachine.reportResult(JSON.stringify(result));
-//   } catch (error) {
-//     console.log("TeachableMachine: " + error);
-//     TeachableMachine.error(ERROR_CLASSIFICATION_NOT_SUPPORTED);
-//   }
-// }
 
 async function predict() {
-  prediction = await model.predict(androidWebcam.canvas)
-  let result = []
+  prediction = await model.predict(androidWebcam.canvas);
+  console.log('Prediction done')
+  let result = [];
 
   for (let i = 0; i < maxPredictions; i++) {
-    // if (prediction[i].probability.toFixed(2)>0.5) {
-      // Show the image
-    // }
-    
       
     const currentValue = prediction[i].probability;
 
       
     const labelName = prediction[i].className
 
-    result.push([labelName, currentValue.toFixed(5)]);
+    result.push([labelName, currentValue]);
   }
 
   console.log("TeachableMachine: prediction is " + JSON.stringify(result));
@@ -184,6 +117,8 @@ function updateVideoSize() {
     video.style.top = (size - video.height) / 2.0 + 'px';
   }
 }
+
+
 
 document.body.appendChild(img);
 
@@ -303,7 +238,7 @@ window.addEventListener("resize", function() {
   video.height = video.videoHeight * window.innerWidth / video.videoWidth;
 });
 
-// loadModel().catch(() => TeachableMachine.error(ERROR_CLASSIFICATION_NOT_SUPPORTED));
+
 
 window.addEventListener('orientationchange', function() {
   if (isVideoMode) {
@@ -312,3 +247,10 @@ window.addEventListener('orientationchange', function() {
     setTimeout(updateVideoSize, 500);
   }
 });
+
+
+function loaded() {
+  let link = TeachableMachine.isLoaded(true);
+  loadModel(link);
+}
+
