@@ -43,7 +43,7 @@ let webcamHolder = document.getElementById('webcam-box');
 let androidWebcam;
 let androidBackWebcam;
 let count = 1;
-let constraints = { facingMode: "environment", frameRate: 24};
+let constraints = { facingMode: "user", frameRate: 24};
 
 
 
