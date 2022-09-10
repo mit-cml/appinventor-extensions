@@ -43,7 +43,7 @@ let webcamHolder = document.getElementById('webcam-box');
 let androidWebcam;
 let androidBackWebcam;
 let count = 1;
-let constraints = { facingMode: "user"};
+let constraints = { facingMode: "environment", frameRate: 24};
 
 
 
@@ -78,6 +78,7 @@ androidWebcam.setup(constraints)
 function loop() {
   androidWebcam.update()
   
+  
   // console.log(webcamHolder);
   predict().then(() =>window.requestAnimationFrame(loop))
 }
@@ -88,6 +89,7 @@ function loop() {
 
 async function predict() {
   prediction = await model.predict(androidWebcam.canvas);
+  
   
   console.log('Prediction done');
   console.log(prediction);
@@ -117,7 +119,7 @@ function updateVideoSize() {
   webcamHolder.style.width = size + 'px';
   // androidWebcam.canvas.style.width = size + 'px';
   webcamHolder.style.height = size + 'px';
-  androidWebcam.canvas.style.height = size + 'px';
+  // androidWebcam.canvas.style.height = size + 'px';
   let width = video.videoWidth;
   let height = video.videoHeight;
   let aspectRatio = width / height;
@@ -175,10 +177,13 @@ document.body.appendChild(img);
 function toggleCameraFacingMode() {
   count++;
   if (count % 2 == 0) {
-    // backCamera();
+    androidWebcam.stop()
+    
     constraints = { facingMode: "environment" }
+    androidWebcam.setup(constraints)
+      .then(() => androidWebcam.play())
     console.log("Back Camera");
-    loaded();
+    setTimeout(loop(), 3000);
   }
   else {
     console.log("Front Camera");
