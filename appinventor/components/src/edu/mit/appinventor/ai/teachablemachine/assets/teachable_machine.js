@@ -61,7 +61,7 @@ async function loadModel(baseUrl) {
 
 
 // Inputing image data
-const flip = true;
+let flip = true;
 
 
 androidWebcam = new tmImage.Webcam( IMAGE_SIZE,IMAGE_SIZE, flip);
@@ -75,8 +75,6 @@ androidWebcam.setup(constraints)
 function loop() {
   androidWebcam.update()
   
-  
-  // console.log(webcamHolder);
   predict().then(() =>window.requestAnimationFrame(loop))
 }
 
@@ -103,7 +101,7 @@ async function predict() {
     result.push([labelName, currentValue]);
   }
 
-  // console.log("TeachableMachine: prediction is " + JSON.stringify(result));
+  console.log("TeachableMachine: prediction is " + JSON.stringify(result));
   TeachableMachine.reportResult(JSON.stringify(result));
   TeachableMachine.ready(JSON.stringify(Object.values(prediction)));
 
@@ -171,44 +169,39 @@ document.body.appendChild(img);
 
 // Called from TeachableMachine.java
 // noinspection JSUnusedGlobalSymbols
-function toggleCameraFacingMode() {
-  forwardCamera = !forwardCamera
-  console.log(androidWebcam)
-  const vid = androidWebcam.webcam;
-  console.log(vid);
-  console.log(androidWebcam.video)
+async function toggleCameraFacingMode() {
 
-  var constraints = { vid: {facingMode: forwardCamera ? "user" : "environment"} };
+  forwardCamera = !forwardCamera
+  flip = !flip
+  androidWebcam.flip = flip
+
+  console.log(androidWebcam)
+
+  // Grabbing Video element from the webcam
+  const vid = androidWebcam.webcam;
+  
+
+  // Setting constraints
+  var constraints = { video: {facingMode: forwardCamera ? "user" : "environment"} };
   console.log(constraints);
 
+  androidWebcam.stop()
   
-  
-  navigator.mediaDevices
+  await navigator.mediaDevices
+    .getUserMedia(constraints)
+    .then(function(stream) {
+      vid.srcObject = null;
+    })
+    
+  await navigator.mediaDevices
     .getUserMedia(constraints)
     .then(function(stream) {
       vid.srcObject = stream;
     })
-    .catch(function(error) {
-      console.error("Oops. Something is broken.", error);
-    });
-  
-  // if (count % 2 == 0) {
-  //   // androidWebcam.stop()
-  //   constraints = { facingMode: "environment" }
-  //   navigator.mediaDevices.getUserMedia({vid: constraints})
-  //     .then((mediaStream) => {
-  //       vid.srcObject = mediaStream;
-  //     })
-  //   // androidWebcam.setup(constraints)
-  //     // .then(() => androidWebcam.play())
-  //   console.log("Back Camera");
-  // }
-  // else {
-  //   console.log("Front Camera");
-  //   // frontCamera();
-  //   constraints = { facingMode: "user" }
     
-  // }
+  androidWebcam.play()
+  
+  
   console.log("toogle Run");
   
   // TeachableMachine.error(ERROR_CANNOT_TOGGLE_CAMERA_IN_IMAGE_MODE);
@@ -301,30 +294,6 @@ window.addEventListener('orientationchange', function() {
     setTimeout(updateVideoSize, 500);
   }
 });
-
-// const video = document.createElement('video');
-
-function frontCamera() {
-  console.log(count);
-  let testWebcam = new tmImage.Webcam( IMAGE_SIZE,IMAGE_SIZE, true);
-  testWebcam.setup({ facingMode: "user" })
-    .then(() => androidWebcam.play())
-    .then(() => webcamHolder.appendChild(androidWebcam.canvas))
-  androidWebcam.update()
-  window.requestAnimationFrame(loop)
-  console.log("FRONT CAMERA");
-}
-
-function backCamera() {
-  console.log(count);
-  androidBackWebcam = new tmImage.Webcam( IMAGE_SIZE,IMAGE_SIZE, true);
-  androidBackWebcam.setup({ facingMode: "environment" })
-    .then(() => androidBackWebcam.play())
-    .then(() => webcamHolder.appendChild(androidBackWebcam.canvas))
-  // window.requestAnimationFrame(loop);
-  // androidWebcam.update();
-  console.log("BACK CAMERA");
-}
 
 
 function loaded() {
