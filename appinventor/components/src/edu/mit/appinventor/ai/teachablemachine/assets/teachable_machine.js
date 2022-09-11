@@ -2,7 +2,6 @@
 
 console.log("TeachableMachine");
 loaded();
-// const fs = require('fs');
 
 
 
@@ -21,12 +20,10 @@ const ERROR_FAILED_TO_START_VIDEO = -11;
 
 // Inputs are passed through an activation of the transfer before being fed into
 // the user provided model
-let transferModel;
 let model, maxPredictions;
 var prediction;
 
-// Data required to use the model
-let modelLabels;
+
 
 
 let img = document.createElement("img");
@@ -106,7 +103,7 @@ async function predict() {
     result.push([labelName, currentValue]);
   }
 
-  console.log("TeachableMachine: prediction is " + JSON.stringify(result));
+  // console.log("TeachableMachine: prediction is " + JSON.stringify(result));
   TeachableMachine.reportResult(JSON.stringify(result));
   TeachableMachine.ready(JSON.stringify(Object.values(prediction)));
 
@@ -175,22 +172,43 @@ document.body.appendChild(img);
 // Called from TeachableMachine.java
 // noinspection JSUnusedGlobalSymbols
 function toggleCameraFacingMode() {
-  count++;
-  if (count % 2 == 0) {
-    androidWebcam.stop()
+  forwardCamera = !forwardCamera
+  console.log(androidWebcam)
+  const vid = androidWebcam.webcam;
+  console.log(vid);
+  console.log(androidWebcam.video)
+
+  var constraints = { vid: {facingMode: forwardCamera ? "user" : "environment"} };
+  console.log(constraints);
+
+  
+  
+  navigator.mediaDevices
+    .getUserMedia(constraints)
+    .then(function(stream) {
+      vid.srcObject = stream;
+    })
+    .catch(function(error) {
+      console.error("Oops. Something is broken.", error);
+    });
+  
+  // if (count % 2 == 0) {
+  //   // androidWebcam.stop()
+  //   constraints = { facingMode: "environment" }
+  //   navigator.mediaDevices.getUserMedia({vid: constraints})
+  //     .then((mediaStream) => {
+  //       vid.srcObject = mediaStream;
+  //     })
+  //   // androidWebcam.setup(constraints)
+  //     // .then(() => androidWebcam.play())
+  //   console.log("Back Camera");
+  // }
+  // else {
+  //   console.log("Front Camera");
+  //   // frontCamera();
+  //   constraints = { facingMode: "user" }
     
-    constraints = { facingMode: "environment" }
-    androidWebcam.setup(constraints)
-      .then(() => androidWebcam.play())
-    console.log("Back Camera");
-    setTimeout(loop(), 3000);
-  }
-  else {
-    console.log("Front Camera");
-    // frontCamera();
-    constraints = { facingMode: "user" }
-    
-  }
+  // }
   console.log("toogle Run");
   
   // TeachableMachine.error(ERROR_CANNOT_TOGGLE_CAMERA_IN_IMAGE_MODE);
