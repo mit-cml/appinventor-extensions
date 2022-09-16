@@ -110,11 +110,11 @@ async function predict() {
 function updateVideoSize() {
   let windowWidth = document.body.offsetWidth;
   let windowHeight = document.body.offsetHeight;
-  // let size = Math.min(windowWidth, windowHeight);
+  let size = Math.min(windowWidth, windowHeight);
   webcamHolder.style.width = size + 'px';
-  // androidWebcam.canvas.style.width = size + 'px';
+  
   webcamHolder.style.height = size + 'px';
-  // androidWebcam.canvas.style.height = size + 'px';
+  
   let width = video.videoWidth;
   let height = video.videoHeight;
   let aspectRatio = width / height;
@@ -134,6 +134,8 @@ function updateVideoSize() {
 
 
 document.body.appendChild(img);
+
+// Still in Development Mode
 
 // function startVideo() {
 //   if (isVideoMode) {
@@ -181,10 +183,11 @@ async function toggleCameraFacingMode() {
   const vid = androidWebcam.webcam;
   
 
-  // Setting constraints
+  // Setting constraints to toggle between front and rear camera
   var constraints = { video: {facingMode: forwardCamera ? "user" : "environment"} };
   console.log(constraints);
 
+  
   androidWebcam.stop()
   
   await navigator.mediaDevices
@@ -230,6 +233,8 @@ function classifyVideoData() {
     TeachableMachine.error(ERROR_CANNOT_CLASSIFY_VIDEO_IN_IMAGE_MODE);
   }
 }
+
+// Still in Devlopment Mode
 
 // function cvcHandler() {
 //   if (!isRunning || !isVideoMode) {
