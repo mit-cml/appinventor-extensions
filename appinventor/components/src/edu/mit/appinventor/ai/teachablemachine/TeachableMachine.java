@@ -13,9 +13,6 @@ import com.google.appinventor.components.runtime.PermissionResultHandler;
 // For writing variable in a file
 import java.io.IOException;
 
-import javax.script.Invocable;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
 
 
 
@@ -56,7 +53,6 @@ import com.google.appinventor.components.runtime.errors.YailRuntimeError;
 import com.google.appinventor.components.runtime.util.ErrorMessages;
 import com.google.appinventor.components.runtime.util.MediaUtil;
 import com.google.appinventor.components.runtime.util.SdkLevel;
-// error in this import
 import com.google.appinventor.components.runtime.util.YailDictionary;
 
 import java.io.*;
@@ -78,13 +74,13 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 /**
- * Component that classifies images using a user trained model from the image classification explorer.
- * Based heavily on the Look Extension by kevinzhu@mit.edu (Kevin Zhu) and kelseyc@mit.edu (Kelsey Chan)
+ * Component that classifies images using a user trained model from the teachable machine.
+ * Based heavily on the Personal Image Classification Extension by data1013@mit.edu (Danny Tang)
  *
- * @author data1013@mit.edu (Danny Tang)
+ * @author yugal1434@gmail.com (Yugal Agarwal)
  */
 
-// Common for every extension
+// Initialization of Extension
 @DesignerComponent(version = 1,
         category = ComponentCategory.EXTENSION,
         description = "Component that classifies images using a user trained model from the image " +
@@ -128,12 +124,12 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
     private List<String> labels = Collections.emptyList();
     private String modelPath = null;
     private boolean running = false;
-    // Unable to understand[may be min time for classifier to get ready]
+    // Minimum time classfier should take to load
     private int minClassTime = 0;
 
 
 
-    // common for every extension
+    // Setting up of Hardware and Webviewer
     public TeachableMachine(final Form form) {
         super(form);
         requestHardwareAcceleration(form);
@@ -141,6 +137,7 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
         Log.d(LOG_TAG, "Created TeachableMachine component");
         Log.d(LOG_TAG, "FIRST");
     }
+
 
     private static final String MODEL_URL =  "https://teachablemachine.withgoogle.com/models/";
 
@@ -155,15 +152,15 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
         webview.getSettings().setMediaPlaybackRequiresUserGesture(false);
         // adds a way to send strings to the javascript
         webview.addJavascriptInterface(new JsObject(), "TeachableMachine");
-//        webview.addJavascriptInterface(new AppInventorTFJS(), "TeachableMachine");
+
 
         webview.setWebViewClient(new WebViewClient() {
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView view, String url) {
                 Log.d(LOG_TAG, "shouldInterceptRequest called");
-                Log.d(LOG_TAG, "SECOND");
+
                 Log.d(LOG_TAG, url);
-                // unable to understand
+
                 try {
                     if ((url.startsWith(MODEL_URL)) || (url.startsWith("https://cdn.jsdelivr.net/npm/"))) {
                         return null;
@@ -206,7 +203,7 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
                 final String url = request.getUrl().toString();
                 Log.d(LOG_TAG, "shouldInterceptRequest called");
-                Log.d(LOG_TAG, "THIRD");
+
                 return shouldInterceptRequest(view, url);
             }
         });
@@ -216,7 +213,7 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
             @Override
             public void onPermissionRequest(final PermissionRequest request) {
                 Log.d(LOG_TAG, "onPermissionRequest called");
-                Log.d(LOG_TAG, "FOURTH");
+
                 String[] requestedResources = request.getResources();
                 for (String r : requestedResources) {
                     if (r.equals(PermissionRequest.RESOURCE_VIDEO_CAPTURE)) {
@@ -235,9 +232,9 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
                     ErrorMessages.ERROR_EXTENSION_ERROR, ERROR_WEBVIEWER_REQUIRED, LOG_TAG,
                     "You must specify a WebViewer component in the WebViewer property.");
         }
-        // if model not imported
+        // if model link not given
         Log.d(LOG_TAG, "modelPath = " + modelPath);
-        Log.d(LOG_TAG, "FIFTH");
+
         if (modelPath == null) {
             form.dispatchErrorOccurredEvent(this, "Model",
                     ErrorMessages.ERROR_EXTENSION_ERROR, ERROR_MODEL_REQUIRED, LOG_TAG,
@@ -245,7 +242,7 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
         }
     }
 
-    // Test
+    // Property that takes Model Link as the input
     @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_STRING)
     @SimpleProperty(userVisible = false)
     public void ModelLink(String link) {
@@ -268,7 +265,7 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
 
 
 
-    // same as other extension[like look]
+    // Setting up webviewer
     @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_COMPONENT + ":com.google.appinventor.runtime.components.WebViewer")
     @SimpleProperty(userVisible = false)
     public void WebViewer(final WebViewer webviewer) {
@@ -277,17 +274,17 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
                 if (webviewer != null) {
                     configureWebView((WebView) webviewer.getView());
                     webview.requestLayout();
-//                    Context c = Context.create("js");
+
                     try {
                         Log.d(LOG_TAG, "isHardwareAccelerated? " + webview.isHardwareAccelerated());
                         Log.d(LOG_TAG, "runnable called");
-                        Log.d(LOG_TAG, "SEVENTH");
+
                         webview.loadUrl(form.getAssetPathForExtension(TeachableMachine.this, "teachable_machine.html"));
                         String js = "loadModel(\"" + modelPath + "\");";
                         Log.d(LOG_TAG, js);
                         webview.evaluateJavascript(js,null);
 
-                        Log.d(LOG_TAG, "working?");
+
 
                     } catch (Exception e) {
                         Log.d(LOG_TAG, e.getMessage());
@@ -306,7 +303,7 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
 
 
 
-    // same as other extension[video(lock)]
+    // Defining Input Mode
     @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_CHOICES,
             editorArgs = {MODE_VIDEO, MODE_IMAGE})
     @SimpleProperty
@@ -401,17 +398,17 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
     public void ToggleCameraFacingMode() {
         assertWebView("ToggleCameraFacingMode");
         webview.evaluateJavascript("toggleCameraFacingMode();", null);
-        Log.d(LOG_TAG, "NINTH");
+
     }
 
     @SimpleFunction(description = "Performs classification on current video frame and triggers the GotClassification event when classification is finished successfully.")
     public void ClassifyVideoData() {
         assertWebView("ClassifyVideoData");
         webview.evaluateJavascript("classifyVideoData();", null);
-        Log.d(LOG_TAG, "EIGHT");
+
     }
 
-    // starts classifying data
+    // starts classifying data[Still in Development mode]
     @SimpleFunction()
     public void StartContinuousClassification() {
         if (MODE_VIDEO.equals(inputMode) && !running) {
@@ -422,7 +419,7 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
         }
     }
 
-    // stops the classification
+    // stops the classification[Still in Development mode]
     @SimpleFunction()
     public void StopContinuousClassification() {
         if (MODE_VIDEO.equals(inputMode) && running) {
@@ -439,7 +436,7 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
         InputMode(inputMode);
         MinimumInterval(minClassTime);
         EventDispatcher.dispatchEvent(this, "ClassifierReady");
-        Log.d(LOG_TAG, "IMPORTANT");
+
     }
 
     // data we get after classification is done
@@ -455,7 +452,7 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
 
     ///REGION: Lifecycle handling
 
-    // unable to understand
+
     @Override
     public void onPause() {
         if (MODE_VIDEO.equals(inputMode)) {
@@ -478,7 +475,7 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
 
     ///ENDREGION
 
-    // same as other extension
+
     Form getForm() {
         return form;
     }
@@ -493,7 +490,7 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
         }
     }
 
-    // unable to understand [may be different labels]
+
     private static List<String> parseLabels(String labels) {
         List<String> result = new ArrayList<>();
         try {
@@ -507,12 +504,12 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
         return result;
     }
 
-    // not understand
+
     private class JsObject {
         @JavascriptInterface
         public void ready(String labels) {
             Log.d(LOG_TAG, "Entered ready");
-            Log.d(LOG_TAG, "TENTH");
+
             TeachableMachine.this.labels = parseLabels(labels);
             form.runOnUiThread(new Runnable() {
                 @Override
@@ -522,10 +519,10 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
             });
         }
 
-        // not understand
+
         @JavascriptInterface
         public void reportResult(final String result) {
-//            Log.d(LOG_TAG, "Entered reportResult: " + result);
+            Log.d(LOG_TAG, "Entered reportResult: " + result);
             try {
                 Log.d(LOG_TAG, "Entered try of reportResult");
                 JSONArray list = new JSONArray(result);
@@ -567,7 +564,7 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
                 modelLink = modelPath;
 
                 Log.d(LOG_TAG, "Function in JsObject that is called from js");
-                Log.d(LOG_TAG, "ELEVENTH");
+                
                 return modelLink;
             }
             return modelPath;
