@@ -9,6 +9,7 @@ package com.google.appinventor.buildserver;
 import com.android.ide.common.internal.AaptCruncher;
 import com.android.ide.common.internal.PngCruncher;
 import com.android.sdklib.build.ApkBuilder;
+import com.google.appinventor.buildserver.stats.StatReporter;
 import com.google.appinventor.buildserver.util.AARLibraries;
 import com.google.appinventor.buildserver.util.AARLibrary;
 import com.google.appinventor.components.common.ComponentDescriptorConstants;
@@ -55,9 +56,9 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.ZipEntry;
@@ -98,8 +99,8 @@ public final class Compiler {
   private static final String COLON = File.pathSeparator;
   private static final String ZIPSLASH = "/";
 
-  public static final String RUNTIME_FILES_DIR = "/" + "files" + "/";
-
+  public static final String RUNTIME_FILES_DIR = "/files/";
+  public static final String RUNTIME_TOOLS_DIR = "/tools/";
 
   // Native library directory names
   private static final String LIBS_DIR_NAME = "libs";
@@ -111,12 +112,7 @@ public final class Compiler {
   private static final String ASSET_DIR_NAME = "assets";
   private static final String EXT_COMPS_DIR_NAME = "external_comps";
 
-  private static final String DEFAULT_APP_NAME = "";
   private static final String DEFAULT_ICON = RUNTIME_FILES_DIR + "ya.png";
-  private static final String DEFAULT_VERSION_CODE = "1";
-  private static final String DEFAULT_VERSION_NAME = "1.0";
-  private static final String DEFAULT_MIN_SDK = "7";
-  private static final String DEFAULT_THEME = "AppTheme.Light.DarkActionBar";
 
   /*
    * Resource paths to yail runtime, runtime library files and sdk tools.
@@ -131,13 +127,13 @@ public final class Compiler {
   private static final String COMP_BUILD_INFO =
       RUNTIME_FILES_DIR + "simple_components_build_info.json";
   private static final String DX_JAR =
-      RUNTIME_FILES_DIR + "dx.jar";
+      RUNTIME_TOOLS_DIR + "dx.jar";
   private static final String KAWA_RUNTIME =
       RUNTIME_FILES_DIR + "kawa.jar";
   private static final String SIMPLE_ANDROID_RUNTIME_JAR =
       RUNTIME_FILES_DIR + "AndroidRuntime.jar";
   private static final String APKSIGNER_JAR =
-      RUNTIME_FILES_DIR + "apksigner.jar";
+      RUNTIME_TOOLS_DIR + "apksigner.jar";
 
   /*
    * Note for future updates: This list can be obtained from an Android Studio project running the
@@ -184,28 +180,28 @@ public final class Compiler {
       ));
 
   private static final String LINUX_AAPT_TOOL =
-      "/tools/linux/aapt";
+      RUNTIME_TOOLS_DIR + "linux/aapt";
   private static final String LINUX_ZIPALIGN_TOOL =
-      "/tools/linux/zipalign";
+      RUNTIME_TOOLS_DIR + "linux/zipalign";
   private static final String MAC_AAPT_TOOL =
-      "/tools/mac/aapt";
+      RUNTIME_TOOLS_DIR + "mac/aapt";
   private static final String MAC_ZIPALIGN_TOOL =
-      "/tools/mac/zipalign";
+      RUNTIME_TOOLS_DIR + "mac/zipalign";
   private static final String WINDOWS_AAPT_TOOL =
-      "/tools/windows/aapt";
+      RUNTIME_TOOLS_DIR + "windows/aapt";
   private static final String WINDOWS_PTHEAD_DLL =
-      "/tools/windows/libwinpthread-1.dll";
+      RUNTIME_TOOLS_DIR + "windows/libwinpthread-1.dll";
   private static final String WINDOWS_ZIPALIGN_TOOL =
-      "/tools/windows/zipalign";
+      RUNTIME_TOOLS_DIR + "windows/zipalign";
 
   private static final String LINUX_AAPT2_TOOL =
-      "/tools/linux/aapt2";
+      RUNTIME_TOOLS_DIR + "linux/aapt2";
   private static final String MAC_AAPT2_TOOL =
-      "/tools/mac/aapt2";
+      RUNTIME_TOOLS_DIR + "mac/aapt2";
   private static final String WINDOWS_AAPT2_TOOL =
-      "/tools/windows/aapt2";
+      RUNTIME_TOOLS_DIR + "windows/aapt2";
   private static final String BUNDLETOOL_JAR =
-      RUNTIME_FILES_DIR + "bundletool.jar";
+      RUNTIME_TOOLS_DIR + "bundletool.jar";
 
   @VisibleForTesting
   static final String YAIL_RUNTIME = RUNTIME_FILES_DIR + "runtime.scm";
@@ -220,6 +216,8 @@ public final class Compiler {
       new ConcurrentHashMap<String, Set<String>>();
   private final ConcurrentMap<String, Set<String>> broadcastReceiversNeeded =
       new ConcurrentHashMap<String, Set<String>>();
+  private final ConcurrentMap<String, Set<String>> queriesNeeded =
+      new ConcurrentHashMap<>();
   private final ConcurrentMap<String, Set<String>> servicesNeeded =
       new ConcurrentHashMap<String, Set<String>>();
   private final ConcurrentMap<String, Set<String>> contentProvidersNeeded =
@@ -479,6 +477,11 @@ public final class Compiler {
     return broadcastReceiversNeeded;
   }
 
+  @VisibleForTesting
+  Map<String, Set<String>> getQueries() {
+    return queriesNeeded;
+  }
+
   // Just used for testing
   @VisibleForTesting
   Map<String, Set<String>> getServices() {
@@ -647,7 +650,7 @@ public final class Compiler {
       n += activityMetadataNeeded.get(type).size();
     }
 
-    System.out.println("Component metadata needed, n = " + n);
+    System.out.println("Component activity metadata needed, n = " + n);
   }
 
   /*
@@ -669,6 +672,24 @@ public final class Compiler {
     }
 
     mergeConditionals(conditionals.get(ComponentDescriptorConstants.BROADCAST_RECEIVERS_TARGET), broadcastReceiversNeeded);
+  }
+
+  /*
+   * Generate a set of conditionally included queries needed by this project.
+   */
+  @VisibleForTesting
+  void generateQueries() {
+    try {
+      loadJsonInfo(queriesNeeded, ComponentDescriptorConstants.QUERIES_TARGET);
+    } catch (IOException e) {
+      // This is fatal.
+      userErrors.print(String.format(ERROR_IN_STAGE, "Services"));
+    } catch (JSONException e) {
+      // This is fatal, but shouldn't actually ever happen.
+      userErrors.print(String.format(ERROR_IN_STAGE, "Services"));
+    }
+
+    mergeConditionals(conditionals.get(ComponentDescriptorConstants.QUERIES_TARGET), queriesNeeded);
   }
 
   /*
@@ -845,10 +866,10 @@ public final class Compiler {
    * Create the default color and styling for the app.
    */
   private boolean createValuesXml(File valuesDir, String suffix) {
-    String colorPrimary = project.getPrimaryColor() == null ? "#A5CF47" : project.getPrimaryColor();
-    String colorPrimaryDark = project.getPrimaryColorDark() == null ? "#41521C" : project.getPrimaryColorDark();
-    String colorAccent = project.getAccentColor() == null ? "#00728A" : project.getAccentColor();
-    String theme = project.getTheme() == null ? "Classic" : project.getTheme();
+    String colorPrimary = project.getPrimaryColor();
+    String colorPrimaryDark = project.getPrimaryColorDark();
+    String colorAccent = project.getAccentColor();
+    String theme = project.getTheme();
     String actionbar = project.getActionBar();
     String parentTheme;
     boolean isClassicTheme = "Classic".equals(theme) || suffix.isEmpty();  // Default to classic theme prior to SDK 11
@@ -1009,14 +1030,14 @@ public final class Compiler {
     String packageName = Signatures.getPackageName(mainClass);
     String className = Signatures.getClassName(mainClass);
     String projectName = project.getProjectName();
-    String vCode = (project.getVCode() == null) ? DEFAULT_VERSION_CODE : project.getVCode();
-    String vName = (project.getVName() == null) ? DEFAULT_VERSION_NAME : cleanName(project.getVName());
+    String vCode = project.getVCode();
+    String vName = cleanName(project.getVName());
     if (includeDangerousPermissions) {
       vName += "u";
     }
-    String aName = (project.getAName() == null) ? DEFAULT_APP_NAME : cleanName(project.getAName());
-    LOG.log(Level.INFO, "VCode: " + project.getVCode());
-    LOG.log(Level.INFO, "VName: " + project.getVName());
+    String aName = cleanName(project.getAName());
+    LOG.log(Level.INFO, "VCode: " + vCode);
+    LOG.log(Level.INFO, "VName: " + vName);
 
     // TODO(user): Use com.google.common.xml.XmlWriter
     try {
@@ -1055,7 +1076,18 @@ public final class Compiler {
         }
       }
 
-      int minSdk = Integer.parseInt((project.getMinSdk() == null) ? DEFAULT_MIN_SDK : project.getMinSdk());
+      if (queriesNeeded.size() > 0) {
+        out.write("  <queries>\n");
+        for (Map.Entry<String, Set<String>> componentSubElSetPair : queriesNeeded.entrySet()) {
+          Set<String> subelementSet = componentSubElSetPair.getValue();
+          for (String subelement : subelementSet) {
+            // replace %packageName% with the actual packageName
+            out.write(subelement.replace("%packageName%", packageName));
+          }
+        }
+        out.write("  </queries>\n");
+      }
+      int minSdk = Integer.parseInt(project.getMinSdk());
       if (!isForCompanion) {
         for (Set<String> minSdks : minSdksNeeded.values()) {
           for (String sdk : minSdks) {
@@ -1071,6 +1103,10 @@ public final class Compiler {
       Set<String> permissions = Sets.newHashSet();
       for (Set<String> compPermissions : permissionsNeeded.values()) {
         permissions.addAll(compPermissions);
+      }
+      if (usesLegacyFileAccess()) {
+        permissions.add("android.permission.READ_EXTERNAL_STORAGE");
+        permissions.add("android.permission.WRITE_EXTERNAL_STORAGE");
       }
 
       // Remove Google's Forbidden Permissions
@@ -1093,10 +1129,21 @@ public final class Compiler {
       }
 
       for (String permission : permissions) {
-        out.write("  <uses-permission android:name=\"" +
-                  permission
-                    .replace("%packageName%", packageName) // replace %packageName% with the actual packageName
-                  + "\" />\n");
+        if ("android.permission.WRITE_EXTERNAL_STORAGE".equals(permission)) {
+          out.write("  <uses-permission android:name=\"" + permission + "\"");
+
+          // we don't need these permissions post KitKat, but we do need them for the companion
+          if (!isForCompanion && !usesLegacyFileAccess() && minSdk < 29) {
+            out.write(" android:maxSdkVersion=\"29\"");
+          }
+
+          out.write(" />");
+        } else {
+          out.write("  <uses-permission android:name=\""
+              // replace %packageName% with the actual packageName
+              + permission.replace("%packageName%", packageName)
+              + "\" />\n");
+        }
       }
 
       if (isForCompanion) {      // This is so ACRA can do a logcat on phones older then Jelly Bean
@@ -1170,6 +1217,8 @@ public final class Compiler {
         } else if (isMain && isForCompanion) {
           out.write("android:launchMode=\"singleTop\" ");
         }
+        // The line below is required for Android 12+
+        out.write("android:exported=\"true\" ");
 
         out.write("android:windowSoftInputMode=\"stateHidden\" ");
 
@@ -1226,7 +1275,7 @@ public final class Compiler {
 
         // Companion display a splash screen... define it's activity here
         if (isMain && isForCompanion) {
-          out.write("    <activity android:name=\"com.google.appinventor.components.runtime.SplashActivity\" android:screenOrientation=\"behind\" android:configChanges=\"keyboardHidden|orientation\">\n");
+          out.write("    <activity android:name=\"com.google.appinventor.components.runtime.SplashActivity\" android:exported=\"false\" android:screenOrientation=\"behind\" android:configChanges=\"keyboardHidden|orientation\">\n");
           out.write("      <intent-filter>\n");
           out.write("        <action android:name=\"android.intent.action.MAIN\" />\n");
           out.write("      </intent-filter>\n");
@@ -1243,8 +1292,8 @@ public final class Compiler {
       subelements.addAll(contentProvidersNeeded.entrySet());
 
 
-      // If any component needs to register additional activities, 
-      // broadcast receivers, services or content providers, insert 
+      // If any component needs to register additional activities,
+      // broadcast receivers, services or content providers, insert
       // them into the manifest here.
       if (!subelements.isEmpty()) {
         for (Map.Entry<String, Set<String>> componentSubElSetPair : subelements) {
@@ -1295,7 +1344,7 @@ public final class Compiler {
           }
         }
         out.write(
-            "<receiver android:name=\"" + brNameAndActions[0] + "\" >\n");
+            "<receiver android:name=\"" + brNameAndActions[0] + "\" android:exported=\"true\">\n");
         if (brNameAndActions.length > 1) {
           out.write("  <intent-filter>\n");
           for (int i = 1; i < brNameAndActions.length; i++) {
@@ -1346,253 +1395,301 @@ public final class Compiler {
    * @throws JSONException
    * @throws IOException
    */
-  public static boolean compile(Project project, Set<String> compTypes, Map<String, Set<String>> compBlocks,
-                                PrintStream out, PrintStream err, PrintStream userErrors,
-                                boolean isForCompanion, boolean isForEmulator,
-                                boolean includeDangerousPermissions, String keystoreFilePath,
-                                int childProcessRam, String dexCacheDir, String outputFileName,
-                                BuildServer.ProgressReporter reporter, boolean isAab) throws IOException, JSONException {
-    long start = System.currentTimeMillis();
-
+  public static boolean compile(Project project, Set<String> compTypes,
+      Map<String, Set<String>> compBlocks, PrintStream out, PrintStream err, PrintStream userErrors,
+      boolean isForCompanion, boolean isForEmulator, boolean includeDangerousPermissions,
+      String keystoreFilePath, int childProcessRam, String dexCacheDir, String outputFileName,
+      BuildServer.ProgressReporter reporter, boolean isAab, StatReporter statReporter)
+      throws IOException, JSONException {
     // Create a new compiler instance for the compilation
     Compiler compiler = new Compiler(project, compTypes, compBlocks, out, err, userErrors,
         isForCompanion, isForEmulator, includeDangerousPermissions, childProcessRam, dexCacheDir,
         reporter);
 
-    // Set initial progress to 0%
-    if (reporter != null) {
-      reporter.report(0);
-    }
+    return compileWithStats(compiler, project, isAab, keystoreFilePath, outputFileName, out,
+        reporter, statReporter);
+  }
 
-    compiler.generateAssets();
-    compiler.generateActivities();
-    compiler.generateMetadata();
-    compiler.generateActivityMetadata();
-    compiler.generateBroadcastReceivers();
-    compiler.generateServices();
-    compiler.generateContentProviders();
-    compiler.generateLibNames();
-    compiler.generateNativeLibNames();
-    compiler.generatePermissions();
-    compiler.generateMinSdks();
+  private static boolean compileWithStats(Compiler compiler, Project project, boolean isAab,
+      String keystoreFilePath, String outputFileName, PrintStream out,
+      BuildServer.ProgressReporter reporter, StatReporter statReporter) {
+    boolean success = false;
+    long start = System.currentTimeMillis();
+    statReporter.startBuild(compiler);
 
-    // TODO(Will): Remove the following call once the deprecated
-    //             @SimpleBroadcastReceiver annotation is removed. It should
-    //             should remain for the time being because otherwise we'll break
-    //             extensions currently using @SimpleBroadcastReceiver.
-    compiler.generateBroadcastReceiver();
-
-    // Create build directory.
-    File buildDir = createDir(project.getBuildDirectory());
-
-    // Prepare application icon.
-    out.println("________Preparing application icon");
-    File resDir = createDir(buildDir, "res");
-    File drawableDir = createDir(resDir, "drawable");
-
-    // Create mipmap directories
-    File mipmapV26 = createDir(resDir, "mipmap-anydpi-v26");
-    File mipmapHdpi = createDir(resDir,"mipmap-hdpi");
-    File mipmapMdpi = createDir(resDir,"mipmap-mdpi");
-    File mipmapXhdpi = createDir(resDir,"mipmap-xhdpi");
-    File mipmapXxhdpi = createDir(resDir,"mipmap-xxhdpi");
-    File mipmapXxxhdpi = createDir(resDir,"mipmap-xxxhdpi");
-
-    // Create list of mipmaps for all icon types with respective sizes
-    List<File> mipmapDirectoriesForIcons = Arrays.asList(mipmapMdpi, mipmapHdpi, mipmapXhdpi, mipmapXxhdpi, mipmapXxxhdpi);
-    List<Integer> standardICSizesForMipmaps = Arrays.asList(48,72,96,144,192);
-    List<Integer> foregroundICSizesForMipmaps = Arrays.asList(108,162,216,324,432);
-
-    if (!compiler.prepareApplicationIcon(new File(drawableDir, "ya.png"), mipmapDirectoriesForIcons, standardICSizesForMipmaps, foregroundICSizesForMipmaps)) {
-      return false;
-    }
-    if (reporter != null) {
-      reporter.report(15);        // Have to call directly because we are in a
-    }                             // Static context
-
-    // Create anim directory and animation xml files
-    out.println("________Creating animation xml");
-    File animDir = createDir(resDir, "anim");
-    if (!compiler.createAnimationXml(animDir)) {
-      return false;
-    }
-
-    // Create values directory and style xml files
-    out.println("________Creating style xml");
-    File styleDir = createDir(resDir, "values");
-    File style11Dir = createDir(resDir, "values-v11");
-    File style14Dir = createDir(resDir, "values-v14");
-    File style21Dir = createDir(resDir, "values-v21");
-    File style23Dir = createDir(resDir, "values-v23");
-    if (!compiler.createValuesXml(styleDir, "") ||
-        !compiler.createValuesXml(style11Dir, "-v11") ||
-        !compiler.createValuesXml(style14Dir, "-v14") ||
-        !compiler.createValuesXml(style21Dir, "-v21") ||
-        !compiler.createValuesXml(style23Dir, "-v23")) {
-      return false;
-    }
-
-    out.println("________Creating provider_path xml");
-    File providerDir = createDir(resDir, "xml");
-    if (!compiler.createProviderXml(providerDir)) {
-      return false;
-    }
-
-    out.println("________Creating network_security_config xml");
-    if (!compiler.createNetworkConfigXml(providerDir)) {
-      return false;
-    }
-
-    // Generate ic_launcher.xml
-    out.println("________Generating adaptive icon file");
-    File icLauncher = new File(mipmapV26, "ic_launcher.xml");
-    if (!compiler.writeICLauncher(icLauncher, false)) {
-      return false;
-    }
-
-    // Generate ic_launcher_round.xml
-    out.println("________Generating round adaptive icon file");
-    File icLauncherRound = new File(mipmapV26, "ic_launcher_round.xml");
-    if (!compiler.writeICLauncher(icLauncherRound, true)) {
-      return false;
-    }
-
-    // Generate ic_launcher_background.xml
-    out.println("________Generating adaptive icon background file");
-    File icBackgroundColor = new File(styleDir, "ic_launcher_background.xml");
-    if (!compiler.writeICLauncherBackground(icBackgroundColor)) {
-      return false;
-    }
-
-    // Generate AndroidManifest.xml
-    out.println("________Generating manifest file");
-    File manifestFile = new File(buildDir, "AndroidManifest.xml");
-    if (!compiler.writeAndroidManifest(manifestFile)) {
-      return false;
-    }
-    if (reporter != null) {
-      reporter.report(20);
-    }
-
-    // Insert native libraries
-    out.println("________Attaching native libraries");
-    if (!compiler.insertNativeLibs(buildDir)) {
-      return false;
-    }
-
-    // Attach Android AAR Library dependencies
-    out.println("________Attaching Android Archive (AAR) libraries");
-    if (!compiler.attachAarLibraries(buildDir)) {
-      return false;
-    }
-
-    // Add raw assets to sub-directory of project assets.
-    out.println("________Attaching component assets");
-    if (!compiler.attachCompAssets()) {
-      return false;
-    }
-
-    // Invoke aapt to package everything up
-    out.println("________Invoking AAPT");
-    File deployDir = createDir(buildDir, "deploy");
-    String tmpPackageName = deployDir.getAbsolutePath() + SLASH +
-        project.getProjectName() + "." + (isAab ? "apk" : "ap_");
-    File srcJavaDir = createDir(buildDir, "generated/src");
-    File rJavaDir = createDir(buildDir, "generated/symbols");
-    if (isAab) {
-      if (!compiler.runAapt2Compile(resDir)) {
-        return false;
+    try {
+      // Set initial progress to 0%
+      if (reporter != null) {
+        reporter.report(0);
       }
-      if (!compiler.runAapt2Link(manifestFile, tmpPackageName, rJavaDir)) {
-        return false;
-      }
-    } else {
-      if (!compiler.runAaptPackage(manifestFile, resDir, tmpPackageName, srcJavaDir, rJavaDir)) {
-        return false;
-      }
-    }
-    if (reporter != null) {
-      reporter.report(30);
-    }
 
-    // Create class files.
-    out.println("________Compiling source files");
-    File classesDir = createDir(buildDir, "classes");
-    File tmpDir = createDir(buildDir, "tmp");
-    String dexedClassesDir = tmpDir.getAbsolutePath();
-    if (!compiler.generateRClasses(classesDir)) {
-      return false;
-    }
-    if (!compiler.generateClasses(classesDir)) {
-      return false;
-    }
-    if (reporter != null) {
-      reporter.report(35);
-    }
+      statReporter.nextStage(compiler, "generateActivities");
+      compiler.generateActivities();
+      statReporter.nextStage(compiler, "generateActivityMetadata");
+      compiler.generateActivityMetadata();
+      statReporter.nextStage(compiler, "generateAssets");
+      compiler.generateAssets();
+      statReporter.nextStage(compiler, "generateBroadcastReceivers");
+      compiler.generateBroadcastReceivers();
+      statReporter.nextStage(compiler, "generateContentProviders");
+      compiler.generateContentProviders();
+      statReporter.nextStage(compiler, "generateLibNames");
+      compiler.generateLibNames();
+      statReporter.nextStage(compiler, "generateMetadata");
+      compiler.generateMetadata();
+      statReporter.nextStage(compiler, "generateMinSdks");
+      compiler.generateMinSdks();
+      statReporter.nextStage(compiler, "generateNativeLibNames");
+      compiler.generateNativeLibNames();
+      statReporter.nextStage(compiler, "generatePermissions");
+      compiler.generatePermissions();
+      statReporter.nextStage(compiler, "generateQueries");
+      compiler.generateQueries();
+      statReporter.nextStage(compiler, "generateServices");
+      compiler.generateServices();
 
-    // Invoke dx on class files
-    out.println("________Invoking DX");
-    // TODO(markf): Running DX is now pretty slow (~25 sec overhead the first time and ~15 sec
-    // overhead for subsequent runs).  I think it's because of the need to dx the entire
-    // kawa runtime every time.  We should probably only do that once and then copy all the
-    // kawa runtime dx files into the generated classes.dex (which would only contain the
-    // files compiled for this project).
-    // Aargh.  It turns out that there's no way to manipulate .dex files to do the above.  An
-    // Android guy suggested an alternate approach of shipping the kawa runtime .dex file as
-    // data with the application and then creating a new DexClassLoader using that .dex file
-    // and with the original app class loader as the parent of the new one.
-    // TODONE(zhuowei): Now using the new Android DX tool to merge dex files
-    // Needs to specify a writable cache dir on the command line that persists after shutdown
-    // Each pre-dexed file is identified via its MD5 hash (since the standard Android SDK's
-    // method of identifying via a hash of the path won't work when files
-    // are copied into temporary storage) and processed via a hacked up version of
-    // Android SDK's Dex Ant task
-    if (!compiler.runMultidex(classesDir, dexedClassesDir)) {
-      return false;
-    }
-    if (reporter != null) {
-      reporter.report(85);
-    }
+      // TODO(Will): Remove the following call once the deprecated
+      //             @SimpleBroadcastReceiver annotation is removed. It should
+      //             should remain for the time being because otherwise we'll break
+      //             extensions currently using @SimpleBroadcastReceiver.
+      statReporter.nextStage(compiler, "generateBroadcastReceiver");
+      compiler.generateBroadcastReceiver();
 
-    if (isAab) {
-      if (!compiler.bundleTool(buildDir, childProcessRam, tmpPackageName, outputFileName, deployDir, keystoreFilePath, dexedClassesDir)) {
-        return false;
-      }
-    } else {
-      // Seal the apk with ApkBuilder
-      out.println("________Invoking ApkBuilder");
-      String fileName = outputFileName;
-      if (fileName == null) {
-        fileName = project.getProjectName() + ".apk";
-      }
-      String apkAbsolutePath = deployDir.getAbsolutePath() + SLASH + fileName;
-      if (!compiler.runApkBuilder(apkAbsolutePath, tmpPackageName, dexedClassesDir)) {
+      // Create build directory.
+      File buildDir = createDir(project.getBuildDirectory());
+
+      // Prepare application icon.
+      out.println("________Preparing application icon");
+      File resDir = createDir(buildDir, "res");
+      File drawableDir = createDir(resDir, "drawable");
+
+      // Create mipmap directories
+      File mipmapHdpi = createDir(resDir,"mipmap-hdpi");
+      File mipmapMdpi = createDir(resDir,"mipmap-mdpi");
+      File mipmapXhdpi = createDir(resDir,"mipmap-xhdpi");
+      File mipmapXxhdpi = createDir(resDir,"mipmap-xxhdpi");
+      File mipmapXxxhdpi = createDir(resDir,"mipmap-xxxhdpi");
+
+      // Create list of mipmaps for all icon types with respective sizes
+      List<File> mipmapDirectoriesForIcons = Arrays.asList(mipmapMdpi, mipmapHdpi, mipmapXhdpi,
+          mipmapXxhdpi, mipmapXxxhdpi);
+      List<Integer> standardSizesForMipmaps = Arrays.asList(48,72,96,144,192);
+      List<Integer> foregroundSizesForMipmaps = Arrays.asList(108,162,216,324,432);
+
+      statReporter.nextStage(compiler, "prepareApplicationIcon");
+      if (!compiler.prepareApplicationIcon(new File(drawableDir, "ya.png"),
+          mipmapDirectoriesForIcons, standardSizesForMipmaps, foregroundSizesForMipmaps)) {
         return false;
       }
       if (reporter != null) {
-        reporter.report(95);
-      }
+        reporter.report(15);        // Have to call directly because we are in a
+      }                             // Static context
 
-      // ZipAlign the apk file
-      out.println("________ZipAligning the apk file");
-      if (!compiler.runZipAlign(apkAbsolutePath, tmpDir)) {
+      statReporter.nextStage(compiler, "createAnimationXml");
+      // Create anim directory and animation xml files
+      out.println("________Creating animation xml");
+      File animDir = createDir(resDir, "anim");
+      if (!compiler.createAnimationXml(animDir)) {
         return false;
       }
 
-      // Sign the apk file
-      out.println("________Signing the apk file");
-      if (!compiler.runApkSigner(apkAbsolutePath, keystoreFilePath)) {
+      statReporter.nextStage(compiler, "createValuesXml");
+      // Create values directory and style xml files
+      out.println("________Creating style xml");
+      File styleDir = createDir(resDir, "values");
+      File style11Dir = createDir(resDir, "values-v11");
+      File style14Dir = createDir(resDir, "values-v14");
+      File style21Dir = createDir(resDir, "values-v21");
+      File style23Dir = createDir(resDir, "values-v23");
+      if (!compiler.createValuesXml(styleDir, "")
+          || !compiler.createValuesXml(style11Dir, "-v11")
+          || !compiler.createValuesXml(style14Dir, "-v14")
+          || !compiler.createValuesXml(style21Dir, "-v21")
+          || !compiler.createValuesXml(style23Dir, "-v23")) {
         return false;
       }
+
+      statReporter.nextStage(compiler, "createProviderXml");
+      out.println("________Creating provider_path xml");
+      File providerDir = createDir(resDir, "xml");
+      if (!compiler.createProviderXml(providerDir)) {
+        return false;
+      }
+
+      statReporter.nextStage(compiler, "createNetworkConfigXml");
+      out.println("________Creating network_security_config xml");
+      if (!compiler.createNetworkConfigXml(providerDir)) {
+        return false;
+      }
+
+      statReporter.nextStage(compiler, "writeICLauncher");
+      // Generate ic_launcher.xml
+      out.println("________Generating adaptive icon file");
+      File mipmapV26 = createDir(resDir, "mipmap-anydpi-v26");
+      File icLauncher = new File(mipmapV26, "ic_launcher.xml");
+      if (!compiler.writeICLauncher(icLauncher, false)) {
+        return false;
+      }
+
+      // Generate ic_launcher_round.xml
+      out.println("________Generating round adaptive icon file");
+      File icLauncherRound = new File(mipmapV26, "ic_launcher_round.xml");
+      if (!compiler.writeICLauncher(icLauncherRound, true)) {
+        return false;
+      }
+
+      // Generate ic_launcher_background.xml
+      out.println("________Generating adaptive icon background file");
+      File icBackgroundColor = new File(styleDir, "ic_launcher_background.xml");
+      if (!compiler.writeICLauncherBackground(icBackgroundColor)) {
+        return false;
+      }
+
+      statReporter.nextStage(compiler, "writeAndroidManifest");
+      // Generate AndroidManifest.xml
+      out.println("________Generating manifest file");
+      File manifestFile = new File(buildDir, "AndroidManifest.xml");
+      if (!compiler.writeAndroidManifest(manifestFile)) {
+        return false;
+      }
+      if (reporter != null) {
+        reporter.report(20);
+      }
+
+      statReporter.nextStage(compiler, "insertNativeLibs");
+      // Insert native libraries
+      out.println("________Attaching native libraries");
+      if (!compiler.insertNativeLibs(buildDir)) {
+        return false;
+      }
+
+      statReporter.nextStage(compiler, "attachAarLibraries");
+      // Attach Android AAR Library dependencies
+      out.println("________Attaching Android Archive (AAR) libraries");
+      if (!compiler.attachAarLibraries(buildDir)) {
+        return false;
+      }
+
+      statReporter.nextStage(compiler, "attachCompAssets");
+      // Add raw assets to sub-directory of project assets.
+      out.println("________Attaching component assets");
+      if (!compiler.attachCompAssets()) {
+        return false;
+      }
+
+      // Invoke aapt to package everything up
+      out.println("________Invoking AAPT");
+      File deployDir = createDir(buildDir, "deploy");
+      String tmpPackageName = deployDir.getAbsolutePath() + SLASH
+          + project.getProjectName() + "." + (isAab ? "apk" : "ap_");
+      File srcJavaDir = createDir(buildDir, "generated/src");
+      File rconstJavaDir = createDir(buildDir, "generated/symbols");
+      if (isAab) {
+        statReporter.nextStage(compiler, "aapt2");
+        if (!compiler.runAapt2Compile(resDir)) {
+          return false;
+        }
+        if (!compiler.runAapt2Link(manifestFile, tmpPackageName, rconstJavaDir)) {
+          return false;
+        }
+      } else {
+        statReporter.nextStage(compiler, "aapt");
+        if (!compiler.runAaptPackage(manifestFile, resDir, tmpPackageName, srcJavaDir,
+            rconstJavaDir)) {
+          return false;
+        }
+      }
+      if (reporter != null) {
+        reporter.report(30);
+      }
+
+      statReporter.nextStage(compiler, "generateClasses");
+      // Create class files.
+      out.println("________Compiling source files");
+      File classesDir = createDir(buildDir, "classes");
+      if (!compiler.generateRClasses(classesDir)) {
+        return false;
+      }
+      if (!compiler.generateClasses(classesDir)) {
+        return false;
+      }
+      if (reporter != null) {
+        reporter.report(35);
+      }
+
+      statReporter.nextStage(compiler, "runMultidex");
+      // Invoke dx on class files
+      out.println("________Invoking DX");
+      File tmpDir = createDir(buildDir, "tmp");
+      String dexedClassesDir = tmpDir.getAbsolutePath();
+      // TODO(markf): Running DX is now pretty slow (~25 sec overhead the first time and ~15 sec
+      // overhead for subsequent runs).  I think it's because of the need to dx the entire
+      // kawa runtime every time.  We should probably only do that once and then copy all the
+      // kawa runtime dx files into the generated classes.dex (which would only contain the
+      // files compiled for this project).
+      // Aargh.  It turns out that there's no way to manipulate .dex files to do the above.  An
+      // Android guy suggested an alternate approach of shipping the kawa runtime .dex file as
+      // data with the application and then creating a new DexClassLoader using that .dex file
+      // and with the original app class loader as the parent of the new one.
+      // TODONE(zhuowei): Now using the new Android DX tool to merge dex files
+      // Needs to specify a writable cache dir on the command line that persists after shutdown
+      // Each pre-dexed file is identified via its MD5 hash (since the standard Android SDK's
+      // method of identifying via a hash of the path won't work when files
+      // are copied into temporary storage) and processed via a hacked up version of
+      // Android SDK's Dex Ant task
+      if (!compiler.runMultidex(classesDir, dexedClassesDir)) {
+        return false;
+      }
+      if (reporter != null) {
+        reporter.report(85);
+      }
+
+      if (isAab) {
+        statReporter.nextStage(compiler, "bundletool");
+        if (!compiler.bundleTool(buildDir, tmpPackageName, outputFileName, deployDir,
+            keystoreFilePath, dexedClassesDir)) {
+          return false;
+        }
+      } else {
+        statReporter.nextStage(compiler, "runApkBuilder");
+        // Seal the apk with ApkBuilder
+        out.println("________Invoking ApkBuilder");
+        String fileName = outputFileName;
+        if (fileName == null) {
+          fileName = project.getProjectName() + ".apk";
+        }
+        String apkAbsolutePath = deployDir.getAbsolutePath() + SLASH + fileName;
+        if (!compiler.runApkBuilder(apkAbsolutePath, tmpPackageName, dexedClassesDir)) {
+          return false;
+        }
+        if (reporter != null) {
+          reporter.report(95);
+        }
+
+        // ZipAlign the apk file
+        out.println("________ZipAligning the apk file");
+        if (!compiler.runZipAlign(apkAbsolutePath, tmpDir)) {
+          return false;
+        }
+
+        // Sign the apk file
+        out.println("________Signing the apk file");
+        if (!compiler.runApkSigner(apkAbsolutePath, keystoreFilePath)) {
+          return false;
+        }
+      }
+
+      if (reporter != null) {
+        reporter.report(100);
+      }
+
+      out.println("Build finished in "
+          + ((System.currentTimeMillis() - start) / 1000.0) + " seconds");
+
+      success = true;
+    } finally {
+      statReporter.stopBuild(compiler, success);
     }
-
-    if (reporter != null) {
-      reporter.report(100);
-    }
-
-    out.println("Build finished in " +
-        ((System.currentTimeMillis() - start) / 1000.0) + " seconds");
-
     return true;
   }
 
@@ -2452,7 +2549,7 @@ public final class Compiler {
     return true;
   }
 
-  private boolean bundleTool(File buildDir, int childProcessRam, String tmpPackageName,
+  private boolean bundleTool(File buildDir, String tmpPackageName,
                              String outputFileName, File deployDir, String keystoreFilePath, String dexedClassesDir) {
     try {
       String jarsignerTool = "jarsigner";
@@ -2461,7 +2558,7 @@ public final class Compiler {
         fileName = project.getProjectName() + ".aab";
       }
 
-      AabCompiler aabCompiler = new AabCompiler(out, buildDir, childProcessRam - 200)
+      AabCompiler aabCompiler = new AabCompiler(out, buildDir, childProcessRamMb - 200)
             .setLibsDir(libsDir)
             .setProtoApk(new File(tmpPackageName))
             .setJarsigner(jarsignerTool)
@@ -2731,7 +2828,7 @@ public final class Compiler {
   private void libSetup() {
     String osName = System.getProperty("os.name");
     if (osName.equals("Linux")) {
-      ensureLib("/tmp/lib64", "libc++.so", "/tools/linux/lib64/libc++.so");
+      ensureLib("/tmp/lib64", "libc++.so", RUNTIME_TOOLS_DIR + "linux/lib64/libc++.so");
     } else if (osName.startsWith("Windows")) {
       ensureLib(System.getProperty("java.io.tmpdir"), "libwinpthread-1.dll", WINDOWS_PTHEAD_DLL);
     }
@@ -2755,21 +2852,11 @@ public final class Compiler {
         JSONObject compJson = buildInfo.getJSONObject(i);
         JSONArray infoArray = null;
         String type = compJson.getString("type");
-        try {
-          infoArray = compJson.getJSONArray(targetInfo);
-        } catch (JSONException e) {
-          // Older compiled extensions will not have a broadcastReceiver
-          // defined. Rather then require them all to be recompiled, we
-          // treat the missing attribute as empty.
-          if (e.getMessage().contains("broadcastReceiver")) {
-            LOG.log(Level.INFO, "Component \"" + type + "\" does not have a broadcast receiver.");
-            continue;
-          } else if (e.getMessage().contains(ComponentDescriptorConstants.ANDROIDMINSDK_TARGET)) {
-            LOG.log(Level.INFO, "Component \"" + type + "\" does not specify a minimum SDK.");
-            continue;
-          } else {
-            throw e;
-          }
+        infoArray = compJson.optJSONArray(targetInfo);
+        if (infoArray == null) {
+          LOG.log(Level.INFO, "Component \"" + type + "\" does not specify " + targetInfo);
+          // Continue to process other components
+          continue;
         }
 
         if (!simpleCompTypes.contains(type) && !extCompTypes.contains(type)) {
@@ -2981,6 +3068,10 @@ public final class Compiler {
       return candidate;
     }
     throw new IllegalStateException("Project lacks extension directory for " + type);
+  }
+
+  private boolean usesLegacyFileAccess() {
+    return "Legacy".equals(project.getDefaultFileScope());
   }
 
   private static String basename(String path) {
