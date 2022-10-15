@@ -52,9 +52,20 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * The internal implementation of the BluetoothLE component.
@@ -2468,7 +2479,7 @@ final class BluetoothLEint {
         AdvertiseData advData = new AdvertiseData.Builder()
                 .setIncludeDeviceName(true)
                 .addServiceUuid(pUuid)
-                .addServiceData(pUuid, inData.getBytes(Charset.forName("UTF-8")))
+                .addServiceData(pUuid, inData.getBytes(StandardCharsets.UTF_8))
                 .build();
 
         if (mAdvertiseCallback == null) {

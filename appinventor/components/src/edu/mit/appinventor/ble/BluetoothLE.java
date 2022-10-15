@@ -1,5 +1,5 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2015-2020 MIT, All rights reserved
+// Copyright 2015-2023 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -8,15 +8,19 @@ package edu.mit.appinventor.ble;
 import static android.Manifest.permission.ACCESS_FINE_LOCATION;
 import static android.Manifest.permission.BLUETOOTH;
 import static android.Manifest.permission.BLUETOOTH_ADMIN;
-
-import android.app.Activity;
+import static android.Manifest.permission.BLUETOOTH_ADVERTISE;
+import static android.Manifest.permission.BLUETOOTH_CONNECT;
+import static android.Manifest.permission.BLUETOOTH_SCAN;
+import static com.google.appinventor.components.runtime.util.ErrorMessages.ERROR_EXTENSION_ERROR;
 
 import android.content.pm.PackageManager;
 
+import android.os.Build;
 import android.util.Log;
 
 import com.google.appinventor.components.annotations.DesignerComponent;
 import com.google.appinventor.components.annotations.DesignerProperty;
+import com.google.appinventor.components.annotations.PermissionConstraint;
 import com.google.appinventor.components.annotations.PropertyCategory;
 import com.google.appinventor.components.annotations.SimpleEvent;
 import com.google.appinventor.components.annotations.SimpleFunction;
@@ -33,7 +37,6 @@ import com.google.appinventor.components.runtime.ComponentContainer;
 import com.google.appinventor.components.runtime.Deleteable;
 import com.google.appinventor.components.runtime.EventDispatcher;
 import com.google.appinventor.components.runtime.Form;
-import com.google.appinventor.components.runtime.util.ErrorMessages;
 import com.google.appinventor.components.runtime.util.SdkLevel;
 import com.google.appinventor.components.runtime.util.YailList;
 import edu.mit.appinventor.ble.BluetoothLEint.DeviceCallback;
@@ -56,7 +59,7 @@ import java.util.UUID;
  * @author William Byrne (will2596@gmail.com) (minor bugfixes)
  * @author Evan W. Patton (ewpatton@mit.edu)
  */
-@DesignerComponent(version = 20200828,
+@DesignerComponent(version = 20230728,
     description = "Bluetooth Low Energy, also referred to as Bluetooth LE " +
         "or simply BLE, is a new communication protocol similar to classic Bluetooth except " +
         "that it is designed to consume less power while maintaining comparable " +
@@ -67,10 +70,10 @@ import java.util.UUID;
         "issues with Google's Bluetooth LE support prior to Android 5.0.",
     category = ComponentCategory.EXTENSION,
     nonVisible = true,
-    helpUrl = "http://iot.appinventor.mit.edu/#/bluetoothle/bluetoothleintro",
+    helpUrl = "https://iot.appinventor.mit.edu/#/bluetoothle/bluetoothleintro",
     iconName = "images/bluetooth.png")
 @SimpleObject(external = true)
-@UsesPermissions({ BLUETOOTH, BLUETOOTH_ADMIN, ACCESS_FINE_LOCATION })
+@UsesPermissions({ BLUETOOTH, BLUETOOTH_ADMIN })
 public class BluetoothLE extends AndroidNonvisibleComponent implements Component, Deleteable {
   public static final int ERROR_DEVICE_INDEX_OOB = 9101;
   public static final int ERROR_SERVICE_INDEX_OOB = 9102;
@@ -81,9 +84,11 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * Basic Variables
    */
   private static final String LOG_TAG = "BluetoothLE";
-  private final Activity activity;
+  private static final String NEEDS_PERMISSION = "* needs user permission *";
+  private final PermissionHelper permissions;
   private BluetoothLEint inner;
-  Set<BluetoothConnectionListener> connectionListeners = new HashSet<BluetoothConnectionListener>();
+  Set<BluetoothConnectionListener> connectionListeners = new HashSet<>();
+  private boolean locationPermissionNeeded = true;
 
   @Override
   public void onDelete() {
@@ -94,8 +99,11 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
   }
 
   public static abstract class BLEResponseHandler<T> {
+    @SuppressWarnings("unused")
     public void onReceive(String serviceUuid, String characteristicUuid, List<T> values) {
     }
+
+    @SuppressWarnings("unused")
     public void onWrite(String serviceUuid, String characteristicUuid, List<T> values) {
     }
   }
@@ -112,8 +120,6 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
   public BluetoothLE(ComponentContainer container) {
     super(container.$form());
 
-    activity = container.$context();
-
     // Perform preliminary checks to see if we are usable on this device.
     // If this test does not pass, we log an advanced warning then proceed.
     // Individualized errors are signaled in each @SimpleFunction.
@@ -127,7 +133,8 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
       Log.d(LOG_TAG, "Appear to have Bluetooth LE support, continuing...");
     }
 
-    inner = new BluetoothLEint(this, activity, container);
+    inner = new BluetoothLEint(this, form, container);
+    permissions = new PermissionHelper(getForm(), this);
   }
 
   public Form getForm() {
@@ -179,20 +186,33 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
   }
 
   /**
+   * Enable this option to assert that your app does not use Bluetooth to derive location data.
+   * If enabled, ACCESS_FINE_LOCATION permission will not be needed by the compiled app nor will
+   * the extension attempt to request permission.
+   */
+  @SimpleProperty(category = PropertyCategory.BEHAVIOR, userVisible = false)
+  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_BOOLEAN,
+      defaultValue = "False")
+  @UsesPermissions(constraints = {
+      @PermissionConstraint(name = BLUETOOTH_SCAN, usesPermissionFlags = "neverForLocation")
+  })
+  public void NoLocationNeeded(boolean setting) {
+    locationPermissionNeeded = !setting;
+  }
+
+  /**
    * Starts scanning for Bluetooth low energy devices.
    */
   @SimpleFunction
+  @UsesPermissions({BLUETOOTH_SCAN, BLUETOOTH_CONNECT, ACCESS_FINE_LOCATION})
   public void StartScanning() {
     if (inner != null) {
-      if (SDK26Helper.shouldAskForPermission(form)) {
-        SDK26Helper.askForPermission(this, new Runnable() {
-          public void run() {
-            inner.StartScanning();
-          }
-        });
-      } else {
-        inner.StartScanning();
-      }
+      permissions.askForPermission(computePermissions(false), "StartScanning", new Runnable() {
+        @Override
+        public void run() {
+          inner.StartScanning();
+        }
+      });
     }
   }
 
@@ -232,14 +252,20 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param index The index of the target device, which must be between 1 and the length of the list.
    */
   @SimpleFunction
-  public void Connect(int index) {
+  @UsesPermissions(BLUETOOTH_CONNECT)
+  public void Connect(final int index) {
     if (inner != null) {
-      try {
-        inner.Connect(index);
-      } catch(IndexOutOfBoundsException e) {
-        form.dispatchErrorOccurredEvent(this, "Connect", ErrorMessages.ERROR_EXTENSION_ERROR,
-            ERROR_DEVICE_INDEX_OOB, LOG_TAG, e.getMessage());
-      }
+      permissions.askForPermission(computePermissions(false), "Connect", new Runnable() {
+        @Override
+        public void run() {
+          try {
+            inner.Connect(index);
+          } catch(IndexOutOfBoundsException e) {
+            form.dispatchErrorOccurredEvent(BluetoothLE.this, "Connect",
+                ERROR_EXTENSION_ERROR, ERROR_DEVICE_INDEX_OOB, LOG_TAG, e.getMessage());
+          }
+        }
+      });
     }
   }
 
@@ -258,10 +284,17 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param address The MAC address of the target device, of the form "12:34:56:78:90:ab"
    */
   @SimpleFunction
-  public void ConnectWithAddress(String address) {
-    if (inner != null) {
-      inner.ConnectWithAddress(address);
+  @UsesPermissions(BLUETOOTH_CONNECT)
+  public void ConnectWithAddress(final String address) {
+    if (inner == null) {
+      return;
     }
+    permissions.askForPermission(computePermissions(false), "ConnectWithAddress", new Runnable() {
+      @Override
+      public void run() {
+        inner.ConnectWithAddress(address);
+      }
+    });
   }
 
   /**
@@ -924,7 +957,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
         return inner.FoundDeviceRssi(index);
       } catch(IndexOutOfBoundsException e) {
         form.dispatchErrorOccurredEvent(this, "FoundDeviceRssi",
-            ErrorMessages.ERROR_EXTENSION_ERROR, ERROR_DEVICE_INDEX_OOB, LOG_TAG, e.getMessage());
+            ERROR_EXTENSION_ERROR, ERROR_DEVICE_INDEX_OOB, LOG_TAG, e.getMessage());
       }
     }
     return 0;
@@ -942,14 +975,23 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @return the name of the device, if any.
    */
   @SimpleFunction
+  @UsesPermissions({BLUETOOTH_CONNECT})
   public String FoundDeviceName(int index) {
     if (inner != null) {
+      if (permissions.askForPermission(BLUETOOTH_CONNECT, "FoundDeviceName", new Runnable() {
+        @Override
+        public void run() {
+          // Nothing we can do about this
+        }
+      })) {
+        return NEEDS_PERMISSION;
+      }
       try {
         String result = inner.FoundDeviceName(index);
         return result == null ? "" : result;
       } catch(IllegalArgumentException e) {
         form.dispatchErrorOccurredEvent(this, "FoundDeviceName",
-            ErrorMessages.ERROR_EXTENSION_ERROR, ERROR_DEVICE_INDEX_OOB, LOG_TAG, e.getMessage());
+            ERROR_EXTENSION_ERROR, ERROR_DEVICE_INDEX_OOB, LOG_TAG, e.getMessage());
       }
     }
     return "";
@@ -975,7 +1017,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
         return result == null ? "" : result;
       } catch(IllegalArgumentException e) {
         form.dispatchErrorOccurredEvent(this, "FoundDeviceAddress",
-            ErrorMessages.ERROR_EXTENSION_ERROR, ERROR_DEVICE_INDEX_OOB, LOG_TAG, e.getMessage());
+            ERROR_EXTENSION_ERROR, ERROR_DEVICE_INDEX_OOB, LOG_TAG, e.getMessage());
       }
     }
     return "";
@@ -995,10 +1037,17 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param serviceUuid The unique identifier of the service passed in the read or register call.
    */
   @SimpleFunction
-  public void StartAdvertising(String inData, String serviceUuid) {
-    if (inner != null) {
-      inner.StartAdvertising(inData, serviceUuid);
+  @UsesPermissions({BLUETOOTH_ADVERTISE, BLUETOOTH_CONNECT})
+  public void StartAdvertising(final String inData, final String serviceUuid) {
+    if (inner == null) {
+      return;
     }
+    permissions.askForPermission(computePermissions(true), "StartAdvertising", new Runnable() {
+      @Override
+      public void run() {
+        inner.StartAdvertising(inData, serviceUuid);
+      }
+    });
   }
 
   /**
@@ -1023,10 +1072,17 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param scanPeriod The amount of time to spend scanning, in milliseconds.
    */
   @SimpleFunction
-  public void ScanAdvertisements(long scanPeriod) {
-    if (inner != null) {
-      inner.ScanAdvertisements(scanPeriod);
+  @UsesPermissions({BLUETOOTH_SCAN, BLUETOOTH_CONNECT, ACCESS_FINE_LOCATION})
+  public void ScanAdvertisements(final long scanPeriod) {
+    if (inner == null) {
+      return;
     }
+    permissions.askForPermission(computePermissions(false), "ScanAdvertisements", new Runnable() {
+      @Override
+      public void run() {
+        inner.ScanAdvertisements(scanPeriod);
+      }
+    });
   }
 
   /**
@@ -1127,8 +1183,17 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
 
   @SimpleProperty(description = "Returns a sorted list of BluetoothLE devices as a String.",
       category = PropertyCategory.BEHAVIOR)
+  @UsesPermissions({BLUETOOTH_CONNECT})
   public String DeviceList() {
     if (inner != null) {
+      if (permissions.askForPermission(BLUETOOTH_CONNECT, "DeviceList", new Runnable() {
+        @Override
+        public void run() {
+          // Maybe when we support continuations
+        }
+      })) {
+        return NEEDS_PERMISSION;
+      }
       return inner.DeviceList();
     }
     return "";
@@ -1232,6 +1297,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    */
   @SimpleEvent(description = "Trigger event when RSSI (Received Signal Strength Indicator) of found" +
       " BluetoothLE device changes")
+  @SuppressWarnings("unused")  // Needed for App Inventor event block
   public void RssiChanged(final int rssi) {
   }
 
@@ -1563,11 +1629,10 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
   public String ServiceByIndex(int index) {
     if (inner != null) {
       try {
-        String result = inner.GetServiceByIndex(index);
-        return result == null ? "" : result;
+        return inner.GetServiceByIndex(index);
       } catch(IndexOutOfBoundsException e) {
         form.dispatchErrorOccurredEvent(this, "ServiceByIndex",
-            ErrorMessages.ERROR_EXTENSION_ERROR, ERROR_SERVICE_INDEX_OOB, LOG_TAG, e.getMessage());
+            ERROR_EXTENSION_ERROR, ERROR_SERVICE_INDEX_OOB, LOG_TAG, e.getMessage());
       }
     }
     return "";
@@ -1612,8 +1677,17 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    */
   @SimpleProperty(description = "The advertised name of the connected device. If no device is " +
       "connected or Bluetooth low energy is not supported, this will return the empty string.")
+  @UsesPermissions(BLUETOOTH_CONNECT)
   public String ConnectedDeviceName() {
     if (inner != null) {
+      if (permissions.askForPermission(BLUETOOTH_CONNECT, "ConnectedDeviceName", new Runnable() {
+        @Override
+        public void run() {
+          // Nothing we can do here.
+        }
+      })) {
+        return NEEDS_PERMISSION;
+      }
       return inner.ConnectedDeviceName();
     } else {
       return "";
@@ -1639,7 +1713,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
         return inner.GetCharacteristicsForService(serviceUuid);
       } catch(RuntimeException e) {
         form.dispatchErrorOccurredEvent(this, "GetCharacteristicsForService",
-            ErrorMessages.ERROR_EXTENSION_ERROR, ERROR_SERVICE_INVALID_UUID, LOG_TAG, e.getMessage());
+            ERROR_EXTENSION_ERROR, ERROR_SERVICE_INVALID_UUID, LOG_TAG, e.getMessage());
       }
     }
     return YailList.makeEmptyList();
@@ -1661,11 +1735,10 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
   public String CharacteristicByIndex(int index) {
     if (inner != null) {
       try {
-        String result = inner.GetCharacteristicByIndex(index);
-        return result == null ? "" : result;
+        return inner.GetCharacteristicByIndex(index);
       } catch(IndexOutOfBoundsException e) {
         form.dispatchErrorOccurredEvent(this, "CharacteristicByIndex",
-            ErrorMessages.ERROR_EXTENSION_ERROR, ERROR_CHARACTERISTIC_INDEX_OOB, LOG_TAG,
+            ERROR_EXTENSION_ERROR, ERROR_CHARACTERISTIC_INDEX_OOB, LOG_TAG,
             e.getMessage());
       }
     }
@@ -1684,19 +1757,17 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param device the device to scan for instances of
    */
   @SimpleFunction
+  @UsesPermissions({BLUETOOTH_SCAN, BLUETOOTH_CONNECT, ACCESS_FINE_LOCATION})
   public void ScanForDevice(final BLEDevice device) {
-    if (inner == null) return;
-    if (SDK26Helper.shouldAskForPermission(form)) {
-      SDK26Helper.askForPermission(this, new Runnable() {
-        public void run() {
-          inner.StartScanningForService("ScanForDevice",
-              device.GetBroadcastUUID(), null);
-        }
-      });
-    } else {
-      inner.StartScanningForService("ScanForDevice",
-          device.GetBroadcastUUID(), null);
+    if (inner == null) {
+      return;
     }
+    permissions.askForPermission(computePermissions(false), "ScanForDevice", new Runnable() {
+      @Override
+      public void run() {
+        inner.StartScanningForService("ScanForDevice", device.GetBroadcastUUID(), null);
+      }
+    });
   }
 
   /**
@@ -1713,19 +1784,18 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    *                    the device(s) of interest.
    */
   @SimpleFunction
+  @UsesPermissions({BLUETOOTH_SCAN, BLUETOOTH_CONNECT, ACCESS_FINE_LOCATION})
   public void ScanForService(final String serviceUuid) {
-    if (inner == null) return;
-    final UUID uuid = BLEUtil.bleStringToUuid(serviceUuid);
-    if (SDK26Helper.shouldAskForPermission(form)) {
-      SDK26Helper.askForPermission(this, new Runnable() {
-        @Override
-        public void run() {
-          inner.StartScanningForService("ScanForService", uuid, null);
-        }
-      });
-    } else {
-      inner.StartScanningForService("ScanForService", uuid, null);
+    if (inner == null) {
+      return;
     }
+    final UUID uuid = BLEUtil.bleStringToUuid(serviceUuid);
+    permissions.askForPermission(computePermissions(false), "ScanForService", new Runnable() {
+      @Override
+      public void run() {
+        inner.StartScanningForService("ScanForService", uuid, null);
+      }
+    });
   }
 
   /**
@@ -1743,24 +1813,25 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param name the name advertised by the desired device
    */
   @SimpleFunction
+  @UsesPermissions({BLUETOOTH_SCAN, BLUETOOTH_CONNECT})
   public void ConnectToDeviceType(final BLEDevice device, final String name) {
-    if (inner == null) return;
-    if (SDK26Helper.shouldAskForPermission(form)) {
-      SDK26Helper.askForPermission(this, new Runnable() {
-        @Override
-        public void run() {
-          inner.StartScanningForService("ConnectToDeviceType",
-              device.GetBroadcastUUID(),
-              new DeviceCallback() {
-                @Override
-                public boolean foundDevice(String devname, String mac) {
-                  Log.i(LOG_TAG, "devname = " + devname + ", name = " + name);
-                  return devname.equals(name);
-                }
-              });
-        }
-      });
+    if (inner == null) {
+      return;
     }
+    permissions.askForPermission(computePermissions(false), "ConnectToDeviceType", new Runnable() {
+      @Override
+      public void run() {
+        inner.StartScanningForService("ConnectToDeviceType",
+            device.GetBroadcastUUID(),
+            new DeviceCallback() {
+              @Override
+              public boolean foundDevice(String devname, String mac) {
+                Log.i(LOG_TAG, "devname = " + devname + ", name = " + name);
+                return devname.equals(name);
+              }
+            });
+      }
+    });
   }
 
   /**
@@ -1780,23 +1851,24 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param name        the name advertised by the desired device
    */
   @SimpleFunction
+  @UsesPermissions({BLUETOOTH_SCAN, BLUETOOTH_CONNECT})
   public void ConnectToDeviceWithServiceAndName(final String serviceUuid, final String name) {
-    if (inner == null) return;
-    if (SDK26Helper.shouldAskForPermission(form)) {
-      SDK26Helper.askForPermission(this, new Runnable() {
-        @Override
-        public void run() {
-          inner.StartScanningForService("ConnectToDeviceWithServiceAndName",
-              BLEUtil.bleStringToUuid(serviceUuid),
-              new DeviceCallback() {
-                @Override
-                public boolean foundDevice(String devname, String mac) {
-                  return devname.equals(name);
-                }
-              });
-        }
-      });
+    if (inner == null) {
+      return;
     }
+    permissions.askForPermission(computePermissions(false), "ConnectToDeviceWithServiceAndName", new Runnable() {
+      @Override
+      public void run() {
+        inner.StartScanningForService("ConnectToDeviceWithServiceAndName",
+            BLEUtil.bleStringToUuid(serviceUuid),
+            new DeviceCallback() {
+              @Override
+              public boolean foundDevice(String devname, String mac) {
+                return devname.equals(name);
+              }
+            });
+      }
+    });
   }
 
   /**
@@ -1816,17 +1888,10 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    */
   @SimpleFunction
   public void RequestMTU(final int bytes) {
-    if (inner == null) return;
-    if (SDK26Helper.shouldAskForPermission(form)) {
-      SDK26Helper.askForPermission(this, new Runnable() {
-        @Override
-        public void run() {
-          inner.RequestMTU(bytes);
-        }
-      });
-    } else {
-      inner.RequestMTU(bytes);
+    if (inner == null) {
+      return;
     }
+    inner.RequestMTU(bytes);
   }
 
   /**
@@ -1985,6 +2050,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param signed Interpret the bytes as signed (true) or unsigned (false)
    * @param callback Callback that will receive the bytes read
    */
+  @SuppressWarnings("unused")  // Provided for other extensions
   public void ExReadByteValues(String serviceUuid, String characteristicUuid, boolean signed,
                                BLEResponseHandler<Integer> callback) {
     if (inner != null) {
@@ -2005,6 +2071,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param signed Interpret the bytes as signed (true) or unsigned (false)
    * @param callback Callback that will receive the bytes read
    */
+  @SuppressWarnings("unused")  // Provided for other extensions
   public void ExRegisterForByteValues(String serviceUuid, String characteristicUuid, boolean signed,
                                       BLEResponseHandler<Integer> callback) {
     if (inner != null) {
@@ -2020,6 +2087,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param characteristicUuid UUID of the Bluetooth characteristic
    * @param signed Interpret the bytes as signed or unsigned
    */
+  @SuppressWarnings("unused")  // Provided for other extensions
   public void ExWriteByteValues(String serviceUuid, String characteristicUuid, boolean signed,
                                 List<Integer> values) {
     if (inner != null) {
@@ -2042,6 +2110,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param signed Interpret the bytes as signed or unsigned
    * @param value Value to write
    */
+  @SuppressWarnings("unused")  // Provided for other extensions
   public void ExWriteByteValues(String serviceUuid, String characteristicUuid, boolean signed,
                                 Object value) {
     if (inner != null) {
@@ -2058,6 +2127,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param signed Interpret the bytes as signed or unsigned
    * @param value Integer value to write
    */
+  @SuppressWarnings("unused")  // Provided for other extensions
   public void ExWriteByteValues(String serviceUuid, String characteristicUuid, boolean signed,
                                 int value) {
     ExWriteByteValues(serviceUuid, characteristicUuid, signed, Collections.singletonList(value));
@@ -2075,6 +2145,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param values List of integer values to write
    * @param callback Callback that will be notified when the write completes
    */
+  @SuppressWarnings("unused")  // Provided for other extensions
   public void ExWriteByteValuesWithResponse(String serviceUuid, String characteristicUuid,
                                             boolean signed, List<Integer> values,
                                             BLEResponseHandler<Integer> callback) {
@@ -2097,6 +2168,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param value Object to be cast to an array of bytes
    * @param callback Callback that will be notified when the write completes
    */
+  @SuppressWarnings("unused")  // Provided for other extensions
   public void ExWriteByteValuesWithResponse(String serviceUuid, String characteristicUuid,
                                             boolean signed, Object value,
                                             BLEResponseHandler<Integer> callback) {
@@ -2119,6 +2191,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param value The integer value (either -128 to 127 or 0 to 255)
    * @param callback Callback that will be notified when the write completes
    */
+  @SuppressWarnings("unused")  // Provided for other extensions
   public void ExWriteByteValuesWithResponse(String serviceUuid, String characteristicUuid,
                                             boolean signed, int value,
                                             BLEResponseHandler<Integer> callback) {
@@ -2139,6 +2212,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param signed Interpret the shorts as signed (true) or unsigned (false)
    * @param callback Callback that will be notified when the read completes
    */
+  @SuppressWarnings("unused")  // Provided for other extensions
   public void ExReadShortValues(String serviceUuid, String characteristicUuid, boolean signed,
                                 BLEResponseHandler<Integer> callback) {
     if (inner != null) {
@@ -2159,6 +2233,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param signed Interpret the shorts as signed (true) or unsigned (false)
    * @param callback Callback that will be notified when the characteristic's value changes
    */
+  @SuppressWarnings("unused")  // Provided for other extensions
   public void ExRegisterForShortValues(String serviceUuid, String characteristicUuid,
                                        boolean signed, BLEResponseHandler<Integer> callback) {
     if (inner != null) {
@@ -2176,6 +2251,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param signed Interpret the shorts as signed (true) or unsigned (false)
    * @param values The integer values (either -32768 to 32767 or 0 to 65535)
    */
+  @SuppressWarnings("unused")  // Provided for other extensions
   public void ExWriteShortValues(String serviceUuid, String characteristicUuid, boolean signed,
                                  List<Integer> values) {
     if (inner != null) {
@@ -2194,6 +2270,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param signed Interpret the shorts as signed (true) or unsigned (false)
    * @param value The integer value (either -32768 to 32767 or 0 to 65536)
    */
+  @SuppressWarnings("unused")  // Provided for other extensions
   public void ExWriteShortValues(String serviceUuid, String characteristicUuid, boolean signed,
                                  int value) {
     ExWriteShortValues(serviceUuid, characteristicUuid, signed, Collections.singletonList(value));
@@ -2236,6 +2313,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param value The integer value (either -32768 to 32767 or 0 to 65536)
    * @param callback Callback that will be notified when the characteristic is written
    */
+  @SuppressWarnings("unused")  // Provided for other extensions
   public void ExWriteShortValuesWithResponse(String serviceUuid, String characteristicUuid,
                                              boolean signed, int value,
                                              BLEResponseHandler<Integer> callback) {
@@ -2255,6 +2333,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param signed Interpret the integers as signed (true) or unsigned (false)
    * @param callback Callback that will be notified when the characteristic is read
    */
+  @SuppressWarnings("unused")  // Provided for other extensions
   public void ExReadIntegerValues(String serviceUuid, String characteristicUuid, boolean signed,
                                   BLEResponseHandler<Long> callback) {
     if (inner != null) {
@@ -2274,6 +2353,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param signed Interpret the integers as signed (true) or unsigned (false)
    * @param callback Callback that will be called when notifications are received
    */
+  @SuppressWarnings("unused")  // Provided for other extensions
   public void ExRegisterForIntegerValues(String serviceUuid, String characteristicUuid,
                                          boolean signed, BLEResponseHandler<Long> callback) {
     if (inner != null) {
@@ -2311,6 +2391,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param signed Interpret the integers as signed (true) or unsigned (false)
    * @param value Integer value to send (-2147483648 to 2147483647 or 0 to 4294967295)
    */
+  @SuppressWarnings("unused")  // Provided for other extensions
   public void ExWriteIntegerValues(String serviceUuid, String characteristicUuid, boolean signed,
                                    long value) {
     ExWriteIntegerValues(serviceUuid, characteristicUuid, signed, Collections.singletonList(value));
@@ -2353,6 +2434,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param value Integer value to send (-2147483648 to 2147483647 or 0 to 4294967295)
    * @param callback Callback that will be called on completion of the write
    */
+  @SuppressWarnings("unused")  // Provided for other extensions
   public void ExWriteIntegerValuesWithResponse(String serviceUuid, String characteristicUuid,
                                                boolean signed, long value,
                                                BLEResponseHandler<Long> callback) {
@@ -2373,6 +2455,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param shortFloats Interpret the floats as half-precision (true) or single precision (false)
    * @param callback Callback that will be notified when the characteristic is read
    */
+  @SuppressWarnings("unused")  // Provided for other extensions
   public void ExReadFloatValues(String serviceUuid, String characteristicUuid, boolean shortFloats,
                                 BLEResponseHandler<Float> callback) {
     if (inner != null) {
@@ -2394,6 +2477,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param shortFloats Interpret the floats as half-precision (true) or single precision (false)
    * @param callback Callback that will be notified when the characteristic receives updates
    */
+  @SuppressWarnings("unused")  // Provided for other extensions
   public void ExRegisterForFloatValues(String serviceUuid, String characteristicUuid,
                                        boolean shortFloats, BLEResponseHandler<Float> callback) {
     if (inner != null) {
@@ -2429,6 +2513,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param shortFloats Interpret the floats as half-precision (true) or single precision (false)
    * @param value Float value to write to the characteristic
    */
+  @SuppressWarnings("unused")  // Provided for other extensions
   public void ExWriteFloatValues(String serviceUuid, String characteristicUuid, boolean shortFloats,
                                  float value) {
     ExWriteFloatValues(serviceUuid, characteristicUuid, shortFloats, Collections.singletonList(value));
@@ -2471,6 +2556,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param value Float value to write to the characteristic
    * @param callback Callback to be called after the write operation completes
    */
+  @SuppressWarnings("unused")  // Provided for other extensions
   public void ExWriteFloatValuesWithResponse(String serviceUuid, String characteristicUuid,
                                              boolean shortFloats, float value,
                                              BLEResponseHandler<Float> callback) {
@@ -2490,6 +2576,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param utf16 Interpret strings as UTF-8 (false) or UTF-16 (true)
    * @param callback Callback to be called when the string value is read
    */
+  @SuppressWarnings("unused")  // Provided for other extensions
   public void ExReadStringValues(String serviceUuid, String characteristicUuid, boolean utf16,
                                  BLEResponseHandler<String> callback) {
     if (inner != null) {
@@ -2511,6 +2598,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param utf16 Interpret strings as UTF-8 (false) or UTF-16 (true)
    * @param callback Callback to be called when the string value is updated
    */
+  @SuppressWarnings("unused")  // Provided for other extensions
   public void ExRegisterForStringValues(String serviceUuid, String characteristicUuid,
                                         boolean utf16, BLEResponseHandler<String> callback) {
     if (inner != null) {
@@ -2548,6 +2636,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param utf16 Interpret strings as UTF-8 (false) or UTF-16 (true)
    * @param value String to write to the characteristic
    */
+  @SuppressWarnings("unused")  // Provided for other extensions
   public void ExWriteStringValues(String serviceUuid, String characteristicUuid, boolean utf16,
                                   String value) {
     ExWriteStringValues(serviceUuid, characteristicUuid, utf16, Collections.singletonList(value));
@@ -2590,6 +2679,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param value String to write to the characteristic
    * @param callback Callback to be called when the write operation completes
    */
+  @SuppressWarnings("unused")  // Provided for other extensions
   public void ExWriteStringValuesWithResponse(String serviceUuid, String characteristicUuid,
                                               boolean utf16, String value,
                                               BLEResponseHandler<String> callback) {
@@ -2604,6 +2694,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param characteristicUuid UUID of the Bluetooth characteristic
    * @param callback The callback to be removed for the characteristic
    */
+  @SuppressWarnings("unused")  // Provided for other extensions
   public void ExUnregisterForValues(String serviceUuid, String characteristicUuid,
                                     BLEResponseHandler<?> callback) {
     if (inner != null) {
@@ -2613,6 +2704,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
 
   //region Packet Reading
 
+  @SuppressWarnings("unused")  // Provided for other extensions
   public void ExReadPacket(String serviceUuid, String characteristicUuid,
       BLEPacketHandler callback) {
     if (inner != null) {
@@ -2620,6 +2712,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
     }
   }
 
+  @SuppressWarnings("unused")  // Provided for other extensions
   public void ExRegisterForPackets(String serviceUuid, String characteristicUuid,
       BLEPacketHandler callback) {
     if (inner != null) {
@@ -2627,6 +2720,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
     }
   }
 
+  @SuppressWarnings("unused")  // Provided for other extensions
   public void ExUnregisterForPackets(String serviceUuid, String characteristicUuid,
       BLEPacketHandler callback) {
     if (inner != null) {
@@ -2643,11 +2737,31 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
     return false;
   }
 
+  @SuppressWarnings("unused")  // Provided for other extensions
   public boolean isCharacteristicPublished(String serviceUuid, String characteristicUuid) {
     if (inner != null) {
       return inner.isCharacteristicPublished(serviceUuid, characteristicUuid);
     }
     return false;
+  }
+
+  private String[] computePermissions(boolean advertising) {
+    List<String> perms = new ArrayList<>();
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+      if (advertising) {
+        perms.add(BLUETOOTH_ADVERTISE);
+        perms.add(BLUETOOTH_CONNECT);
+      } else {
+        perms.add(BLUETOOTH_SCAN);
+        perms.add(BLUETOOTH_CONNECT);
+        if (locationPermissionNeeded) {
+          perms.add(ACCESS_FINE_LOCATION);
+        }
+      }
+    } else {
+      perms.add(ACCESS_FINE_LOCATION);
+    }
+    return perms.toArray(new String[0]);
   }
 
   /**
@@ -2724,13 +2838,13 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
   private static <T> List<T> listFromIterator(Class<T> tClass, Iterator<?> i) {
     // Primitive types cannot be cast to one another using boxed values...
     if (tClass.equals(Integer.class)) {
-      return (List<T>) toIntList((List<? extends Number>)(List) newArrayList(i));
+      return (List<T>) toIntList((List<? extends Number>)(List<?>) newArrayList(i));
     } else if (tClass.equals(Long.class)) {
-      return (List<T>) toLongList((List<? extends Number>)(List) newArrayList(i));
+      return (List<T>) toLongList((List<? extends Number>)(List<?>) newArrayList(i));
     } else if (tClass.equals(Float.class)) {
-      return (List<T>) toFloatList((List<? extends Number>)(List) newArrayList(i));
+      return (List<T>) toFloatList((List<? extends Number>)(List<?>) newArrayList(i));
     }
-    List<T> result = new ArrayList<T>();
+    List<T> result = new ArrayList<>();
     while (i.hasNext()) {
       Object o = i.next();
       if (!tClass.isInstance(o) && !tClass.isAssignableFrom(o.getClass())) {
@@ -2752,7 +2866,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
   }
 
   private static <T extends Number> List<Float> toFloatList(List<T> value) {
-    List<Float> result = new ArrayList<Float>(value.size());
+    List<Float> result = new ArrayList<>(value.size());
     for (T o : value) {
       result.add(o.floatValue());
     }
@@ -2760,7 +2874,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
   }
 
   private static <T extends Number> List<Long> toLongList(List<T> value) {
-    List<Long> result = new ArrayList<Long>(value.size());
+    List<Long> result = new ArrayList<>(value.size());
     for (T o : value) {
       result.add(o.longValue());
     }
@@ -2768,7 +2882,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
   }
 
   private static <T extends Number> List<Integer> toIntList(List<T> value) {
-    List<Integer> result = new ArrayList<Integer>(value.size());
+    List<Integer> result = new ArrayList<>(value.size());
     for (T o : value) {
       result.add(o.intValue());
     }
@@ -2776,7 +2890,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
   }
 
   private static List<Integer> toIntList(byte[] values) {
-    List<Integer> result = new ArrayList<Integer>(values.length);
+    List<Integer> result = new ArrayList<>(values.length);
     for(byte b : values) {
       result.add((int) b);
     }
@@ -2784,7 +2898,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
   }
 
   private static <T> List<T> newArrayList(Iterator<? extends T> it) {
-    List<T> result = new ArrayList<T>();
+    List<T> result = new ArrayList<>();
     while (it.hasNext()) {
       result.add(it.next());
     }
