@@ -1,12 +1,12 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright 2019 MIT, All rights reserved
+// Copyright 2019-2020 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
 package com.google.appinventor.components.runtime.util;
 
-import android.support.annotation.NonNull;
 import android.util.Log;
+import androidx.annotation.NonNull;
 import com.google.appinventor.components.runtime.collect.Lists;
 import com.google.appinventor.components.runtime.errors.DispatchableError;
 import com.google.appinventor.components.runtime.errors.YailRuntimeError;
@@ -122,16 +122,7 @@ public class YailDictionary extends LinkedHashMap<Object, Object>
     for (YailList currentYailList : pairs) {
       Object currentKey = currentYailList.getObject(0);
       Object currentValue = currentYailList.getObject(1);
-
-      if (currentValue instanceof YailList) {
-        if (isAlist((YailList) currentValue)) {
-          map.put(currentKey, alistToDict((YailList) currentValue));
-        } else {
-          map.put(currentKey, checkList((YailList) currentValue));
-        }
-      } else {
-        map.put(currentKey, currentValue);
-      }
+      map.put(currentKey, currentValue);
     }
 
     return new YailDictionary(map);

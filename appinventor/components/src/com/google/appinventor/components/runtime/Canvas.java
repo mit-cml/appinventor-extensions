@@ -1,11 +1,42 @@
 // -*- mode: java; c-basic-offset: 2; -*-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2019 MIT, All rights reserved
+// Copyright 2011-2020 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
 package com.google.appinventor.components.runtime;
 
+import static android.Manifest.permission.WRITE_EXTERNAL_STORAGE;
+
+import android.app.Activity;
+
+import android.content.Context;
+
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Path;
+import android.graphics.PorterDuff;
+import android.graphics.Rect;
+import android.graphics.RectF;
+
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.Drawable;
+
+import android.text.TextUtils;
+
+import android.util.Base64;
+import android.util.Log;
+
+import android.view.GestureDetector;
+import android.view.MotionEvent;
+import android.view.View;
+
+import androidx.annotation.RequiresApi;
+
+import com.google.appinventor.components.annotations.Asset;
 import com.google.appinventor.components.annotations.DesignerComponent;
 import com.google.appinventor.components.annotations.DesignerProperty;
 import com.google.appinventor.components.annotations.IsColor;
@@ -15,44 +46,33 @@ import com.google.appinventor.components.annotations.SimpleFunction;
 import com.google.appinventor.components.annotations.SimpleObject;
 import com.google.appinventor.components.annotations.SimpleProperty;
 import com.google.appinventor.components.annotations.UsesPermissions;
+
 import com.google.appinventor.components.common.ComponentCategory;
 import com.google.appinventor.components.common.ComponentConstants;
+import com.google.appinventor.components.common.FileScope;
 import com.google.appinventor.components.common.PropertyTypeConstants;
 import com.google.appinventor.components.common.YaVersion;
+
 import com.google.appinventor.components.runtime.collect.Sets;
+
 import com.google.appinventor.components.runtime.errors.PermissionException;
+import com.google.appinventor.components.runtime.errors.StopBlocksExecution;
+
 import com.google.appinventor.components.runtime.util.BoundingBox;
 import com.google.appinventor.components.runtime.util.ErrorMessages;
 import com.google.appinventor.components.runtime.util.FileUtil;
+import com.google.appinventor.components.runtime.util.FileWriteOperation;
 import com.google.appinventor.components.runtime.util.MediaUtil;
 import com.google.appinventor.components.runtime.util.PaintUtil;
+import com.google.appinventor.components.runtime.util.ScopedFile;
 import com.google.appinventor.components.runtime.util.SdkLevel;
+import com.google.appinventor.components.runtime.util.Synchronizer;
 import com.google.appinventor.components.runtime.util.YailList;
 
-import android.app.Activity;
-import android.content.Context;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.Color;
-import android.graphics.Paint;
-import android.graphics.Path;
-import android.graphics.PorterDuff;
-import android.graphics.Rect;
-import android.graphics.RectF;
-import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.ColorDrawable;
-import android.graphics.drawable.Drawable;
-import android.text.TextUtils;
-import android.util.Base64;
-import android.util.Log;
-import android.view.GestureDetector;
-import android.view.MotionEvent;
-import android.view.View;
-
-import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -114,8 +134,7 @@ import java.util.Set;
     "and circles.</p>",
     category = ComponentCategory.ANIMATION)
 @SimpleObject
-@UsesPermissions(permissionNames = "android.permission.INTERNET," +
-                 "android.permission.WRITE_EXTERNAL_STORAGE")
+@UsesPermissions(permissionNames = "android.permission.INTERNET")
 public final class Canvas extends AndroidViewComponent implements ComponentContainer {
   private static final String LOG_TAG = "Canvas";
 
@@ -133,6 +152,18 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
   private String backgroundImagePath = "";
   private int textAlignment;
   private boolean extendMovesOutsideCanvas = false;
+  
+  /**
+   * The number of pixels right, left, up, or down, a sequence of drags must
+   * move from the starting point to be considered a drag (instead of a
+   * touch).
+   */
+  // This used to be 15 and people complained that they could not draw small circles. So we
+  // made it a user settable property because if the threshold is too small, then touches might
+  // be misinterpreted as drags. Default value is appropriate for most cases but there may be
+  // different requirements. This might require more experimentation. We might also want to take
+  // screen resolution into account and/or try to make a more clever motion parser.
+  private int tapThreshold = 15;
 
   // Default values
   private static final int MIN_WIDTH_HEIGHT = 1;
@@ -141,6 +172,7 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
   private static final int DEFAULT_BACKGROUND_COLOR = Component.COLOR_WHITE;
   private static final int DEFAULT_TEXTALIGNMENT = Component.ALIGNMENT_CENTER;
   private static final int FLING_INTERVAL = 1000;  // ms
+  private static final int DEFAULT_TAP_THRESHOLD = 15;
 
   // Keep track of enclosed sprites.  This list should always be
   // sorted by increasing sprite.Z().
@@ -158,6 +190,11 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
   // will typically be implemented by extension components that add the detector to this set.
 
   private final Set<ExtensionGestureDetector> extensionGestureDetectors = Sets.newHashSet();
+
+  private Form form = $form();
+
+  // Do we have storage permission?
+  private boolean havePermission = false;
 
   // additional gesture detectors must implement this interface
   public interface ExtensionGestureDetector {
@@ -177,7 +214,7 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
    * <li> If a {@link android.view.MotionEvent#ACTION_DOWN} is followed by an
    * {@link android.view.MotionEvent#ACTION_UP} event either immediately or
    * after {@link android.view.MotionEvent#ACTION_MOVE} events that take it no
-   * further than {@link #TAP_THRESHOLD} pixels horizontally or vertically from
+   * further than {@link #tapThreshold} pixels horizontally or vertically from
    * the start point, it is interpreted as a touch, and a single call to
    * {@link Sprite#Touched(float, float)} for each touched sprite is
    * generated.
@@ -194,17 +231,6 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
    *
    */
   class MotionEventParser {
-    /**
-     * The number of pixels right, left, up, or down, a sequence of drags must
-     * move from the starting point to be considered a drag (instead of a
-     * touch).
-     */
-    // This used to be 30 and people complained that they could not draw small circles.
-    // If the threshold is too small, then touches might be misinterpreted as drags,
-    // this might require more experimentation.  We might also want to take screen resolution
-    // into account and/or try to make a more clever motion parser.
-    public static final int TAP_THRESHOLD = 15;
-
     /**
      * The width of a finger.  This is used in determining whether a sprite is
      * touched.  Specifically, this is used to determine the horizontal extent
@@ -291,7 +317,7 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
 
           // If the new point is near the start point, it may just be a tap
           if (!isDrag &&
-              (Math.abs(x - startX) < TAP_THRESHOLD && Math.abs(y - startY) < TAP_THRESHOLD)) {
+              (Math.abs(x - startX) < tapThreshold && Math.abs(y - startY) < tapThreshold)) {
             break;
           }
           // Otherwise, it's a drag.
@@ -590,7 +616,7 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
       clearDrawingLayer();  // will call invalidate()
     }
 
-    @android.support.annotation.RequiresApi(api = android.os.Build.VERSION_CODES.FROYO)
+    @RequiresApi(api = android.os.Build.VERSION_CODES.FROYO)
     void setBackgroundImageBase64(String imageUrl) {
       backgroundImagePath = (imageUrl == null) ? "" : imageUrl;
       backgroundDrawable = null;
@@ -741,20 +767,35 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
     paint.setFlags(Paint.ANTI_ALIAS_FLAG);
 
     // Set default properties.
-    paint.setStrokeWidth(DEFAULT_LINE_WIDTH);
+    LineWidth(DEFAULT_LINE_WIDTH);
     PaintColor(DEFAULT_PAINT_COLOR);
     BackgroundColor(DEFAULT_BACKGROUND_COLOR);
     TextAlignment(DEFAULT_TEXTALIGNMENT);
     FontSize(Component.FONT_DEFAULT_SIZE);
+    TapThreshold(DEFAULT_TAP_THRESHOLD);
 
     sprites = new LinkedList<Sprite>();
     motionEventParser = new MotionEventParser();
     mGestureDetector = new GestureDetector(context, new FlingGestureListener());
+    if (FileUtil.needsWritePermission(form.DefaultFileScope())) {
+      havePermission = !form.isDeniedPermission(WRITE_EXTERNAL_STORAGE);
+    } else {
+      havePermission = true;
+    }
   }
 
   @Override
   public View getView() {
     return view;
+  }
+
+
+
+  // For extension components to
+  // access the bitmap of the canvas
+
+  public Bitmap getBitmap() {
+    return view.buildCache();
   }
 
   public Activity getContext() {
@@ -845,6 +886,11 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
   @Override
   public void $add(AndroidViewComponent component) {
     throw new UnsupportedOperationException("Canvas.$add() called");
+  }
+
+  @Override
+  public List<? extends Component> getChildren(){
+    return sprites;
   }
 
   @Override
@@ -1026,7 +1072,7 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_ASSET,
       defaultValue = "")
   @SimpleProperty
-  public void BackgroundImage(String path) {
+  public void BackgroundImage(@Asset String path) {
     view.setBackgroundImage(path);
   }
 
@@ -1036,7 +1082,7 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
    * @suppressdoc
    * @param imageUrl the base64 format for an image
    */
-  @android.support.annotation.RequiresApi(api = android.os.Build.VERSION_CODES.FROYO)
+  @RequiresApi(api = android.os.Build.VERSION_CODES.FROYO)
   @SimpleProperty (
       description = "Set the background image in Base64 format. This requires API level >= 8. For "
           + "devices with API level less than 8, setting this will end up with an empty background."
@@ -1048,6 +1094,33 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
       view.setBackgroundImageBase64("");
     }
 
+  }
+  
+  /**
+   * Returns the movement threshold to differentiate a drag from a tap.
+   *
+   * @return tapThreshold : The number of pixels right, left, up, or down, a sequence of drags
+   *     must move from the starting point to be considered a drag (instead of a touch).
+   */
+  @SimpleProperty(category = PropertyCategory.BEHAVIOR,
+      description = "Set the number of pixels right, left, up or down, a sequence of drags must"
+          + "move from the starting point to be considered a drag (instead of a touch)."
+  )
+  public int TapThreshold() {
+    return tapThreshold;
+  }
+
+  /**
+   * Specifies the movement threshold to differentiate a drag from a tap.
+   *
+   * @param threshold The number of pixels right, left, up, or down, a sequence of drags must
+   *     move from the starting point to be considered a drag (instead of a touch).
+   */
+  @SimpleProperty
+  @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_INTEGER,
+      defaultValue = "15")
+  public void TapThreshold(int threshold) {
+    this.tapThreshold = threshold;
   }
 
   /**
@@ -1565,23 +1638,13 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
    * @return the full path name of the saved file, or the empty string if the
    *         save failed
    */
-    @SimpleFunction(description = "Saves a picture of this Canvas to the " +
+  @UsesPermissions({WRITE_EXTERNAL_STORAGE})
+  @SimpleFunction(description = "Saves a picture of this Canvas to the " +
        "device's external storage. If an error occurs, the Screen's ErrorOccurred " +
        "event will be called.")
   public String Save() {
-    try {
-      File file = FileUtil.getPictureFile("png");
-      return saveFile(file, Bitmap.CompressFormat.PNG, "Save");
-    } catch (PermissionException e) {
-      container.$form().dispatchPermissionDeniedEvent(this, "Save", e);
-    } catch (IOException e) {
-      container.$form().dispatchErrorOccurredEvent(this, "Save",
-          ErrorMessages.ERROR_MEDIA_FILE_ERROR, e.getMessage());
-    } catch (FileUtil.FileException e) {
-      container.$form().dispatchErrorOccurredEvent(this, "Save",
-          e.getErrorMessageNumber());
-    }
-    return "";
+    return saveFile(FileUtil.getScopedPictureFile($form(), "png"),
+        Bitmap.CompressFormat.PNG, "Save");
   }
 
   /**
@@ -1592,6 +1655,7 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
    * @return the full path name of the saved file, or the empty string if the
    *         save failed
    */
+  @UsesPermissions({WRITE_EXTERNAL_STORAGE})
   @SimpleFunction(description =  "Saves a picture of this Canvas to the device's " +
    "external storage in the file " +
    "named fileName. fileName must end with one of .jpg, .jpeg, or .png, " +
@@ -1611,47 +1675,47 @@ public final class Canvas extends AndroidViewComponent implements ComponentConta
           ErrorMessages.ERROR_MEDIA_IMAGE_FILE_FORMAT);
       return "";
     }
-    try {
-      File file = FileUtil.getExternalFile(fileName);
-      return saveFile(file, format, "SaveAs");
-    } catch (PermissionException e) {
-      container.$form().dispatchPermissionDeniedEvent(this, "SaveAs", e);
-    } catch (IOException e) {
-      container.$form().dispatchErrorOccurredEvent(this, "SaveAs",
-          ErrorMessages.ERROR_MEDIA_FILE_ERROR, e.getMessage());
-    } catch (FileUtil.FileException e) {
-      container.$form().dispatchErrorOccurredEvent(this, "SaveAs",
-          e.getErrorMessageNumber());
-    }
-    return "";
+    return saveFile(new ScopedFile(form.DefaultFileScope(), fileName), format, "SaveAs");
   }
 
   // Helper method for Save and SaveAs
-  private String saveFile(File file, Bitmap.CompressFormat format, String method) {
-    try {
-      boolean success = false;
-      FileOutputStream fos = new FileOutputStream(file);
-      // Don't cache, in order to save memory.  It seems unlikely to be used again soon.
-      Bitmap bitmap = (view.completeCache == null ? view.buildCache() : view.completeCache);
-      try {
-        success = bitmap.compress(format,
-            100,  // quality: ignored for png
-            fos);
-      } finally {
-        fos.close();
+  private String saveFile(ScopedFile scopedFile, final Bitmap.CompressFormat format,
+      String method) {
+    if (!havePermission && FileUtil.needsWritePermission(scopedFile)) {
+      form.askPermission(WRITE_EXTERNAL_STORAGE, new PermissionResultHandler() {
+        @Override
+        public void HandlePermissionResponse(String permission, boolean granted) {
+          havePermission = granted;
+        }
+      });
+      throw new StopBlocksExecution();
+    }
+
+    final Synchronizer<Boolean> result = new Synchronizer<>();
+    new FileWriteOperation(form, this, method, scopedFile, false, false) {
+      @Override
+      protected boolean process(OutputStream stream) {
+        Bitmap bitmap = view.completeCache == null ? view.buildCache() : view.completeCache;
+        result.wakeup(bitmap.compress(format, 100, stream));
+        return true;
       }
-      if (success) {
-        return file.getAbsolutePath();
-      } else {
-        container.$form().dispatchErrorOccurredEvent(this, method,
-            ErrorMessages.ERROR_CANVAS_BITMAP_ERROR);
-      }
-    } catch (FileNotFoundException e) {
+    }.run();
+
+    if (result.getThrowable() instanceof FileNotFoundException) {
       container.$form().dispatchErrorOccurredEvent(this, method,
-          ErrorMessages.ERROR_MEDIA_CANNOT_OPEN, file.getAbsolutePath());
-    } catch (IOException e) {
+          ErrorMessages.ERROR_MEDIA_CANNOT_OPEN,
+          FileUtil.resolveFileName(form, scopedFile));
+    } else if (result.getThrowable() instanceof IOException) {
       container.$form().dispatchErrorOccurredEvent(this, method,
-          ErrorMessages.ERROR_MEDIA_FILE_ERROR, e.getMessage());
+          ErrorMessages.ERROR_MEDIA_FILE_ERROR, result.getThrowable().getMessage());
+    } else if (result.getThrowable() instanceof PermissionException) {
+      container.$form().dispatchPermissionDeniedEvent(this, method,
+          (PermissionException) result.getThrowable());
+    } else if (result.getThrowable() instanceof FileUtil.FileException) {
+      container.$form().dispatchErrorOccurredEvent(this, method,
+          ((FileUtil.FileException) result.getThrowable()).getErrorMessageNumber());
+    } else if (result.getResult()) {
+      return FileUtil.resolveFileName(form, scopedFile);
     }
     return "";
   }

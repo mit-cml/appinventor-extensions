@@ -8,13 +8,10 @@ package com.google.appinventor.client.wizards;
 
 import static com.google.appinventor.client.Ode.MESSAGES;
 
-import com.allen_sauer.gwt.dnd.client.util.StringUtil;
 import com.google.appinventor.client.Ode;
 import com.google.appinventor.client.OdeAsyncCallback;
-import com.google.appinventor.client.editor.simple.SimpleComponentDatabase;
 import com.google.appinventor.client.editor.youngandroid.YaProjectEditor;
 import com.google.appinventor.client.explorer.project.Project;
-import com.google.appinventor.client.output.OdeLog;
 import com.google.appinventor.common.utils.StringUtils;
 import com.google.appinventor.client.utils.Uploader;
 import com.google.appinventor.shared.rpc.ServerLayout;
@@ -49,7 +46,7 @@ public class ComponentImportWizard extends Wizard {
 
   final static String external_components = "assets/external_comps/";
 
-  private static class ImportComponentCallback extends OdeAsyncCallback<ComponentImportResponse> {
+  public static class ImportComponentCallback extends OdeAsyncCallback<ComponentImportResponse> {
     @Override
     public void onSuccess(ComponentImportResponse response) {
       if (response.getStatus() == ComponentImportResponse.Status.FAILED){

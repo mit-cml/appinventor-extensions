@@ -154,6 +154,12 @@ Use `BluetoothClient` to connect your device to other devices using Bluetooth. T
 {:id="BluetoothClient.IsConnected" .boolean .ro .bo} *IsConnected*
 : Returns `frue`{:.logic.block} if a connection to a Bluetooth device has been made.
 
+{:id="BluetoothClient.NoLocationNeeded" .boolean .do} *NoLocationNeeded*
+: On Android 12 and later, indicates that Bluetooth is not used to determine the user's location.
+
+{:id="BluetoothClient.PollingRate" .number} *PollingRate*
+: Returns the configured polling rate value of the Bluetooth Client.
+
 {:id="BluetoothClient.Secure" .boolean} *Secure*
 : Specifies whether a secure connection should be used.
 
@@ -403,10 +409,10 @@ Component for Serial
 {:.properties}
 
 {:id="Serial.BaudRate" .number} *BaudRate*
-: Property for BaudRate
+: Returns the current baud rate
 
 {:id="Serial.BufferSize" .number} *BufferSize*
-: Property for BufferSize
+: Returns the buffer size in bytes
 
 {:id="Serial.IsInitialized" .boolean .ro .bo} *IsInitialized*
 : Returns true when the Serial has been initialized.
@@ -546,6 +552,37 @@ Non-visible component that provides functions for HTTP GET, POST, PUT, and DELET
 : Decodes the given JSON encoded value to produce a corresponding App Inventor value.
  A JSON list [x, y, z] decodes to a list (x y z). A JSON Object with name A and value B,
  denoted as \{a: b\} decodes to a dictionary with the key a and value b.
+
+{:id="Web.PatchFile" class="method"} <i/> PatchFile(*path*{:.text})
+: Performs an HTTP PATCH request using the Url property and data from the specified file.
+
+   If the SaveResponse property is true, the response will be saved in a file
+ and the GotFile event will be triggered. The ResponseFileName property can be
+ used to specify the name of the file.
+
+   If the SaveResponse property is false, the GotText event will be triggered.
+
+{:id="Web.PatchText" class="method"} <i/> PatchText(*text*{:.text})
+: Performs an HTTP PATCH request using the Url property and the specified text.
+
+   The characters of the text are encoded using UTF-8 encoding.
+
+   If the SaveResponse property is true, the response will be saved in a
+ file and the GotFile event will be triggered. The responseFileName property
+ can be used to specify the name of the file.
+
+   If the SaveResponse property is false, the GotText event will be triggered.
+
+{:id="Web.PatchTextWithEncoding" class="method"} <i/> PatchTextWithEncoding(*text*{:.text},*encoding*{:.text})
+: Performs an HTTP PATCH request using the Url property and the specified text.
+
+   The characters of the text are encoded using the given encoding.
+
+   If the SaveResponse property is true, the response will be saved in a
+ file and the GotFile event will be triggered. The ResponseFileName property
+ can be used to specify the name of the file.
+
+   If the SaveResponse property is false, the GotText event will be triggered.
 
 {:id="Web.PostFile" class="method"} <i/> PostFile(*path*{:.text})
 : Performs an HTTP POST request using the Url property and data from the specified file.

@@ -50,7 +50,7 @@ Blockly.Blocks.math_number.validator = function (text) {
 Blockly.Blocks['math_number_radix'] = {
   category:'Math',
 
-  helpUrl: Blockly.Msg.LANG_MATH_NUMBER_RADIX_TOOLTIP,
+  helpUrl: Blockly.Msg.LANG_MATH_NUMBER_RADIX_HELPURL,
 
   init: function() {
     this.dropdown = new Blockly.FieldDropdown([
@@ -243,14 +243,29 @@ Blockly.Blocks['math_add'] = {
     this.itemCount_ = 2;
   },
   mutationToDom: Blockly.mutationToDom,
-  domToMutation: Blockly.domToMutation,
+  domToMutation: function(container) {
+    Blockly.domToMutation.call(this, container);
+
+    // If we only have one input, put the + operator before it
+    if (this.itemCount_ === 1) {
+      this.inputList[0].appendField('0 ' + Blockly.Msg.LANG_MATH_ARITHMETIC_ADD);
+    }
+  },
   decompose: function (workspace) {
     return Blockly.decompose(workspace, 'math_mutator_item', this);
   },
-  compose: Blockly.compose,
+  compose: function(containerBlock) {
+    Blockly.compose.call(this, containerBlock);
+
+    // If we only have one input, put the + operator before it
+    if (this.itemCount_ === 1) {
+      this.inputList[0].appendField('0 ' + Blockly.Msg.LANG_MATH_ARITHMETIC_ADD);
+    }
+  },
   saveConnections: Blockly.saveConnections,
   addEmptyInput: function () {
-    var input = this.appendDummyInput(this.emptyInputName);
+    this.appendDummyInput(this.emptyInputName)
+      .appendField(Blockly.Msg.LANG_MATH_ARITHMETIC_ADD);
   },
   addInput: function (inputNum) {
     var input = this.appendValueInput(this.repeatingInputName + inputNum)
@@ -323,14 +338,25 @@ Blockly.Blocks['math_multiply'] = {
     this.itemCount_ = 2;
   },
   mutationToDom: Blockly.mutationToDom,
-  domToMutation: Blockly.domToMutation,
+  domToMutation: function(container) {
+    Blockly.domToMutation.call(this, container);
+    if (this.itemCount_ === 1) {
+      this.inputList[0].appendField('1 ' + Blockly.Blocks.Utilities.times_symbol);
+    }
+  },
   decompose: function (workspace) {
     return Blockly.decompose(workspace, 'math_mutator_item', this);
   },
-  compose: Blockly.compose,
+  compose: function(containerBlock) {
+    Blockly.compose.call(this, containerBlock);
+    if (this.itemCount_ === 1) {
+      this.inputList[0].appendField('1 ' + Blockly.Blocks.Utilities.times_symbol);
+    }
+  },
   saveConnections: Blockly.saveConnections,
   addEmptyInput: function () {
-    var input = this.appendDummyInput(this.emptyInputName);
+    this.appendDummyInput(this.emptyInputName)
+      .appendField(Blockly.Blocks.Utilities.times_symbol);
   },
   addInput: function (inputNum) {
     var input = this.appendValueInput(this.repeatingInputName + inputNum)
@@ -635,6 +661,124 @@ Blockly.Blocks.math_on_list.HELPURLS = function () {
     MIN: Blockly.Msg.LANG_MATH_ONLIST_HELPURL_MIN,
     MAX: Blockly.Msg.LANG_MATH_ONLIST_HELPURL_MAX
   }
+};
+
+
+Blockly.Blocks['math_on_list2'] = {
+  // Evaluate a list of numbers to return average, min, max, etc.
+  category: 'Math',
+  helpUrl: function () {
+    var mode = this.getFieldValue('OP');
+    return Blockly.Blocks.math_on_list2.HELPURLS()[mode];
+  },
+  init: function () {
+    // Assign 'this' to a variable for use in the closures below.
+    var thisBlock = this;
+    this.setColour(Blockly.MATH_CATEGORY_HUE);
+    this.setOutput(true, Blockly.Blocks.Utilities.YailTypeToBlocklyType("number", Blockly.Blocks.Utilities.OUTPUT));
+    this.appendValueInput('LIST')
+        .setCheck(Blockly.Blocks.Utilities.YailTypeToBlocklyType("list", Blockly.Blocks.Utilities.INPUT))
+        .appendField(new Blockly.FieldDropdown(this.OPERATORS), 'OP');
+    this.setTooltip(function () {
+      var mode = thisBlock.getFieldValue('OP');
+      return Blockly.Blocks.math_on_list2.TOOLTIPS()[mode];
+    });
+  },
+  
+  typeblock: [{
+    translatedName: Blockly.Msg.LANG_MATH_ONLIST_OPERATOR_AVG,
+    dropDown: {
+      titleName: 'OP',
+      value: 'AVG'
+    }
+  },{
+    translatedName: Blockly.Msg.LANG_MATH_ONLIST_OPERATOR_MIN_LIST,
+    dropDown: {
+      titleName: 'OP',
+      value: 'MIN'
+    }
+  }, {
+    translatedName: Blockly.Msg.LANG_MATH_ONLIST_OPERATOR_MAX_LIST,
+    dropDown: {
+      titleName: 'OP',
+      value: 'MAX'
+    }
+  },//{
+   // translatedName: Blockly.Msg.LANG_MATH_ONLIST_OPERATOR_MODE,
+   // dropDown: {
+   //   titleName: 'OP',
+   //   value: 'MODE'
+   // }
+  //},
+    {
+    translatedName: Blockly.Msg.LANG_MATH_ONLIST_OPERATOR_GM,
+    dropDown: {
+      titleName: 'OP',
+      value: 'GM'
+    }
+  },{
+    translatedName: Blockly.Msg.LANG_MATH_ONLIST_OPERATOR_SD,
+    dropDown: {
+      titleName: 'OP',
+      value: 'SD'
+    }
+  },{
+    translatedName: Blockly.Msg.LANG_MATH_ONLIST_OPERATOR_SE,
+    dropDown: {
+      titleName: 'OP',
+      value: 'SE'
+    }
+  }]
+};
+
+Blockly.Blocks.math_on_list2.OPERATORS = function () {
+  return [
+      [Blockly.Msg.LANG_MATH_ONLIST_OPERATOR_AVG,'AVG'],
+      [Blockly.Msg.LANG_MATH_ONLIST_OPERATOR_MIN_LIST, 'MIN'],
+      [Blockly.Msg.LANG_MATH_ONLIST_OPERATOR_MAX_LIST, 'MAX'],
+      //[Blockly.Msg.LANG_MATH_ONLIST_OPERATOR_MODE,'MODE'],
+      [Blockly.Msg.LANG_MATH_ONLIST_OPERATOR_GM,'GM'],
+      [Blockly.Msg.LANG_MATH_ONLIST_OPERATOR_SD,'SD'],
+      [Blockly.Msg.LANG_MATH_ONLIST_OPERATOR_SE,'SE']
+  ]
+};
+
+Blockly.Blocks.math_on_list2.TOOLTIPS = function () {
+  return {
+    AVG: Blockly.Msg.LANG_MATH_ONLIST_TOOLTIP_AVG,
+    MIN: Blockly.Msg.LANG_MATH_ONLIST_TOOLTIP_MIN_LIST,
+    MAX: Blockly.Msg.LANG_MATH_ONLIST_TOOLTIP_MAX_LIST,
+    //MODE: Blockly.Msg.LANG_MATH_ONLIST_TOOLTIP_MODE,
+    GM: Blockly.Msg.LANG_MATH_ONLIST_TOOLTIP_GM,
+    SD: Blockly.Msg.LANG_MATH_ONLIST_TOOLTIP_SD,
+    SE: Blockly.Msg.LANG_MATH_ONLIST_TOOLTIP_SE
+  }
+};
+
+Blockly.Blocks.math_on_list2.HELPURLS = function () {
+  return {
+    AVG: Blockly.Msg.LANG_MATH_ONLIST_HELPURL_AVG,
+    MIN: Blockly.Msg.LANG_MATH_ONLIST_HELPURL_MIN_LIST,
+    MAX: Blockly.Msg.LANG_MATH_ONLIST_HELPURL_MAX_LIST,
+    //MODE: Blockly.Msg.LANG_MATH_ONLIST_HELPURL_MODE,
+    GM: Blockly.Msg.LANG_MATH_ONLIST_HELPURL_GM,
+    SD: Blockly.Msg.LANG_MATH_ONLIST_HELPURL_SD,
+    SE: Blockly.Msg.LANG_MATH_ONLIST_HELPURL_SE
+  }
+};
+
+Blockly.Blocks['math_mode_of_list'] = {
+  category: 'Math',
+  helpUrl: Blockly.Msg.LANG_MATH_ONLIST_HELPURL_MODE,
+  init: function () {
+    this.setColour(Blockly.MATH_CATEGORY_HUE);
+    this.setOutput(true, Blockly.Blocks.Utilities.YailTypeToBlocklyType("list", Blockly.Blocks.Utilities.OUTPUT));
+    this.appendValueInput('LIST')
+        .setCheck(Blockly.Blocks.Utilities.YailTypeToBlocklyType("list", Blockly.Blocks.Utilities.INPUT))
+        .appendField(Blockly.Msg.LANG_MATH_LIST_MODE_TITLE)
+    this.setTooltip(Blockly.Msg.LANG_MATH_ONLIST_TOOLTIP_MODE);
+  },
+  typeblock: [{translatedName: Blockly.Msg.LANG_MATH_ONLIST_OPERATOR_MODE}]
 };
 
 Blockly.Blocks['math_single'] = {
