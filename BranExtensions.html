@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>BranExtensions</title>
+  <script type="text/javascript" src="MyExtension.js"></script>
+</head>
+<body>
+  <h1>BranExtensions</h1>
+  <label for="text">Input Text:</label>
+  <input type="text" id="text" name="text"><br><br>
+  <label for="packageName">Package Name:</label>
+  <input type="text" id="packageName" name="packageName"><br><br>
+  <label for="projectName">Project Name:</label>
+  <input type="text" id="projectName" name="projectName"><br><br>
+  <button onclick="showResult()">Do Something</button><br><br>
+  <div id="result"></div>
+  <script type="text/javascript">
+    function showResult() {
+      // Get the input text and package/project name from the textboxes
+      var text = document.getElementById("text").value;
+      var packageName = document.getElementById("packageName").value;
+      var projectName = document.getElementById("projectName").value;
+      
+      // Call the doSomething method and display the result
+      var result = com.example.MyExtension.prototype.doSomething(text);
+      document.getElementById("result").innerHTML = result;
+    }
+  </script>
+</body>
+</html>
