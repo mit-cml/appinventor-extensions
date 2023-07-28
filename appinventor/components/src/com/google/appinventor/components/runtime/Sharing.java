@@ -10,8 +10,6 @@ import android.content.Intent;
 
 import android.net.Uri;
 
-import android.support.v4.content.FileProvider;
-
 import android.webkit.MimeTypeMap;
 
 import com.google.appinventor.components.annotations.DesignerComponent;
@@ -23,12 +21,24 @@ import com.google.appinventor.components.common.ComponentCategory;
 import com.google.appinventor.components.common.YaVersion;
 
 import com.google.appinventor.components.runtime.util.ErrorMessages;
+import com.google.appinventor.components.runtime.util.NougatUtil;
 
 import java.io.File;
 
 /**
- * Component for sharing files and/or messages through Android's built-in sharing
- * functionality.
+ * Sharing is a non-visible component that enables sharing files and/or messages between your app
+ * and other apps installed on a device. The component will display a list of the installed apps
+ * that can handle the information provided, and will allow the user to choose one to share the
+ * content with, for instance a mail app, a social network app, a texting app, and so on.
+ *
+ * The file path can be taken directly from other components such as the
+ * [`Camera`](media.html#Camera) or the [`ImagePicker`](media.html#ImagePicker), but can also be
+ * specified directly to read from storage. Be aware that different devices treat storage
+ * differently, so a few things to try if, for instance, you have a file called `arrow.gif` in the
+ * folder `Appinventor/assets`, would be:
+ *
+ * - `"file:///sdcard/Appinventor/assets/arrow.gif"`; or
+ * - `"/storage/Appinventor/assets/arrow.gif"`
  *
  * @author victsou@gmail.com (Victor Silva) - Picked up on @cfromknecht's work
  * and fixed file support.
@@ -58,6 +68,7 @@ public class Sharing extends AndroidNonvisibleComponent {
 
   /**
    * Shares a message using Android' built-in sharing.
+   * @suppressdoc
    */
   @SimpleFunction(description = "Shares a message through any capable " +
       "application installed on the phone by displaying a list of the available apps and " +
@@ -75,6 +86,7 @@ public class Sharing extends AndroidNonvisibleComponent {
 
   /**
    * Shares a file using Android' built-in sharing.
+   * @suppressdoc
    */
   @SimpleFunction(description = "Shares a file through any capable application "
       + "installed on the phone by displaying a list of the available apps and allowing the " +
@@ -85,14 +97,12 @@ public class Sharing extends AndroidNonvisibleComponent {
 
   /**
    * Shares a file along with a message using Android' built-in sharing.
+   * @suppressdoc
    */
   @SimpleFunction(description = "Shares both a file and a message through any capable application "
       + "installed on the phone by displaying a list of available apps and allowing the user to " +
       " choose one from the list. The selected app will open with the file and message inserted on it.")
   public void ShareFileWithMessage(String file, String message) {
-
-    String packageName = form.$context().getPackageName();
-
     if (!file.startsWith("file://"))
       file = "file://" + file;
 
@@ -102,9 +112,12 @@ public class Sharing extends AndroidNonvisibleComponent {
       String fileExtension = file.substring(file.lastIndexOf(".")+1).toLowerCase();
       MimeTypeMap mime = MimeTypeMap.getSingleton();
       String type = mime.getMimeTypeFromExtension(fileExtension);
+      if (type == null) {
+        // Fix for #1701: We don't know what it is, but it's at least a sequence of bytes (we hope)
+        type = "application/octet-stream";
+      }
 
-      Uri shareableUri = FileProvider.getUriForFile(form.$context(),
-        packageName + ".provider", imageFile);
+      Uri shareableUri = NougatUtil.getPackageUri(form, imageFile);
       Intent shareIntent = new Intent(Intent.ACTION_SEND);
       shareIntent.putExtra(Intent.EXTRA_STREAM, shareableUri);
       shareIntent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);

@@ -5,20 +5,20 @@
 
 package com.google.appinventor.components.runtime.util;
 
-import java.util.List;
-
+import android.os.Build;
+import android.view.View;
+import com.google.appinventor.components.common.ScaleUnits;
 import com.google.appinventor.components.runtime.Component;
 import com.google.appinventor.components.runtime.ComponentContainer;
 import com.google.appinventor.components.runtime.Form;
 import com.google.appinventor.components.runtime.LocationSensor;
 import com.google.appinventor.components.runtime.Map;
+import java.util.Iterator;
+import java.util.List;
 import org.locationtech.jts.geom.Geometry;
 import org.osmdroid.api.IGeoPoint;
-import org.osmdroid.util.GeoPoint;
 import org.osmdroid.util.BoundingBox;
-
-import android.os.Build;
-import android.view.View;
+import org.osmdroid.util.GeoPoint;
 
 /**
  * Utilities used by the Map component to provide backward compatibility
@@ -182,14 +182,24 @@ public final class MapFactory {
      *
      * @return the type of the map's active tile layer
      */
-    MapType getMapType();
+    MapFactory.MapType getMapType();
 
     /**
      * Set the type of the map being used.
      *
      * @param type the new map type for the map
      */
-    void setMapType(MapType type);
+    void setMapType(MapFactory.MapType type);
+
+    /**
+     * Get the type of map being used.
+     */
+    com.google.appinventor.components.common.MapType getMapTypeAbstract();
+
+    /**
+     * Set the type of map being used.
+     */
+    void setMapTypeAbstract(com.google.appinventor.components.common.MapType type);
 
     /**
      * Set whether the compass is displayed on the map.
@@ -389,6 +399,23 @@ public final class MapFactory {
     boolean isFeatureVisible(MapFeature feature);
 
     /**
+     * Gets whether the feature collection is visible or not.
+     * @param collection the collection to check.
+     * @return  true if the collection is visible, otherwise false. This may not guarantee that the
+     *     children of the collection are visible within the viewport.
+     */
+    boolean isFeatureCollectionVisible(MapFeatureCollection collection);
+
+    /**
+     * Changes the visibility of the feature collection.
+     * @param collection the collection which will have its visibility changed
+     * @param visible true if the features in the feature collection should be visible, otherwise
+     *                false. Note that the feature has its own visibility flag. Both visible flags
+     *                must be true for the feature to be drawn.
+     */
+    void setFeatureCollectionVisible(MapFeatureCollection collection, boolean visible);
+
+    /**
      * Show the infobox attached to a map feature. The feature must have been
      * previously added via one of the addFeature calls and must be shown on the
      * map. The infobox will also be shown as part of the default click action
@@ -440,6 +467,13 @@ public final class MapFactory {
      * @param polygon the polygon that needs its position updated on the map
      */
     void updateFeaturePosition(MapPolygon polygon);
+
+    /**
+     * Update the holes in a polygon on the map.
+     *
+     * @param polygon the polygon that needs its holes updated
+     */
+    void updateFeatureHoles(MapPolygon polygon);
 
     /**
      * Update the position of a circle on the map.
@@ -524,6 +558,42 @@ public final class MapFactory {
      * @return the rotation
      */
     float getRotation();
+
+    /**
+     * Sets whether or not the scale overlay is visible.
+     * @param show True if the scale should be shown, otherwise false.
+     */
+    void setScaleVisible(boolean show);
+
+    /**
+     * Gets the visibility of the scale on the map. A true value does
+     * not guarantee that the scale is visible to the user (i.e., if
+     * the Map is not visible).
+     * @returns true if the scale is enabled on the map, otherwise false.
+     */
+    boolean isScaleVisible();
+
+    /**
+     * Sets the units for the scale. Options are either "metric" or "imperial"
+     * @param units the new units to show for the scale
+     */
+    void setScaleUnits(MapScaleUnits units);
+
+    /**
+     * Gets the units for the scale.
+     * @return the units used for the scale overlay
+     */
+    MapScaleUnits getScaleUnits();
+
+    /**
+     * Sets the units for the scale.
+     */
+    void setScaleUnitsAbstract(ScaleUnits units);
+
+    /**
+     * Returns the units for the scale.
+     */
+    ScaleUnits getScaleUnitsAbstract();
   }
 
   /**
@@ -746,7 +816,7 @@ public final class MapFactory {
    *
    * @author ewpatton@mit.edu (Evan W. Patton)
    */
-  public interface MapFeatureContainer extends ComponentContainer {
+  public interface MapFeatureContainer extends ComponentContainer, Iterable<MapFeature> {
 
     // Properties
 
@@ -817,6 +887,12 @@ public final class MapFactory {
     void addFeature(MapFeature feature);
 
     /**
+     * Iterates over the features in the MapFeatureContainer.
+     * @return new iterator
+     */
+    Iterator<MapFeature> iterator();
+
+    /**
      * Removes a feature from the feature collection.
      * @param feature the feature to remove
      */
@@ -840,6 +916,18 @@ public final class MapFactory {
      * @return the fill paint color
      */
     int FillColor();
+
+    /**
+     * Sets the opacity of the interior of the feature
+     * @param opacity the fill opacity
+     */
+    void FillOpacity(float opacity);
+
+    /**
+     * Gets the opacity of the interior of the feature
+     * @return the fill opacity
+     */
+    float FillOpacity();
   }
 
   /**
@@ -859,6 +947,18 @@ public final class MapFactory {
      * @return the outline paint color
      */
     int StrokeColor();
+
+    /**
+     * Sets the opacity of the outline of the feature
+     * @param opacity the stroke opacity
+     */
+    void StrokeOpacity(float opacity);
+
+    /**
+     * Gets the opacity of the outline of the feature
+     * @return the stroke opacity
+     */
+    float StrokeOpacity();
 
     /**
      * Sets the width of the outline of the feature
@@ -1478,6 +1578,27 @@ public final class MapFactory {
      * Terrain tile layer.
      */
     TERRAIN
+  }
+
+  /**
+   * MapScaleUnits defines the available unit systems for rendering the map scale overlay.
+   */
+  public enum MapScaleUnits {
+    /**
+     * Reserved. Makes the map scale units start from 1 to be consistent with App Inventor design
+     * principles.
+     */
+    UNKNOWN,
+
+    /**
+     * Metric units (km, m)
+     */
+    METRIC,
+
+    /**
+     * Imperial units (mi, ft)
+     */
+    IMPERIAL
   }
 
   /**

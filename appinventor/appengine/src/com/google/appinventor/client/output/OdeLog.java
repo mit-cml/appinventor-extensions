@@ -1,6 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2012 MIT, All rights reserved
+// Copyright 2011-2018 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -83,7 +83,8 @@ public final class OdeLog extends Composite {
    * @return  logging availability
    */
   public static final boolean isLogAvailable() {
-    return AppInventorFeatures.hasDebuggingView() && Ode.getInstance().getUser().getIsAdmin();
+    return AppInventorFeatures.hasDebuggingView() &&
+      (Ode.getInstance().getUser() == null || Ode.getInstance().getUser().getIsAdmin());
   }
 
   /**
@@ -93,6 +94,7 @@ public final class OdeLog extends Composite {
    */
   public static void log(String message) {
     if (isLogAvailable() && !Ode.isWindowClosing()) {
+      consoleInfo(message);
       getOdeLog().println(StringUtils.escape(message));
     }
   }
@@ -104,6 +106,7 @@ public final class OdeLog extends Composite {
    */
   public static void wlog(String message) {
     if (isLogAvailable() && !Ode.isWindowClosing()) {
+      consoleWarn(message);
       getOdeLog().wprintln(StringUtils.escape(message));
     }
   }
@@ -115,6 +118,7 @@ public final class OdeLog extends Composite {
    */
   public static void elog(String message) {
     if (isLogAvailable() && !Ode.isWindowClosing()) {
+      consoleError(message);
       getOdeLog().eprintln(StringUtils.escape(message));
     }
   }
@@ -209,4 +213,20 @@ public final class OdeLog extends Composite {
       text.setText("");
     }
   }
+
+  static native void consoleLog(String message) /*-{
+    console.log(message);
+  }-*/;
+
+  static native void consoleInfo(String message) /*-{
+    console.info(message);
+  }-*/;
+
+  static native void consoleWarn(String message) /*-{
+    console.warn(message);
+  }-*/;
+
+  static native void consoleError(String message) /*-{
+    console.error(message);
+  }-*/;
 }

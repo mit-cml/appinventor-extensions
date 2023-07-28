@@ -6,6 +6,8 @@
 
 package com.google.appinventor.client.editor.simple;
 
+import com.google.gwt.event.dom.client.ChangeEvent;
+import com.google.gwt.event.dom.client.ChangeHandler;
 import static com.google.appinventor.client.Ode.MESSAGES;
 import com.google.appinventor.client.editor.ProjectEditor;
 import com.google.appinventor.client.editor.simple.components.MockForm;
@@ -20,6 +22,7 @@ import com.google.gwt.user.client.ui.CheckBox;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwt.user.client.ui.Widget;
+import com.google.gwt.user.client.ui.ListBox;
 
 import java.util.List;
 import java.util.Map;
@@ -32,7 +35,10 @@ public final class SimpleVisibleComponentsPanel extends Composite implements Dro
   // UI elements
   private final VerticalPanel phoneScreen;
   private final CheckBox checkboxShowHiddenComponents;
-  private final CheckBox checkboxPhoneTablet; // A CheckBox for Phone/Tablet preview sizes
+  private final ListBox listboxPhoneTablet; // A ListBox for Phone/Tablet/Monitor preview sizes
+  private final ListBox listboxPhonePreview; // A ListBox for Holo/Material/iOS preview styles
+  private final int[][] drop_lst = { {320, 505}, {480, 675}, {768, 1024} };
+  private final String[] drop_lst_phone_preview = { "Android Material", "Android Holo", "iOS" };
 
   // Corresponding panel for non-visible components (because we allow users to drop
   // non-visible components onto the form, but we show them in the non-visible
@@ -60,22 +66,28 @@ public final class SimpleVisibleComponentsPanel extends Composite implements Dro
     checkboxShowHiddenComponents = new CheckBox(MESSAGES.showHiddenComponentsCheckbox()) {
       @Override
       protected void onLoad() {
-        // onLoad is called immediately after a widget becomes attached to the browser's document.
-        boolean showHiddenComponents = Boolean.parseBoolean(
-            projectEditor.getProjectSettingsProperty(
-            SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
-            SettingsConstants.YOUNG_ANDROID_SETTINGS_SHOW_HIDDEN_COMPONENTS));
-        checkboxShowHiddenComponents.setValue(showHiddenComponents);
+        // Get project settings
+        String screenCheckboxMap = projectEditor.getProjectSettingsProperty(
+          SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS, 
+          SettingsConstants.YOUNG_ANDROID_SETTINGS_SCREEN_CHECKBOX_STATE_MAP
+        );
+        if (screenCheckboxMap != null && !screenCheckboxMap.equals("")) {
+          projectEditor.buildScreenHashMap(screenCheckboxMap);
+          Boolean isChecked = projectEditor.getScreenCheckboxState(form.getTitle());
+          checkboxShowHiddenComponents.setValue(isChecked);
+        }
       }
     };
     checkboxShowHiddenComponents.addValueChangeHandler(new ValueChangeHandler<Boolean>() {
       @Override
       public void onValueChange(ValueChangeEvent<Boolean> event) {
-        boolean isChecked = event.getValue(); // auto-unbox from Boolean to boolean
+        boolean isChecked = event.getValue();
+        projectEditor.setScreenCheckboxState(form.getTitle(), isChecked);
         projectEditor.changeProjectSettingsProperty(
-            SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
-            SettingsConstants.YOUNG_ANDROID_SETTINGS_SHOW_HIDDEN_COMPONENTS,
-            isChecked ? "True" : "False");
+          SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS, 
+          SettingsConstants.YOUNG_ANDROID_SETTINGS_SCREEN_CHECKBOX_STATE_MAP, 
+          projectEditor.getScreenCheckboxMapString()
+        );
         if (form != null) {
           form.refresh();
         }
@@ -83,56 +95,194 @@ public final class SimpleVisibleComponentsPanel extends Composite implements Dro
     });
     phoneScreen.add(checkboxShowHiddenComponents);
 
-    checkboxPhoneTablet = new CheckBox(MESSAGES.previewPhoneSize()) {
+    listboxPhoneTablet = new ListBox() {
       @Override
       protected void onLoad() {
         // onLoad is called immediately after a widget becomes attached to the browser's document.
-        boolean showPhoneTablet = Boolean.parseBoolean(
-            projectEditor.getProjectSettingsProperty(
-                SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
-                SettingsConstants.YOUNG_ANDROID_SETTINGS_PHONE_TABLET));
-        checkboxPhoneTablet.setValue(showPhoneTablet);
-        changeFormPreviewSize(showPhoneTablet);
+        String sizing = projectEditor.getProjectSettingsProperty(SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
+            SettingsConstants.YOUNG_ANDROID_SETTINGS_SIZING);
+        boolean fixed = (sizing.equals("Fixed"));
+        listboxPhoneTablet.setVisible(!fixed);
+        if (fixed) {
+          changeFormPreviewSize(0, 320, 505);
+        } else {
+          getUserSettingChangeSize();
+        }
       }
     };
-    checkboxPhoneTablet.addValueChangeHandler(new ValueChangeHandler<Boolean>() {
+    listboxPhoneTablet.addItem("Phone size");
+    listboxPhoneTablet.addItem("Tablet size");
+    listboxPhoneTablet.addItem("Monitor size");
+    listboxPhoneTablet.addChangeHandler(new ChangeHandler() {
       @Override
-      public void onValueChange(ValueChangeEvent<Boolean> event) {
-          boolean isChecked = event.getValue(); // auto-unbox from Boolean to boolean
-          projectEditor.changeProjectSettingsProperty(
-              SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
-              SettingsConstants.YOUNG_ANDROID_SETTINGS_PHONE_TABLET,
-              isChecked ? "True" : "False");
-          changeFormPreviewSize(isChecked);
-        }
+      public void onChange(ChangeEvent event) {
+        int idx = listboxPhoneTablet.getSelectedIndex();
+        int width = drop_lst[idx][0];
+        int height = drop_lst[idx][1];
+        String val = Integer.toString(idx) + "," + Integer.toString(width) + "," + Integer.toString(height);
+        // here, we can change settings by putting val into it
+        projectEditor.changeProjectSettingsProperty(SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
+            SettingsConstants.YOUNG_ANDROID_SETTINGS_PHONE_TABLET, val);
+        changeFormPreviewSize(idx, width, height);
+      }
     });
-    phoneScreen.add(checkboxPhoneTablet);
+
+    phoneScreen.add(listboxPhoneTablet);
+
+    listboxPhonePreview = new ListBox() {
+      @Override
+      protected void onLoad() {
+        // onLoad is called immediately after a widget becomes attached to the browser's document.
+        String previewStyle = projectEditor.getProjectSettingsProperty(SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
+                SettingsConstants.YOUNG_ANDROID_SETTINGS_THEME);
+        boolean classic = (previewStyle.equals("Classic"));
+        listboxPhonePreview.setVisible(!classic);
+        if (classic) {
+          changeFormPhonePreview(-1, "Classic");
+        } else {
+          getUserSettingChangePreview();
+        }
+      }
+    };
+    listboxPhonePreview.addItem("Android 5+ Devices");
+    listboxPhonePreview.addItem("Android 3.0-4.4.2 Devices");
+    listboxPhonePreview.addItem("iOS 13 Devices");
+    listboxPhonePreview.addChangeHandler(new ChangeHandler() {
+      @Override
+      public void onChange(ChangeEvent event) {
+        int idx = listboxPhonePreview.getSelectedIndex();
+        String val = drop_lst_phone_preview[idx];
+        // here, we can change settings by putting chosenStyle value into it
+        projectEditor.changeProjectSettingsProperty(SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
+            SettingsConstants.YOUNG_ANDROID_SETTINGS_PHONE_PREVIEW, val);
+        changeFormPhonePreview(idx, val);
+      }
+    });
+
+    phoneScreen.add(listboxPhonePreview);
 
     initWidget(phoneScreen);
   }
 
-  private void changeFormPreviewSize(boolean isChecked) {
-    if (form != null){
-      if (isChecked){
-        form.changePreviewSize(true);
-        checkboxPhoneTablet.setText(MESSAGES.previewPhoneSize());
-      }
-      else {
-        form.changePreviewSize(false);
-        checkboxPhoneTablet.setText(MESSAGES.previewTabletSize());
-      }
+  public boolean isHiddenComponentsCheckboxChecked() {
+    return checkboxShowHiddenComponents.getValue();
+  }
+
+  // get width and height stored in user settings, and change the preview size.
+  private void getUserSettingChangeSize() {
+    String val = projectEditor.getProjectSettingsProperty(SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
+        SettingsConstants.YOUNG_ANDROID_SETTINGS_PHONE_TABLET);
+    int idx = 0;
+    int width = 320;
+    int height = 505;
+
+    if (val.equals("True")) {
+      idx = 1;
+      width = drop_lst[idx][0];
+      height = drop_lst[idx][1];
     }
+
+    String[] parts = val.split(",");
+    if (parts.length == 3) {
+      idx = Integer.parseInt(parts[0]);
+      width = Integer.parseInt(parts[1]);
+      height = Integer.parseInt(parts[2]);
+    }
+    listboxPhoneTablet.setItemSelected(idx, true);
+    changeFormPreviewSize(idx, width, height);
+  }
+
+  // get Phone Preview stored in user settings, and change the preview style.
+  private void getUserSettingChangePreview() {
+    String val = projectEditor.getProjectSettingsProperty(SettingsConstants.PROJECT_YOUNG_ANDROID_SETTINGS,
+        SettingsConstants.YOUNG_ANDROID_SETTINGS_PHONE_PREVIEW);
+    int idx = 0;
+
+    if (val.equals("Classic")) {
+      val = "Android Material";
+    }
+
+    if (val.equals("Android Holo")) {
+      idx = 1;
+    } else if (val.equals("iOS")) {
+      idx = 2;
+    }
+    listboxPhonePreview.setItemSelected(idx, true);
+    changeFormPhonePreview(idx, val);
+  }
+
+  private void changeFormPreviewSize(int idx, int width, int height) {
+
+    if (form == null)
+      return;
+
+    form.changePreviewSize(width, height, idx);
+
+    String info = " (" + height + "," + width + ")";
+    if (idx == 0) {
+      listboxPhoneTablet.setItemText(idx, MESSAGES.previewPhoneSize() + info);
+      listboxPhoneTablet.setItemText(1, MESSAGES.previewTabletSize());
+      listboxPhoneTablet.setItemText(2, MESSAGES.previewMonitorSize());
+    } else if (idx == 1) {
+      listboxPhoneTablet.setItemText(idx, MESSAGES.previewTabletSize() + info);
+      listboxPhoneTablet.setItemText(0, MESSAGES.previewPhoneSize());
+      listboxPhoneTablet.setItemText(2, MESSAGES.previewMonitorSize());
+    } else {
+      listboxPhoneTablet.setItemText(idx, MESSAGES.previewMonitorSize() + info);
+      listboxPhoneTablet.setItemText(0, MESSAGES.previewPhoneSize());
+      listboxPhoneTablet.setItemText(1, MESSAGES.previewTabletSize());
+    }
+    // change settings
+  }
+
+  private void changeFormPhonePreview(int idx, String chosenVal) {
+
+    if (form == null)
+      return;
+
+    form.changePhonePreview(idx, chosenVal);
+
+    String info = " (" + chosenVal + ")";
+    if (idx == 0) {
+      listboxPhonePreview.setItemText(idx, MESSAGES.previewAndroidMaterial() + info);
+      listboxPhonePreview.setItemText(1, MESSAGES.previewAndroidHolo());
+      listboxPhonePreview.setItemText(2, MESSAGES.previewIOS());
+    } else if (idx == 1) {
+      listboxPhonePreview.setItemText(idx, MESSAGES.previewAndroidHolo() + info);
+      listboxPhonePreview.setItemText(0, MESSAGES.previewAndroidMaterial());
+      listboxPhonePreview.setItemText(2, MESSAGES.previewIOS());
+    } else if (idx == 2){
+      listboxPhonePreview.setItemText(idx, MESSAGES.previewIOS() + info);
+      listboxPhonePreview.setItemText(0, MESSAGES.previewAndroidMaterial());
+      listboxPhonePreview.setItemText(1, MESSAGES.previewAndroidHolo());
+    }
+    // change settings
   }
 
   public void enableTabletPreviewCheckBox(boolean enable){
     if (form != null){
       if (!enable){
-        form.changePreviewSize(false);
-        checkboxPhoneTablet.setText(MESSAGES.previewTabletSize());
-        checkboxPhoneTablet.setChecked(false);
+        changeFormPreviewSize(0, 320, 505);
+        listboxPhoneTablet.setVisible(enable);
+      } else {
+        getUserSettingChangeSize();
+        listboxPhoneTablet.setVisible(enable);
       }
     }
-    checkboxPhoneTablet.setEnabled(enable);
+    listboxPhoneTablet.setEnabled(enable);
+  }
+
+  public void enablePhonePreviewCheckBox(boolean enable){
+    if (form != null){
+      if (!enable){
+        changeFormPhonePreview(-1,"Classic");
+        listboxPhonePreview.setVisible(enable);
+      } else {
+        getUserSettingChangePreview();
+        listboxPhonePreview.setVisible(enable);
+      }
+    }
+    listboxPhonePreview.setEnabled(enable);
   }
 
   /**

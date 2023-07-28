@@ -1,22 +1,20 @@
 // -*- mode: java; c-basic-offset: 2; -*-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2012 MIT, All rights reserved
+// Copyright 2011-2019 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
 package com.google.appinventor.components.runtime.util;
 
 import com.google.appinventor.components.runtime.errors.YailRuntimeError;
-
 import gnu.lists.LList;
 import gnu.lists.Pair;
-
-import org.json.JSONException;
-
+import gnu.math.IntNum;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-
-import android.util.Log;
+import java.util.Set;
+import org.json.JSONException;
 
 /**
  * The YailList is a wrapper around the gnu.list.Pair class used
@@ -24,9 +22,8 @@ import android.util.Log;
  * by App Inventor components.
  *
  */
-public class YailList extends Pair {
-
-  private static final String LOG_TAG = "YailList";
+@SuppressWarnings("rawtypes")
+public class YailList extends Pair implements YailObject {
 
   // Component writers take note!
   // If you want to pass back a list to the blocks language, the
@@ -76,7 +73,20 @@ public class YailList extends Pair {
    * Create a YailList from a Collection.
    */
   public static YailList makeList(Collection vals) {
-    LList newCdr = Pair.makeList(vals.toArray(), 0);
+    List valsList = new ArrayList(vals);
+
+    LList newCdr = Pair.makeList(valsList);
+    return new YailList(newCdr);
+  }
+
+  /**
+   * Create a YailList from a Set.
+   */
+  public static YailList makeList(Set vals) {
+    // LList newCdr = Pair.makeList(vals.toArray(new Object[vals.size()]), 0);
+    List valsList = new ArrayList(vals);
+
+    LList newCdr = Pair.makeList(valsList);
     return new YailList(newCdr);
   }
 
@@ -119,7 +129,11 @@ public class YailList extends Pair {
    * @return the string
    */
   public static String YailListElementToString(Object element) {
-    if (Number.class.isInstance(element)) {
+    if (element instanceof IntNum) {
+      return ((IntNum) element).toString(10);
+    } else if (element instanceof Long) {
+      return Long.toString((Long) element);
+    } else if (Number.class.isInstance(element)) {
       return YailNumberToString.format(((Number) element).doubleValue());
     } else {
       return String.valueOf(element);

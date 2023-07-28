@@ -1,6 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2017 MIT, All rights reserved
+// Copyright 2011-2018 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -36,8 +36,7 @@ public @interface DesignerComponent {
    * Description to be shown on user request in the Designer.  If this field is
    * empty, the description() field should be used.  This may contain HTML.
    * Internal double-quotes will be converted to single-quotes when this field
-   * is displayed in the designer.  For now, this cannot contain an
-   * ampersand (%), which would corrupt ya_lang_def.xml.
+   * is displayed in the designer.
    */
   // TODO(user): Add more robust character escaping.
   String designerHelpDescription() default "";
@@ -84,4 +83,33 @@ public @interface DesignerComponent {
    * the global App Inventor minimum SDK unless otherwise specified.
    */
   int androidMinSdk() default ComponentConstants.APP_INVENTOR_MIN_SDK;
+
+  /**
+   * A custom version name for the component version. If provided, it
+   * will be shown in the component help popup in place of the
+   * {@link #version()}. This can be useful for marking beta or release
+   * candidate versions of extensions, for example.
+   * @return The custom version name, if any.
+   */
+  String versionName() default "";
+
+  /**
+   * A ISO 8601 datetime string that indicates when the component was
+   * built. This information will be shown in the component help popup
+   * for extensions. This is automatically populated by
+   * {@link com.google.appinventor.components.scripts.ExternalComponentGenerator}.
+   * @return An ISO 8601 string containing the compilation time of
+   * the component.
+   */
+  String dateBuilt() default "";
+
+  /**
+   * The file name of the LICENSE file that the component is attributed under.
+   * Meant primarily for use by external components which can have a license
+   * different from that of this codebase. This string can also be a URL pointing
+   * to an external LICENSE file.
+   *
+   * @return The name of the LICENSE file
+   */
+  String licenseName() default "";
 }

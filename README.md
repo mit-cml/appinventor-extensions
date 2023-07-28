@@ -12,10 +12,10 @@ to build MIT App Inventor applications.
 We provide this code for reference and for experienced people who wish
 to operate their own App Inventor instance and/or contribute to the project.
 
-This code is tested and known to work with Java 7.
+This code is tested and known to work with Java 8.
 
 ## Contributors
-The best way to go about integrating changes in App Inventor is to start a conversation in the [Open Source forum](https://groups.google.com/forum/#!forum/app-inventor-open-source-dev) about whatever you intend to change or add.
+The best way to go about integrating changes in App Inventor is to start a conversation in the [Open Source forum](https://community.appinventor.mit.edu/c/open-source-development/10) about whatever you intend to change or add.
 
 We use ***very brief and informal*** design documents with descriptions of the proposed changes and screenshots of how the functionality would look like and behave, in order to gather as much feedback from the community, as early as possible. We generally use shared Google docs for this (with permissions to add comments), but any format that is accessible from a web browser (and allows comments) would do.
 
@@ -23,19 +23,63 @@ If you have skipped this step and have gone ahead and made your changes already,
 
 Check out our open source [site](http://appinventor.mit.edu/appinventor-sources/) to find a lot more information about the project and how to contribute to it.
 
-## Setup instructions
+## Setup instructions (Vagrant)
+
+The easiest way to get a development environment up and running is to use the provided Vagrantfile. Install [Vagrant](https://vagrantup.com) and open a terminal in the root directory of this repository. Run the following commands
+
+```bash
+vagrant plugin install vagrant-vbguest  # optionally for virtualbox users, and only once
+vagrant up                              # initializes the VM
+```
+
+It may take a few minutes for Vagrant to initialize as it will pull down a virtual machine image from the Internet and configure it with all of the App Inventor dependencies. Subsequent start-ups will be faster. Next, enter the virtual machine by running:
+
+```bash
+vagrant ssh
+```
+
+This should open up a terminal within the virtual machine in the directory `/vagrant/appinventor`. This directory is the same as the `appinventor` directory in this repository, shared between your host machine and the virtual machine. Any changes made on one side will be visible in the other. This allows you to edit files on your host machine with your preferred editor, while keeping the build environment relegated to the virtual machine. To build App Inventor, you may now run:
+
+```bash
+ant
+```
+
+and to run App Inventor:
+
+```bash
+start_appinventor
+```
+
+Press Ctrl+C to quit the server. Enter exit at the prompt to leave the virtual machine. To reclaim resources when you are not actively developing, you can run `vagrant halt` to stop the virtual machine. To completely remove the virtual machine, run `vagrant destroy`. If you destroy the VM, you will need to start these instructions from the top.
+
+Note 1: For macOS users, if you are using VirtualBox and get any error while initializing the VM it may be due to security restrictions in System Preferences, consider reading [this](https://medium.com/@Aenon/mac-virtualbox-kernel-driver-error-df39e7e10cd8) article. 
+
+Note 2: If it seems like none of the dependencies are installed in the VM, run ```vagrant provision```.
+
+For better performance, consider using the manual instructions.
+
+## Setup instructions (manual)
 
 This is a quick guide to get started with the sources. More detailed instructions can be found [here](https://docs.google.com/document/pub?id=1Xc9yt02x3BRoq5m1PJHBr81OOv69rEBy8LVG_84j9jc), a slide show can be seen [here](http://josmas.github.io/contributingToAppInventor2/#/), and all the [documentation](http://appinventor.mit.edu/appinventor-sources/#documentation) for the project is available in our [site](http://appinventor.mit.edu/appinventor-sources/).
 
 ### Dependencies
-You will need a full Java JDK (version 7, preferably from Oracle; JRE is not enough) and Python to compile and run the servers.
+You will need a full Java JDK (version 8, OpenJDK preferred; JRE is not enough) and Python to compile and run the servers.
 
-You will also need a copy of the [App Engine SDK](https://developers.google.com/appengine/downloads) for Java and [ant](http://ant.apache.org/).
+You will also need a copy of the [Google Cloud SDK](https://cloud.google.com/appengine/docs/standard/java/download) for Java and [ant](http://ant.apache.org/).
 
 If you want to make changes to the source, you are going to need to run an automated test suite, and for that you will also need [phantomjs](http://phantomjs.org/). Have a look at the testing section for more information.
 
-Note: Java 8 will work locally, and it is also supported by AppEngine, but you may need to [specify your runtime](https://cloud.google.com/appengine/docs/standard/java/runtime-java8) if you want to use appspot.
-Also note that certain Java 8 features, such as lambda expressions, are not supported on Android, so please don't use them in your changes to the source code.
+Note 1: If you are working on a 64-bit linux system, you need to install 32-bit version of: glibc(to get a 32-bit version of ld-linux.so), zlib and libstdc++.
+
+If you are on a Debian-based distribution(Ubuntu), use:
+
+    $ sudo apt-get install libc6:i386 zlib1g:i386 libstdc++6:i386
+
+If you are on an RPM-based distribution(Fedora), use:
+
+    $ sudo dnf install glibc.i686 zlib.i686 libstdc++.i686
+
+Note 2: Certain Java 8 features, such as lambda expressions, are not supported on Android, so please don't use them in your changes to the source code.
 
 ### Forking or cloning
 Consider ***forking*** the project if you want to make changes to the sources. If you simply want to run it locally, you can simply ***clone*** it.
@@ -61,13 +105,26 @@ App Inventor uses Blockly, the web-based visual programming editor from Google, 
 
     $ git submodule update --init
 
-For developers who will be working on Blocky within the context of App Inventor, the preferred checkout procedure is to perform a `git submodule init`, edit the `.git/config` file to use the read/write SSH URL for [MIT CML's Blockly fork](https://github.com/mit-cml/blockly) instead of the public read-only HTTPS URL assumed by default (to support pushing changes). After changing `.git/config`, a `git submodule update` will pull the repository.
+For developers who will be working on Blockly within the context of App Inventor, the preferred checkout procedure is to perform a `git submodule init`, edit the `.git/config` file to use the read/write SSH URL for [MIT CML's Blockly fork](https://github.com/mit-cml/blockly) instead of the public read-only HTTPS URL assumed by default (to support pushing changes). After changing `.git/config`, a `git submodule update` will pull the repository.
 
 If you need to switch back to a branch that does contains the Blockly and Closure Library sources in the tree, you will need to run the command:
 
-    $ git submodule deinit .
+    $ git submodule deinit --all
 
 to clear out the submodules ___before switching branches___. When switching back, you will need to repeat the initialization and update procedure above.
+
+### Troubleshooting common installation issues
+Run this command to run a self-diagnosis of your environment. This command tries to figure out common installation issues and offers you a solution to fix them yourself. Make sure this passes all the checks before you proceed further.
+
+#### Linux and macOS
+```bash
+./buildtools doctor
+```
+
+#### Windows
+```bash
+buildtools doctor
+```
 
 ### Compiling
 Before compiling the code, an [auth key](https://docs.google.com/document/pub?id=1Xc9yt02x3BRoq5m1PJHBr81OOv69rEBy8LVG_84j9jc#h.yikyg2e1rfut) is needed. You can create one by running the following commands:
@@ -86,10 +143,10 @@ There are two servers in App Inventor, the main server that deals with project i
 
 #### Running the main server
 
-    $ your-appengine-SDK-folder/bin/dev_appserver.sh
+    $ your-google-cloud-SDK-folder/bin/java_dev_appserver.sh
             --port=8888 --address=0.0.0.0 appengine/build/war/
 
-Make sure you change *your-appengine-SDK-folder* to wherever in your hard drive you have placed the App Engine SDK.
+Make sure you change *your-google-cloud-SDK-folder* to wherever in your hard drive you have placed the Google Cloud SDK.
 
 #### Running the build server
 The build server can be run from the terminal by typing:
@@ -104,10 +161,41 @@ You should now be up and running; you can test this by pointing your browser to:
 
     http://localhost:8888
 
+Before entering or scanning the QR code in the Companion, check the box labeled "Use Legacy Connection".
+
 ### Running tests
 The automated tests depend on [Phantomjs](http://phantomjs.org/). Make sure you install it and add it to your path. After that, you can run all tests by typing the following in a terminal window:
 
     $ ant tests
 
+### Building Release Code
+
+Release builds with optimizations turned on for the web components of the system can be done by passing `-Drelease=true` to `ant`, e.g.:
+
+```
+ant -Drelease=true noplay
+```
+
+The release configuration sets the following additional options:
+
+- Blockly Editor is compiled with SIMPLE optimizations (instead of RAW)
+- App Engine YaClient module is compiled without `<collapse-all-properties/>` to create per-language/browser builds
+- App Engine YaClient module is compiled with optimization tuned to 9 and with 8 threads
+
+### Hot-reloading GWT code with 'Super Dev Mode'
+1. Run `ant devmode`
+2. [Run the main server](#running-the-main-server).
+3. Open http://localhost:9876 (*GWT CodeServer*) and drag the two bookmarklets (*Dev Mode On & Off*) to the bookmarks bar.
+4. Open http://localhost:8888 (*App Engine server*)
+5. To see changes "live":
+   1. Save your changes in file.
+   2. Click on the *"Dev Mode On"* bookmarklet.
+   3. A popup will be shown with a button to compile `ode` module.
+   4. Press that button to compile. (That button is actually a bookmarklet. So you can drag this button to the bookmarks bar as well. This will come handy for subsequent compilations)
+   5. After that, *GWT CodeServer* will compile the module incrementally.
+   6. Refresh the page and that's it! The changes are live.
+
+Logs can be found at http://localhost:9876/log/ode and SourceMaps at http://localhost:9876/sourcemaps/ode
+
 ## Need help?
-Contact us through our [Google Group](https://groups.google.com/forum/#!forum/app-inventor-open-source-dev) or [G+ community](https://plus.google.com/u/0/b/116831753302186936352/116831753302186936352/posts).
+Join [our community](https://community.appinventor.mit.edu/).

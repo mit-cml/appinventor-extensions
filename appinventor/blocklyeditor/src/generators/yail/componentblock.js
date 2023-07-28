@@ -27,17 +27,28 @@ goog.provide('Blockly.Yail.componentblock');
  * @returns {Function} event code generation function with instanceName and eventName bound in
  */
 Blockly.Yail.component_event = function() {
-  var body = Blockly.Yail.statementToCode(this, 'DO', Blockly.Yail.ORDER_NONE);
+
+  var preamble;
+  if (this.isGeneric) {
+    preamble = Blockly.Yail.YAIL_DEFINE_GENERIC_EVENT
+      + this.typeName
+      + Blockly.Yail.YAIL_SPACER
+      + this.eventName;
+  } else {
+    preamble = Blockly.Yail.YAIL_DEFINE_EVENT
+      + this.getFieldValue("COMPONENT_SELECTOR")
+      + Blockly.Yail.YAIL_SPACER
+      + this.eventName;
+  }
+
+  var body = Blockly.Yail.statementToCode(this, 'DO');
   // TODO: handle deactivated block, null body
   if(body == ""){
     body = Blockly.Yail.YAIL_NULL;
   }
 
 
-  var code = Blockly.Yail.YAIL_DEFINE_EVENT
-    + this.getFieldValue("COMPONENT_SELECTOR")
-    + Blockly.Yail.YAIL_SPACER
-    + this.eventName
+  var code = preamble
     + Blockly.Yail.YAIL_OPEN_COMBINATION
     // TODO: formal params go here
     // declaredNames gives us names in local language, but we want the default
@@ -142,7 +153,9 @@ Blockly.Yail.methodHelper = function(methodBlock, name, methodName, generic) {
 // type information associated with the socket. The component parameter is treated differently
 // here than the other method parameters. This may be fine, but consider whether
 // to get the type for the first socket in a more general way in this case.
-  var paramObjects = methodBlock.getMethodTypeObject().parameters;
+  var methodObject = methodBlock.getMethodTypeObject();
+  var continuation = methodObject['continuation'];
+  var paramObjects = methodObject.parameters;
   var numOfParams = paramObjects.length;
   var yailTypes = [];
   if(generic) {
@@ -155,12 +168,12 @@ Blockly.Yail.methodHelper = function(methodBlock, name, methodName, generic) {
   var callPrefix;
   if (generic) {
     name = componentDb.getType(name).type;
-    callPrefix = Blockly.Yail.YAIL_CALL_COMPONENT_TYPE_METHOD
+    callPrefix = continuation ? Blockly.Yail.YAIL_CALL_COMPONENT_TYPE_METHOD_BLOCKING : Blockly.Yail.YAIL_CALL_COMPONENT_TYPE_METHOD
         // TODO(hal, andrew): check for empty socket and generate error if necessary
         + Blockly.Yail.valueToCode(methodBlock, 'COMPONENT', Blockly.Yail.ORDER_NONE)
         + Blockly.Yail.YAIL_SPACER;
   } else {
-    callPrefix = Blockly.Yail.YAIL_CALL_COMPONENT_METHOD;
+    callPrefix = continuation ? Blockly.Yail.YAIL_CALL_COMPONENT_METHOD_BLOCKING : Blockly.Yail.YAIL_CALL_COMPONENT_METHOD;
     name = methodBlock.getFieldValue("COMPONENT_SELECTOR");
     // special case for handling Clock.Add
     var timeUnit = methodBlock.getFieldValue("TIME_UNIT");
@@ -319,5 +332,19 @@ Blockly.Yail.genericGetproperty = function(typeName) {
  */
 Blockly.Yail.component_component_block = function() {
   return [Blockly.Yail.YAIL_GET_COMPONENT + this.getFieldValue("COMPONENT_SELECTOR") + Blockly.Yail.YAIL_CLOSE_COMBINATION,
+          Blockly.Yail.ORDER_ATOMIC];
+};
+
+/**
+ * Returns a function that takes no arguments, generates Yail to get a list of all
+ * components of a type, and returns a 2-element array containing the component
+ * getter code and the operation order Blockly.Yail.ORDER_ATOMIC.
+ *
+ * @param {String} instanceName
+ * @returns {Function} component getter code generation function with instanceName bound in
+ */
+Blockly.Yail['component_all_component_block'] = function() {
+  var fqcn = this.workspace.getComponentDatabase().getType(this.getFieldValue("COMPONENT_TYPE_SELECTOR")).componentInfo.type;
+  return [Blockly.Yail.YAIL_GET_ALL_COMPONENT + fqcn + Blockly.Yail.YAIL_CLOSE_COMBINATION,
           Blockly.Yail.ORDER_ATOMIC];
 };

@@ -1,24 +1,35 @@
 // -*- mode: java; c-basic-offset: 2; -*-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2012 MIT, All rights reserved
+// Copyright 2011-2019 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
 package com.google.appinventor.components.runtime.util;
 
 import gnu.lists.FString;
+import gnu.math.IntNum;
 
-import junit.framework.TestCase;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
+import org.robolectric.annotation.Config;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests YailList class.
  *
  */
-public class YailListTest extends TestCase {
+@RunWith(RobolectricTestRunner.class)
+@Config(sdk = 23, manifest="tests/AndroidManifest.xml")
+public class YailListTest {
 
+  @Test
   public void testEmptyList() {
     YailList yailList = new YailList();
     assertEquals(0, yailList.size());
@@ -38,6 +49,7 @@ public class YailListTest extends TestCase {
     }
   }
 
+  @Test
   public void testToString() {
     Object[] object = {"Houston", "we", "have", "a", "problem"};
     YailList yailList = YailList.makeList(object);
@@ -54,6 +66,7 @@ public class YailListTest extends TestCase {
     assertEquals("(4 [one, two, three] 6)", yailList.toString());
   }
 
+  @Test
   public void testToStringArray() {
     Object[] object = {"Houston", "we", "have", "a", "problem"};
     YailList yailList = YailList.makeList(object);
@@ -63,17 +76,20 @@ public class YailListTest extends TestCase {
     }
   }
 
+  @Test
   public void testEmptyJsonStringOutput() {
     YailList yailList = new YailList();
     assertEquals("[]", yailList.toJSONString());
   }
 
+  @Test
   public void testJsonStringOutput() {
     Object[] object = {"Houston", "we", "have", "a", "problem"};
     YailList yailList = YailList.makeList(object);
     assertEquals("[\"Houston\",\"we\",\"have\",\"a\",\"problem\"]", yailList.toJSONString());
   }
 
+  @Test
   public void testJsonStringOutputOfFString() {
     Object[] object = {new FString("Houston"), new FString("we"), new FString("have"),
         new FString("a"), new FString("problem")};
@@ -81,12 +97,14 @@ public class YailListTest extends TestCase {
     assertEquals("[\"Houston\",\"we\",\"have\",\"a\",\"problem\"]", yailList.toJSONString());
   }
 
+  @Test
   public void testJsonStringOutputOfNumber() {
     Object[] object = {new Integer(8), 9, 8.5};
     YailList yailList = YailList.makeList(object);
     assertEquals("[8,9,8.5]", yailList.toJSONString());
   }
 
+  @Test
   public void testJsonStringOutputOfHeterogenousItems() {
     Object[] firstList = {"Houston", "we", "have", "a", "problem"};
     Object[] secondList = {"China", "we", "have", "an", "ultimatum"};
@@ -103,6 +121,7 @@ public class YailListTest extends TestCase {
     assertEquals(correctOutput, yailList.toJSONString());
   }
 
+  @Test
   public void testJsonStringOutputOfDeepNestedList() {
     Object [] firstList = {"a"};
     Object [] secondList = {firstList, "b"};
@@ -113,6 +132,7 @@ public class YailListTest extends TestCase {
     assertEquals(correctOutput, yailList.toJSONString());
   }
 
+  @Test
   public void testJsonStringOutputOfNestedYailList() {
     Object [] firstList = {"a", "b"};
     Object [] secondList = {"a", "b"};
@@ -123,6 +143,7 @@ public class YailListTest extends TestCase {
     assertEquals(correctOutput, yailListTwo.toJSONString());
   }
 
+  @Test
   public void testCreationFromJavaList() {
     ArrayList<String> testList = new ArrayList<String>();
     testList.add("tom");
@@ -151,6 +172,7 @@ public class YailListTest extends TestCase {
     }
   }
 
+  @Test
   public void testCreationFromJavaCollection() {
     HashSet<String> testSet = new HashSet<String>();
     testSet.add("blind mouse #1");
@@ -179,6 +201,7 @@ public class YailListTest extends TestCase {
     }
   }
 
+  @Test
   public void testCreationFromArray() {
     String[] testArray = {"Mahmoud Ahmadinejad", "Alvin Stardust", "The Hamburglar"};
     YailList yailList = YailList.makeList(testArray);
@@ -202,5 +225,14 @@ public class YailListTest extends TestCase {
     } catch (IndexOutOfBoundsException e) {
       // this is the intended behavior
     }
+  }
+
+  @Test
+  public void testBigNumsInStringArray() {
+    YailList list = YailList.makeList(new Object[] { IntNum.make(Long.MAX_VALUE), (Long) Long.MAX_VALUE });
+    String[] strings = list.toStringArray();
+    assertEquals(2, strings.length);
+    assertEquals(Long.toString(Long.MAX_VALUE), strings[0]);
+    assertEquals(Long.toString(Long.MAX_VALUE), strings[1]);
   }
 }

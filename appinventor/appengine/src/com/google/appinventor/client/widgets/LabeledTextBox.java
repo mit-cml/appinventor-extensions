@@ -1,12 +1,13 @@
 // -*- mode: java; c-basic-offset: 2; -*-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2012 MIT, All rights reserved
+// Copyright 2011-2020 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
 package com.google.appinventor.client.widgets;
 
 import com.google.gwt.user.client.ui.Composite;
+import com.google.gwt.user.client.ui.HasVerticalAlignment;
 import com.google.gwt.user.client.ui.HorizontalPanel;
 import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.TextBox;
@@ -35,10 +36,13 @@ public class LabeledTextBox extends Composite {
     HorizontalPanel panel = new HorizontalPanel();
     Label label = new Label(caption);
     panel.add(label);
+    panel.setCellVerticalAlignment(label, HasVerticalAlignment.ALIGN_MIDDLE);
     textbox = new TextBox();
+    textbox.setStylePrimaryName("ode-LabeledTextBox");
     textbox.setWidth("100%");
     panel.add(textbox);
     panel.setCellWidth(label, "40%");
+    panel.setCellVerticalAlignment(textbox, HasVerticalAlignment.ALIGN_MIDDLE);
 
     initWidget(panel);
 
@@ -57,11 +61,14 @@ public class LabeledTextBox extends Composite {
     HorizontalPanel panel = new HorizontalPanel();
     Label label = new Label(caption);
     panel.add(label);
+    panel.setCellVerticalAlignment(label, HasVerticalAlignment.ALIGN_MIDDLE);
     textbox = new TextBox();
+    textbox.setStylePrimaryName("ode-LabeledTextBox");
     defaultTextBoxColor = textbox.getElement().getStyle().getBorderColor();
     textbox.setWidth("100%");
     panel.add(textbox);
     panel.setCellWidth(label, "40%");
+    panel.setCellVerticalAlignment(textbox, HasVerticalAlignment.ALIGN_MIDDLE);
 
     HorizontalPanel errorPanel = new HorizontalPanel();
     errorLabel = new Label("");
@@ -149,6 +156,10 @@ public class LabeledTextBox extends Composite {
     this.errorMessage = errorMessage;
   }
 
+  public void setColor(String color) {
+    textbox.getElement().getStyle().setBorderColor(color);
+  }
+
   /**
    * Check to see if a textbox contains valid text. True if text is valid, false otherwise
    *
@@ -168,8 +179,14 @@ public class LabeledTextBox extends Composite {
    */
   private void setErrorStyles(boolean validationResult) {
     if (validationResult) {
-      textbox.getElement().getStyle().setBorderColor(defaultTextBoxColor);
-      errorLabel.setText("");
+      if (errorMessage.length() > 0) { // handling warnings
+        String warningColor = "yellow";
+        textbox.getElement().getStyle().setBorderColor(warningColor);
+        errorLabel.setText(errorMessage);
+      } else {
+        textbox.getElement().getStyle().setBorderColor(defaultTextBoxColor);
+        errorLabel.setText("");
+      }
     } else {
       String errorColor = "red";
       textbox.getElement().getStyle().setBorderColor(errorColor);

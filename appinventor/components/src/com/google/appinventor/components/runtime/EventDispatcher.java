@@ -189,6 +189,7 @@ public class EventDispatcher {
     if (DEBUG) {
       Log.i("EventDispatcher", "Trying to dispatch event " + eventName);
     }
+    args = OptionHelper.optionListsFromValues(component, eventName, args);
     boolean dispatched = false;
     HandlesEventDispatching dispatchDelegate = component.getDispatchDelegate();
     if (dispatchDelegate.canDispatchEvent(component, eventName)) {
@@ -197,6 +198,7 @@ public class EventDispatcher {
       if (eventClosures != null && eventClosures.size() > 0) {
         dispatched = delegateDispatchEvent(dispatchDelegate, eventClosures, component, args);
       }
+      dispatchDelegate.dispatchGenericEvent(component, eventName, !dispatched, args);
     }
     return dispatched;
   }

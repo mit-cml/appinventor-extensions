@@ -28,3 +28,17 @@
   fill: #ddd;
   fill-opacity: .8;
 }
+
+.blocklybackpackImage:hover {
+  cursor: pointer;
+}
+
+.blocklyZoomButton:hover {
+  cursor: pointer;
+}
+
+.dyslexic .blocklyText,
+.dyslexic .blocklyFieldParameter,
+.dyslexic .goog-menuitem .goog-menuitem-content {
+  font-family: OpenDyslexic, Helvetica, Arial, sans-serif;
+}

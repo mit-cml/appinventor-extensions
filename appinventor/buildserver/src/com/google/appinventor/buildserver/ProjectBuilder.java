@@ -1,17 +1,16 @@
 // -*- mode: java; c-basic-offset: 2; -*-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2012 MIT, All rights reserved
+// Copyright 2011-2021 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
 package com.google.appinventor.buildserver;
 
+import com.google.appinventor.buildserver.stats.StatReporter;
 import com.google.appinventor.common.utils.StringUtils;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
-import com.google.common.collect.Collections2;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -28,10 +27,13 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -86,6 +88,8 @@ public final class ProjectBuilder {
     return outputKeystore;
   }
 
+  private final StatReporter statReporter;
+
   /**
    * Creates a new directory beneath the system's temporary directory (as
    * defined by the {@code java.io.tmpdir} system property), and returns its
@@ -118,8 +122,13 @@ public final class ProjectBuilder {
         + baseNamePrefix + "0 to " + baseNamePrefix + (TEMP_DIR_ATTEMPTS - 1) + ')');
   }
 
-  Result build(String userName, ZipFile inputZip, File outputDir, boolean isForCompanion,
-    int childProcessRam, String dexCachePath, BuildServer.ProgressReporter reporter) {
+  public ProjectBuilder(StatReporter statReporter) {
+    this.statReporter = statReporter;
+  }
+
+  Result build(String userName, ZipFile inputZip, File outputDir, String outputFileName,
+    boolean isForCompanion, boolean isForEmulator, boolean includeDangerousPermissions, String[] extraExtensions,
+    int childProcessRam, String dexCachePath, BuildServer.ProgressReporter reporter, boolean isAab) {
     try {
       // Download project files into a temporary directory
       File projectRoot = createNewTempDir();
@@ -152,13 +161,21 @@ public final class ProjectBuilder {
         ByteArrayOutputStream errors = new ByteArrayOutputStream();
         PrintStream userErrors = new PrintStream(errors);
 
-        Set<String> componentTypes = isForCompanion ? getAllComponentTypes() :
-            getComponentTypes(sourceFiles, project.getAssetsDirectory());
+        Set<String> componentTypes = getComponentTypes(sourceFiles, project.getAssetsDirectory());
+        if (isForCompanion) {
+          componentTypes.addAll(getAllComponentTypes());
+        }
+        if (extraExtensions != null) {
+          System.err.println("Including extension: " + Arrays.toString(extraExtensions));
+          Collections.addAll(componentTypes, extraExtensions);
+        }
+        Map<String, Set<String>> componentBlocks = getComponentBlocks(sourceFiles);
 
         // Invoke YoungAndroid compiler
         boolean success =
-            Compiler.compile(project, componentTypes, console, console, userErrors, isForCompanion,
-                             keyStorePath, childProcessRam, dexCachePath, reporter);
+            Compiler.compile(project, componentTypes, componentBlocks, console, console, userErrors,
+                isForCompanion, isForEmulator, includeDangerousPermissions, keyStorePath,
+                childProcessRam, dexCachePath, outputFileName, reporter, isAab, statReporter);
         console.close();
         userErrors.close();
 
@@ -169,8 +186,12 @@ public final class ProjectBuilder {
 
         if (success) {
           // Locate output file
+          String fileName = outputFileName;
+          if (fileName == null) {
+            fileName = project.getProjectName() + (isAab ? ".aab" : ".apk");
+          }
           File outputFile = new File(projectRoot,
-              "build/deploy/" + project.getProjectName() + ".apk");
+              "build/deploy/" + fileName);
           if (!outputFile.exists()) {
             LOG.warning("Young Android build - " + outputFile + " does not exist");
           } else {
@@ -245,6 +266,48 @@ public final class ProjectBuilder {
       }
     }
     return componentTypes;
+  }
+
+  /**
+   * Constructs a mapping of component types to the blocks of each type used in
+   * the project files. Properties specified in the designer are considered
+   * blocks for the purposes of this operation.
+   *
+   * @param files A list of files contained in the project.
+   * @return A mapping of component type names to sets of block names used in
+   * the project
+   * @throws IOException if any of the files named in {@code files} cannot be
+   * read
+   */
+  private static Map<String, Set<String>> getComponentBlocks(List<String> files)
+      throws IOException {
+    Map<String, Set<String>> result = new HashMap<>();
+    for (String f : files) {
+      if (f.endsWith(".bky")) {
+        File bkyFile = new File(f);
+        String bkyContent = Files.toString(bkyFile, StandardCharsets.UTF_8);
+        for (Map.Entry<String, Set<String>> entry :
+            FormPropertiesAnalyzer.getComponentBlocksFromBlocksFile(bkyContent).entrySet()) {
+          if (result.containsKey(entry.getKey())) {
+            result.get(entry.getKey()).addAll(entry.getValue());
+          } else {
+            result.put(entry.getKey(), entry.getValue());
+          }
+        }
+      } else if (f.endsWith(".scm")) {
+        File scmFile = new File(f);
+        String scmContent = Files.toString(scmFile, StandardCharsets.UTF_8);
+        for (Map.Entry<String, Set<String>> entry :
+            FormPropertiesAnalyzer.getComponentBlocksFromSchemeFile(scmContent).entrySet()) {
+          if (result.containsKey(entry.getKey())) {
+            result.get(entry.getKey()).addAll(entry.getValue());
+          } else {
+            result.put(entry.getKey(), entry.getValue());
+          }
+        }
+      }
+    }
+    return result;
   }
 
   /**

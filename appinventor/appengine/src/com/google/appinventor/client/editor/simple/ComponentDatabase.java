@@ -50,6 +50,9 @@ class ComponentDatabase implements ComponentDatabaseInterface {
     components = new HashMap<String, ComponentDefinition>();
     List<String> newComponents = new ArrayList<String>();
     for (JSONValue component : array.getElements()) {
+      if (component.asObject().get("external").asString().getString().equals("true")) {
+        continue;
+      }
       if (initComponent(component.asObject())) {
         newComponents.add(component.asObject().get("name").asString().getString());
       }
@@ -134,6 +137,26 @@ class ComponentDatabase implements ComponentDatabaseInterface {
   }
 
   @Override
+  public String getComponentVersionName(String componentName) {
+    ComponentDefinition component = components.get(componentName);
+    if (component == null) {
+      throw new ComponentNotFoundException(componentName);
+    }
+
+    return component.getVersionName();
+  }
+
+  @Override
+  public String getComponentBuildDate(String componentName) {
+    ComponentDefinition component = components.get(componentName);
+    if (component == null) {
+      throw new ComponentNotFoundException(componentName);
+    }
+
+    return component.getDateBuilt();
+  }
+
+  @Override
   public String getComponentType(String componentName){
     ComponentDefinition component = components.get(componentName);
     if(component == null){
@@ -147,7 +170,7 @@ class ComponentDatabase implements ComponentDatabaseInterface {
   public String getComponentName(String componentType) {
     for (String componentName : components.keySet()) {
       ComponentDefinition component = components.get(componentName);
-      if (component.getType() == componentType) {
+      if (componentType.equals(component.getType())) {
         return componentName;
       }
     }
@@ -233,6 +256,15 @@ class ComponentDatabase implements ComponentDatabaseInterface {
   }
 
   @Override
+  public String getLicenseName(String componentName) {
+    ComponentDefinition component = components.get(componentName);
+    if (component == null) {
+      throw new ComponentNotFoundException(componentName);
+    }
+    return component.getLicenseName();
+  }
+
+  @Override
   public List<PropertyDefinition> getPropertyDefinitions(String componentName) {
     ComponentDefinition component = components.get(componentName);
     if (component == null) {
@@ -309,6 +341,8 @@ class ComponentDatabase implements ComponentDatabaseInterface {
     }
     ComponentDefinition component = new ComponentDefinition(name,
         Integer.parseInt(properties.get("version").asString().getString()),
+        optString(properties.get("versionName"), ""),
+        optString(properties.get("dateBuilt"), ""),
         properties.get("type").asString().getString(),
         Boolean.valueOf(properties.get("external").asString().getString()),
         properties.get("categoryString").asString().getString(),
@@ -316,13 +350,29 @@ class ComponentDatabase implements ComponentDatabaseInterface {
         properties.containsKey("helpUrl") ? properties.get("helpUrl").asString().getString() : "",
         Boolean.valueOf(properties.get("showOnPalette").asString().getString()),
         Boolean.valueOf(properties.get("nonVisible").asString().getString()),
-        properties.get("iconName").asString().getString(), componentNode.toJson());
+        properties.get("iconName").asString().getString(),
+        properties.containsKey("licenseName") ? properties.get("licenseName").asString().getString() : "",
+        componentNode.toJson());
     findComponentProperties(component, properties.get("properties").asArray());
     findComponentBlockProperties(component, properties.get("blockProperties").asArray());
     findComponentEvents(component, properties.get("events").asArray());
     findComponentMethods(component, properties.get("methods").asArray());
     components.put(component.getName(), component);
     return true;
+  }
+
+  /**
+   * Extracts a string from the given value. If value is null, returns the defaultValue.
+   * @param value JSON value to process
+   * @param defaultValue Alternative value if {@code value} is not valid
+   * @return A non-null String containing either the String version of {@code value} or
+   * {@code defaultValue}
+   */
+  private String optString(JSONValue value, String defaultValue) {
+    if (value == null) {
+      return defaultValue;
+    }
+    return value.asString().getString();
   }
 
   /*
@@ -464,7 +514,7 @@ class ComponentDatabase implements ComponentDatabaseInterface {
 
   private void fireResetDatabase() {
     for (ComponentDatabaseChangeListener listener : copyComponentDatbaseChangeListeners()) {
-      listener.onResetDatabase();;
+      listener.onResetDatabase();
     }
   }
 

@@ -190,10 +190,10 @@ Blockly.Blocks['procedures_defnoreturn'] = {
     // [lyn, 10/28/13] I thought this rerendering was unnecessary. But I was wrong!
     // Without it, get bug noticed by Andrew in which toggling horizontal -> vertical params
     // in procedure decl doesn't handle body tag appropriately!
+    for (var i = 0; i < this.inputList.length; i++) {
+      this.inputList[i].init();
+    }
     if (this.rendered) {
-      for (var i = 0; i < this.inputList.length; i++) {
-        this.inputList[i].init();
-      }
       this.render();
     }
     if (this.workspace.loadCompleted) {  // set in BlocklyPanel.java on successful load
@@ -249,16 +249,8 @@ Blockly.Blocks['procedures_defnoreturn'] = {
       var newArguments = procDecl.arguments_;
       newArguments[paramIndex] = newParamName;
 
-      var procName = procDecl.getFieldValue('NAME');
-
       // 1. Change all callers so label reflects new name
       Blockly.Procedures.mutateCallers(procDecl);
-
-      var callers = Blockly.Procedures.getCallers(procName, procWorkspace);
-      for (var x = 0; x < callers.length; x++) {
-        var block = callers[x];
-        Blockly.Blocks.Utilities.renameCollapsed(block, 0);
-      }
 
       // 2. If there's an open mutator, change the name in the corresponding slot.
       if (procDecl.mutator && procDecl.mutator.rootBlock_) {
@@ -390,7 +382,8 @@ Blockly.Blocks['procedures_defnoreturn'] = {
     Blockly.BlockSvg.prototype.dispose.apply(this, arguments);
 
     var procDb = workspace.getProcedureDatabase();
-    if (editable && procDb) {  // only true for the top-level workspaces, not flyouts/flydowns
+    if (editable && procDb && workspace == Blockly.mainWorkspace) {
+      // only remove for the top-level workspaces, not flyouts/flydowns
       procDb.removeProcedure(this.id);
     }
 
@@ -412,6 +405,9 @@ Blockly.Blocks['procedures_defnoreturn'] = {
   },
   declaredNames: function() { // [lyn, 10/11/13] return the names of all parameters of this procedure
      return this.getVars();
+  },
+  declaredVariables: function() {
+    return this.getVars();
   },
   renameVar: function(oldName, newName) {
     this.renameVars(Blockly.Substitution.simpleSubstitution(oldName,newName));
@@ -466,6 +462,7 @@ Blockly.Blocks['procedures_defnoreturn'] = {
       ' ' + Blockly.Msg.LANG_PROCEDURES_DEFNORETURN_DO }],
   customContextMenu: function (options) {
     Blockly.FieldParameterFlydown.addHorizontalVerticalOption(this, options);
+    Blockly.BlocklyEditor.addPngExportOption(this, options);
   },
   getParameters: function() {
     return this.arguments_;
@@ -506,6 +503,7 @@ Blockly.Blocks['procedures_defreturn'] = {
   getProcedureDef: Blockly.Blocks.procedures_defnoreturn.getProcedureDef,
   getVars: Blockly.Blocks.procedures_defnoreturn.getVars,
   declaredNames: Blockly.Blocks.procedures_defnoreturn.declaredNames,
+  declaredVariables: Blockly.Blocks.procedures_defnoreturn.declaredVariables,
   renameVar: Blockly.Blocks.procedures_defnoreturn.renameVar,
   renameVars: Blockly.Blocks.procedures_defnoreturn.renameVars,
   renameBound: Blockly.Blocks.procedures_defnoreturn.renameBound,
@@ -689,7 +687,6 @@ Blockly.Blocks['procedures_callnoreturn'] = {
   renameProcedure: function(oldName, newName) {
     if (Blockly.Names.equals(oldName, this.getFieldValue('PROCNAME'))) {
       this.setFieldValue(newName, 'PROCNAME');
-      Blockly.Blocks.Utilities.renameCollapsed(this, 0);
     }
   },
   // [lyn, 10/27/13] Renamed "fromChange" parameter to "startTracking", because it should be true in any situation
@@ -845,20 +842,7 @@ Blockly.Blocks['procedures_callnoreturn'] = {
       var def = Blockly.Procedures.getDefinition(name, workspace);
       if (def) {
         def.select();
-        var event = new AI.Events.WorkspaceMove(workspace.id);
-
-        // Attempt to center the definition block, but preserve a minimum X, Y position so that
-        // the definition of the block always appears on screen for visually large procedures
-        var xy = def.getRelativeToSurfaceXY();
-        var wh = def.getHeightWidth();
-        var metrics = def.workspace.getMetrics();
-        var minTop = xy.y - metrics.contentTop;
-        var minLeft = xy.x - metrics.contentLeft;
-        var midX = minLeft + (wh.width - metrics.viewWidth) / 2;
-        var midY = minTop + (wh.height - metrics.viewHeight) / 2;
-        def.workspace.scrollbar.set(Math.min(minLeft, midX), Math.min(minTop, midY));
-        event.recordNew();
-        Blockly.Events.fire(event);
+        workspace.centerOnBlock(def.id);
         workspace.getParentSvg().parentElement.focus();
       }
     };
@@ -918,4 +902,3 @@ Blockly.Blocks['procedures_callreturn'] = {
   // blocks have not been loaded yet (they are loaded in typeblock.js)
   typeblock: [{ translatedName: Blockly.Msg.LANG_PROCEDURES_CALLRETURN_TRANSLATED_NAME}]
 };
-
