@@ -1931,7 +1931,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
     }
   }
 
-  @SimpleProperty
+  @SimpleProperty(category = PropertyCategory.BEHAVIOR)
   public boolean NullTerminateStrings() {
     if (inner != null) {
       return inner.isNullTerminatedStrings();

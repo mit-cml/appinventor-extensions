@@ -1,5 +1,5 @@
 // -*- mode: java; c-basic-offset: 2; -*-
-// Copyright © 2013-2022 Massachusetts Institute of Technology, All rights reserved
+// Copyright © 2013-2024 Massachusetts Institute of Technology, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 /**
@@ -41,6 +41,33 @@ Blockly.Versioning.log = function log(string) { // Display feedback on upgrade i
 };
 
 /**
+ * Updates the `<mutation>` element of `component_method` blocks to include a `shape` field that
+ * the block can use to shape itself properly in the event that the method definition is
+ * unavailable.
+ *
+ * @param {Element} dom the root of the workspace XML document
+ * @returns {Element}
+ */
+Blockly.Versioning.upgradeComponentMethods = function(dom) {
+  var els = dom.querySelectorAll('block[type="component_method"]');
+  for (var i = 0; i < els.length; i++) {
+    var el = els[i];
+    var parent = el.parentElement;
+    var mutation = el.querySelector('mutation');
+    if (!mutation) {
+      console.warn('component_method without mutation', el);
+      return;
+    }
+    if (!parent) {
+      // detached block
+      return;
+    }
+    mutation.setAttribute('shape', parent.tagName.toLowerCase());
+  }
+  return dom;
+};
+
+/**
  * [lyn, 2014/11/04] Simplified version of Halloween AI2 upgrading architecture.
  *
  * @param preUpgradeFormJsonString: JSON String from pre-upgrade Form associated with these blocks
@@ -69,6 +96,7 @@ Blockly.Versioning.upgrade = function (preUpgradeFormJsonString, blocksContent, 
   opt_workspace = opt_workspace || Blockly.mainWorkspace;
   var preUpgradeFormJsonObject = JSON.parse(preUpgradeFormJsonString);
   var dom = Blockly.Xml.textToDom(blocksContent); // Initial blocks rep is dom for blocksContent
+  dom = Blockly.Versioning.upgradeComponentMethods(dom);
   var didUpgrade = false;
 
   /**
@@ -155,6 +183,13 @@ Blockly.Versioning.upgrade = function (preUpgradeFormJsonString, blocksContent, 
       systemYoungAndroidVersion >= 218) {
     // Spreadsheet was introduced as GoogleSheets in 217 but renamed in 218
     blocksRep = Blockly.Versioning.renameComponentType("GoogleSheets", "Spreadsheet")(blocksRep);
+  }
+
+  if ((versionTags.length === 0 ||
+       parseInt(versionTags[0].getAttribute('ya-version'), 10) <= 227) &&
+       systemYoungAndroidVersion >= 228) {
+    // Trendline was introduced as LineOfBestFit in 227 but renamed in 228
+    blocksRep = Blockly.Versioning.renameComponentType('LineOfBestFit', 'Trendline')(blocksRep);
   }
 
   // --------------------------------------------------------------------------------
@@ -1155,6 +1190,10 @@ Blockly.Versioning.tryReplaceBlockWithDropdown =
       return;
     }
     var field = Blockly.Versioning.firstChildWithTagName(targetNode, 'field');
+    if (!field) {
+      // Older projects may use <title> rather than <field> in Blockly XML
+      field = Blockly.Versioning.firstChildWithTagName(targetNode, 'title');
+    }
     var targetValue = field.textContent;
     if (!valueToNameMap[targetValue]) {
       return;
@@ -1197,6 +1236,10 @@ Blockly.Versioning.tryReplaceBlockWithScreen = function(valueNode) {
     return;
   }
   var field = Blockly.Versioning.firstChildWithTagName(targetNode, 'field');
+  if (!field) {
+    // Older projects may use <title> rather than <field> in Blockly XML
+    field = Blockly.Versioning.firstChildWithTagName(targetNode, 'title');
+  }
   var targetValue = field.textContent;
 
   valueNode.removeChild(targetNode);
@@ -1232,6 +1275,10 @@ Blockly.Versioning.tryReplaceBlockWithAssets = function(valueNode, workspace) {
     return;
   }
   var field = Blockly.Versioning.firstChildWithTagName(targetNode, 'field');
+  if (!field) {
+    // Older projects may use <title> rather than <field> in Blockly XML
+    field = Blockly.Versioning.firstChildWithTagName(targetNode, 'title');
+  }
   var targetValue = field.textContent;
   if (workspace.getAssetList().indexOf(targetValue) == -1) {
     // This is probably an http request or something. Don't upgrade.
@@ -1272,6 +1319,31 @@ Blockly.Versioning.tryReplaceBlockWithPermissions =
     }
     Blockly.Versioning.tryReplaceBlockWithDropdown(valueNode, valueMap, 'Permission');
   };
+
+/**
+ * Replaces the block currently attached to the passed value input with a
+ * helper block identified by the given key. The current block is replaced iff
+ * it is a text block.
+ * @param key the helper key to use in place of the current value
+ */
+Blockly.Versioning.tryReplaceBlockWithHelper = function(key) {
+  return function(valueNode, workspace) {
+    if (!valueNode) {
+      return;
+    }
+    var valueMap = Blockly.Versioning
+        .getOptionListValueMap(workspace, key);
+    var entries = Object.entries(valueMap);
+    for (var i = 0, pair; pair = entries[i]; i++) {
+      var k = pair[0];
+      var v = pair[1];
+      if (valueMap.hasOwnProperty(key)) {
+        valueMap[k] = v;
+      }
+    }
+    Blockly.Versioning.tryReplaceBlockWithDropdown(valueNode, valueMap, key);
+  };
+};
 
 /**
  * Returns the list of top-level blocks that are event handlers for the given eventName for
@@ -1529,6 +1601,12 @@ Blockly.Versioning.AllUpgradeMaps =
 
   }, // End ActivityStarter upgraders
 
+  "AnomalyDetection": {
+    // AI2: The AnomalyDetection.DetectAnomaliesInChartData method was added.
+    // No blocks need to be modified to upgrade to version 2.
+    2: "noUpgrade"
+  }, // End AnomalyDetection upgraders
+
   "Ball": {
 
     // AI1: The PointTowards method was added (for all sprites).
@@ -1772,13 +1850,24 @@ Blockly.Versioning.AllUpgradeMaps =
   }, // End Canvas upgraders
 
   "Chart": {
-    2: "noUpgrade"
+    // AI2: The SetDomain and SetRange methods were added.
+    2: "noUpgrade",
+    // AI2: The ExtendDomainToInclude and ExtendRangeToInclude methods were added.
+    3: "noUpgrade"
 
   }, // End Chart upgraders
 
   "ChartData2D": {
 
   }, // End ChartData2D upgraders
+
+  "ChatBot" : {
+    //This is the initial version. Placeholder for future upgrades
+    1: "noUpgrade",
+
+    // The ApiKey property was made visible in the designer
+    2: "noUpgrade",
+  }, // End ChatBot upgraders
 
   "CheckBox": {
 
@@ -1882,7 +1971,18 @@ Blockly.Versioning.AllUpgradeMaps =
     2: "ai1CantDoUpgrade", // Just indicates we couldn't do upgrade even if we wanted to
 
     // RequestFocus was added
-    3: "noUpgrade"
+    3: "noUpgrade",
+
+    // AI2: Jump to match Kodular's version of EmailPicker (6).
+    4: "noUpgrade",
+    5: "noUpgrade",
+    6: "noUpgrade",
+
+    // TextChanged event, HintColor property, MoveCursorTo, MoveCursorToEnd and MoveCursorToStart methods were added.
+    7: [
+      Blockly.Versioning.changeMethodName("EmailPicker", "SetCursorAt", "MoveCursorTo"),
+      Blockly.Versioning.changeMethodName("EmailPicker", "SetCursorAtEnd", "MoveCursorToEnd"),
+      Blockly.Versioning.changeEventName("EmailPicker", "OnTextChanged", "TextChanged")]
 
   }, // End EmailPicker upgraders
 
@@ -2022,6 +2122,14 @@ Blockly.Versioning.AllUpgradeMaps =
         'Image', 'Picture', Blockly.Versioning.tryReplaceBlockWithAssets)
 
   }, // End Image upgraders
+
+  "ImageBot": {
+    // This is the initial version. Placeholder for future upgrades
+    1: "noUpgrade",
+
+    // The ApiKey property was made visible in the designer
+    2: "noUpgrade",
+  },  // End ImageBot upgraders
 
   "ImagePicker": {
 
@@ -2332,7 +2440,10 @@ Blockly.Versioning.AllUpgradeMaps =
     5: "noUpgrade",
     // AI2:
     // - Added ...
-    6: "noUpgrade"
+    6: "noUpgrade",
+    // AI2:
+    // - Added RemoveItemAtList method
+    7: "noUpgrade"
 
   }, // End ListView upgraders
 
@@ -2684,7 +2795,16 @@ Blockly.Versioning.AllUpgradeMaps =
     4: "noUpgrade",
 
     // NumbersOnly was added
-    5: "noUpgrade"
+    5: "noUpgrade",
+
+    // AI2: Jump to match Kodular's version of PasswordTextBox (6).
+    6: "noUpgrade",
+
+    // TextChanged event, HintColor property, MoveCursorTo, MoveCursorToEnd and MoveCursorToStart methods were added.
+    7: [
+      Blockly.Versioning.changeMethodName("PasswordTextBox", "SetCursorAt", "MoveCursorTo"),
+      Blockly.Versioning.changeMethodName("PasswordTextBox", "SetCursorAtEnd", "MoveCursorToEnd"),
+      Blockly.Versioning.changeEventName("PasswordTextBox", "OnTextChanged", "TextChanged")]
 
   }, // End PasswordTextBox upgraders
 
@@ -2771,6 +2891,13 @@ Blockly.Versioning.AllUpgradeMaps =
     1: "noUpgrade"
 
   }, // End ProximitySensor upgraders
+
+  "Regression": {
+    2: [
+      Blockly.Versioning.makeMethodUseHelper("Regression", "CalculateLineOfBestFitValue", 2,
+        Blockly.Versioning.tryReplaceBlockWithHelper('LOBFValues'))
+    ]
+  },
 
   // Screen is renamed from Form
   "Screen": {
@@ -2922,7 +3049,11 @@ Blockly.Versioning.AllUpgradeMaps =
 
     // For FORM_COMPONENT_VERSION 30:
     // - DefaultFileScope designer property was added
-    30: "noUpgrade"
+    30: "noUpgrade",
+
+    // For FORM_COMPONENT_VERSION 31:
+    // - The default theme was changed in the designer. No block changes required.
+    31: "noUpgrade"
 
   }, // End Screen
 
@@ -3008,7 +3139,10 @@ Blockly.Versioning.AllUpgradeMaps =
       Blockly.Versioning.changeEventParameterName("Spreadsheet", "GotFilterResult", "return_rows", "returnRows"),
       Blockly.Versioning.changeEventParameterName("Spreadsheet", "GotFilterResult", "return_data", "returnData"),
       Blockly.Versioning.changeEventParameterName("Spreadsheet", "GotColumnData", "colDataList", "columnData")
-    ]
+    ],
+
+    3: "noUpgrade"
+    
   },
 
   "TableArrangement": {
@@ -3041,8 +3175,23 @@ Blockly.Versioning.AllUpgradeMaps =
     // AI2: Added RequestFocus method
     5: "noUpgrade",
 
-    // AI3: Added ReadOnly property
-    6: "noUpgrade"
+    // AI2: Added ReadOnly property
+    6: "noUpgrade",
+
+    // AI2: Jump to match Kodular's version of TextBox (13).
+    7: "noUpgrade",
+    8: "noUpgrade",
+    9: "noUpgrade",
+    10: "noUpgrade",
+    11: "noUpgrade",
+    12: "noUpgrade",
+    13: "noUpgrade",
+
+    // AI2: TextChanged event, HintColor property, MoveCursorTo, MoveCursorToEnd and MoveCursorToStart methods were added.
+    14: [
+      Blockly.Versioning.changeMethodName("TextBox", "SetCursorAt", "MoveCursorTo"),
+      Blockly.Versioning.changeMethodName("TextBox", "SetCursorAtEnd", "MoveCursorToEnd"),
+      Blockly.Versioning.changeEventName("TextBox", "OnTextChanged", "TextChanged")]
 
   }, // End TextBox upgraders
 
@@ -3082,7 +3231,10 @@ Blockly.Versioning.AllUpgradeMaps =
 
     // default value was added to the Country designer property
     // default value was added to the Language designer property
-    5: "noUpgrade"
+    5: "noUpgrade",
+
+    // AI2: The Stop method was added.
+    6: "noUpgrade"
 
   }, // End TextToSpeech upgraders
 
@@ -3110,7 +3262,10 @@ Blockly.Versioning.AllUpgradeMaps =
     1: "noUpgrade",
 
     //Added Property: Namespace
-    2: "noUpgrade"
+    2: "noUpgrade",
+
+    //Added blocks GetEntries
+    3: "noUpgrade"
 
   }, // End TinyDB upgraders
 
@@ -3289,7 +3444,10 @@ Blockly.Versioning.AllUpgradeMaps =
     7: "noUpgrade",
 
 	// AI2: Added methods PatchText, PatchTextWithEncoding, and PatchFile
-    8: "noUpgrade"
+    8: "noUpgrade",
+
+    // AI2: Added ResponseTextEncoding property
+    9: "noUpgrade"
 
   }, // End Web upgraders
 
@@ -3345,6 +3503,5 @@ Blockly.Versioning.AllUpgradeMaps =
   "Translator": {
     //This is initial version. Placeholder for future upgrades
     1: "noUpgrade"
-  } // End Translate upgraders
-
+  }, // End Translate upgraders
 };

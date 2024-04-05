@@ -96,7 +96,7 @@ var PROTECT_ENUM_ANDROID = "(define-syntax protect-enum " +
 var PROTECT_ENUM_IOS = "#f))(define-syntax protect-enum " +
   "(syntax-rules () ((_ enum-value number-value) " +
   "(if (equal? \"\" (yail:invoke (yail:invoke AIComponentKit.Form 'getActiveForm) 'VersionName)) " +
-  "#'number-value #'enum-value))))(begin (begin #f";
+  "number-value enum-value))))(begin (begin #f";
 
 // Blockly is only loaded once now, so we can init this here.
 top.ReplState = new Blockly.ReplStateObj();
@@ -588,7 +588,11 @@ Blockly.ReplMgr.putYail = (function() {
                     var code = '(set! ' + symbol + ' (string-append ' + symbol + ' "' + item + '"))';
                     retval.push(code);
                 });
-                retval.push('(eval (read (open-input-string ' + symbol + ')))');
+                if (rs.android) {
+                    retval.push('(eval (read (open-input-string ' + symbol + ')))');
+                } else {
+                    retval.push('(eval (read (open-input-string ' + symbol + ')) "yail")');
+                }
                 retval.push('(set! ' + symbol + ' #!null)'); // so memory is gc'd
                 return retval;
             };
@@ -818,18 +822,28 @@ Blockly.ReplMgr.putYail = (function() {
             }
             rxhr = null;
             top.usewebrtc = false;
+            rs = top.ReplState;
+            if (rs) {
+                rs.hasfetchassets = false;
+            }
             phonereceiving = false;
         },
         "resetcompanion" : function() {
             console.log("reseting companion");
+            rs = top.ReplState;
+            if (!rs) {
+                return;  // ReplState not yet configured, so nothing to do
+            }
             rs.state = Blockly.ReplMgr.rsState.IDLE;
             rs.connection = null;
+            rs.extensionurl = undefined;
             context.resetYail(false);
 //   hardreset is now done in the handler for the network error dialog OK
 //   button.
 //          context.hardreset(context.formName); // kill adb and emulator
             rs.didversioncheck = false;
             rs.android = true;
+            rs.hasfetchassets = false;
             top.BlocklyPanel_indicateDisconnect();
             top.ConnectProgressBar_hide();
             engine.reset();
@@ -919,6 +933,7 @@ Blockly.ReplMgr.triggerUpdate = function() {
         rs.connection = null;
         rs.didversioncheck = false;
         rs.isUSB = false;
+        rs.hasfetchassets = false;
         context.resetYail(false);
         top.BlocklyPanel_indicateDisconnect();
         // End reset companion state
@@ -1366,6 +1381,7 @@ Blockly.ReplMgr.startRepl = function(already, chromebook, emulator, usb) {
     var me = this;
     rs.didversioncheck = false; // Re-check
     rs.isUSB = usb;
+    rs.hasfetchassets = false;
     var RefreshAssets = top.AssetManager_refreshAssets;
     if (rs.phoneState) {
         rs.phoneState.initialized = false; // Make sure we re-send the yail to the Companion
@@ -1381,6 +1397,7 @@ Blockly.ReplMgr.startRepl = function(already, chromebook, emulator, usb) {
             rs.rurl = 'http://127.0.0.1:8001/_values';
             rs.versionurl = 'http://127.0.0.1:8001/_getversion';
             rs.baseurl = 'http://127.0.0.1:8001/';
+            rs.extensionurl = rs.baseurl + '_extensions';
             rs.seq_count = 1;
             rs.count = 0;
             return;             // startAdbDevice callbacks will continue the connection process
@@ -1413,7 +1430,9 @@ Blockly.ReplMgr.startRepl = function(already, chromebook, emulator, usb) {
             }
         }
         try {
-            top.webrtcdata.send("#DONE#"); // This should kill the companion
+            if (top.webrtcdata) {
+                top.webrtcdata.send("#DONE#"); // This should kill the companion
+            }
         } catch (err) {
             console.log("webrtcdata: Error: " + err);
         }
@@ -1458,15 +1477,25 @@ Blockly.ReplMgr.getFromRendezvous = function() {
                 if (rs.dialog) {      // Dialog won't be present when we connect via chromebook
                     rs.dialog.hide(); // Take down the QRCode dialog
                 }
-                // Keep the user informed about the connection
-                top.ConnectProgressBar_start();
-                top.ConnectProgressBar_setProgress(10, Blockly.Msg.DIALOG_FOUND_COMPANION);
                 var json = goog.json.parse(xmlhttp.response);
                 rs.url = 'http://' + json.ipaddr + ':8001/_newblocks';
                 rs.rurl = 'http://' + json.ipaddr + ':8001/_values';
                 rs.versionurl = 'http://' + json.ipaddr + ':8001/_getversion';
                 rs.baseurl = 'http://' + json.ipaddr + ':8001/';
                 rs.android = !(new RegExp('^i(pad)?os$').test((json.os || 'Android').toLowerCase()));
+                if (!(rs.android) && Blockly.ReplMgr.hasDisallowedIosExtensions()) {
+                    rs.dialog.hide();
+                    top.ReplState.state = Blockly.ReplMgr.rsState.IDLE;
+                    top.BlocklyPanel_indicateDisconnect();
+                    rs.connection = null;
+                    var ios_dialog = new Blockly.Util.Dialog(Blockly.Msg.EXTENSIONS, Blockly.Msg.EXTENSIONS_iOS, Blockly.Msg.REPL_CANCEL, true, null, 0, function() {
+                        ios_dialog.hide();
+                    });
+                    return;
+                }
+                // Keep the user informed about the connection
+                top.ConnectProgressBar_start();
+                top.ConnectProgressBar_setProgress(10, Blockly.Msg.DIALOG_FOUND_COMPANION);
                 rs.didversioncheck = true; // We are checking it here, so don't check it later
                                            // via HTTP because we may be using webrtc and there is no
                                           // HTTP
@@ -1501,6 +1530,16 @@ Blockly.ReplMgr.getFromRendezvous = function() {
         }
     };
     xmlhttp.send();
+};
+
+Blockly.ReplMgr.hasDisallowedIosExtensions = function() {
+    var extensions = top.AssetManager_getExtensions();
+    for (var i = 0; i < extensions.length; i++) {
+        if (top.ALLOWED_IOS_EXTENSIONS.indexOf(extensions[i]) == -1) {
+            return true;
+        }
+    }
+    return false;
 };
 
 Blockly.ReplMgr.rendezvousDone = function() {
@@ -1635,6 +1674,7 @@ Blockly.ReplMgr.rendezvousDone = function() {
             rs.connection = null;
             rs.didversioncheck = false;
             rs.isUSB = false;
+            rs.hasfetchassets = false;
             me.resetYail(false);
             top.BlocklyPanel_indicateDisconnect();
             top.ConnectProgressBar_hide();
@@ -1697,10 +1737,29 @@ Blockly.ReplMgr.loadExtensions = function() {
         rs.state = Blockly.ReplMgr.rsState.EXTENSIONS;
         var extensionJson = JSON.stringify(top.AssetManager_getExtensions());
         extensionJson = Blockly.Yail.quotifyForREPL(extensionJson);
-        var yailstring = "(AssetFetcher:loadExtensions "  +
-            extensionJson + ")";
+        var yailstring = "(AssetFetcher:loadExtensions " +
+          extensionJson + ")";
         console.log("Blockly.ReplMgr.loadExtensions: Yail = " + yailstring);
         this.putYail.putAsset(yailstring);
+    } else if (rs.extensionurl) {
+        rs.state = Blockly.ReplMgr.rsState.EXTENSIONS;
+        var xmlhttp = goog.net.XmlHttp();
+        var encoder = new goog.Uri.QueryData();
+        encoder.add('extensions', JSON.stringify(top.AssetManager_getExtensions()));
+        xmlhttp.open('POST', rs.extensionurl, true);
+        xmlhttp.onreadystatechange = function() {
+            /* Older companions do not support ReplMgr providing an extension list. This check below
+             * handles older companions as well as new companions so that we don't break old clients.
+             */
+            if (xmlhttp.readyState === 4 && (this.status === 200 || this.status === 404 || !this.status)) {
+                rs.state = Blockly.ReplMgr.rsState.CONNECTED;
+                Blockly.mainWorkspace.fireChangeListener(new AI.Events.CompanionConnect());
+            } else if (xmlhttp.readyState === 4) {
+                rs.state = Blockly.ReplMgr.rsState.IDLE;
+                top.BlocklyPanel_indicateDisconnect();
+            }
+        };
+        xmlhttp.send(encoder.toString());
     } else {
         rs.state = Blockly.ReplMgr.rsState.CONNECTED;
         Blockly.mainWorkspace.fireChangeListener(new AI.Events.CompanionConnect());
@@ -1890,9 +1949,9 @@ Blockly.ReplMgr.hardreset = function(formName, callback) {
 
 Blockly.ReplMgr.ehardreset = function(formName) {
     var context = this;
-    var dialog = new Blockly.Util.Dialog(Blockly.Msg.REPL_DO_YOU_REALLY_Q, Blockly.Msg.REPL_FACTORY_RESET, Blockly.Msg.REPL_OK, true, Blockly.Msg.REPL_CANCEL, 0, function(response) {
+    var dialog = new Blockly.Util.Dialog(Blockly.Msg.REPL_DO_YOU_REALLY_Q, Blockly.Msg.REPL_FACTORY_RESET, Blockly.Msg.REPL_RESET, true, Blockly.Msg.REPL_CANCEL, 0, function(response) {
         dialog.hide();
-        if (response == Blockly.Msg.REPL_OK) {
+        if (response == Blockly.Msg.REPL_RESET) {
             context.hardreset(formName, function() {
                 var xhr = goog.net.XmlHttp();
                 xhr.open("GET", "http://localhost:8004/emulatorreset/", true);
