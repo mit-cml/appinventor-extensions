@@ -16,6 +16,7 @@ import static com.google.appinventor.components.runtime.util.ErrorMessages.ERROR
 import android.content.pm.PackageManager;
 
 import android.os.Build;
+import android.text.TextUtils;
 import android.util.Log;
 
 import com.google.appinventor.components.annotations.DesignerComponent;
@@ -293,6 +294,20 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
       @Override
       public void run() {
         inner.ConnectWithAddress(address);
+      }
+    });
+  }
+
+  @SimpleFunction
+  @UsesPermissions({BLUETOOTH_SCAN, BLUETOOTH_CONNECT})
+  public void ConnectMatchingName(final String name) {
+    if (inner == null) {
+      return;
+    }
+    permissions.askForPermission(computePermissions(false), "ConnectMatchingName", new Runnable() {
+      @Override
+      public void run() {
+        inner.ConnectMatchingName(name);
       }
     });
   }
@@ -1765,7 +1780,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
     permissions.askForPermission(computePermissions(false), "ScanForDevice", new Runnable() {
       @Override
       public void run() {
-        inner.StartScanningForService("ScanForDevice", device.GetBroadcastUUID(), null);
+        inner.StartScanningForService("ScanForDevice", device.GetBroadcastUUID(), device.getDeviceCallback(), null);
       }
     });
   }
@@ -1793,7 +1808,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
     permissions.askForPermission(computePermissions(false), "ScanForService", new Runnable() {
       @Override
       public void run() {
-        inner.StartScanningForService("ScanForService", uuid, null);
+        inner.StartScanningForService("ScanForService", uuid, null, null);
       }
     });
   }
@@ -1823,6 +1838,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
       public void run() {
         inner.StartScanningForService("ConnectToDeviceType",
             device.GetBroadcastUUID(),
+            null,
             new DeviceCallback() {
               @Override
               public boolean foundDevice(String devname, String mac) {
@@ -1860,7 +1876,8 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
       @Override
       public void run() {
         inner.StartScanningForService("ConnectToDeviceWithServiceAndName",
-            BLEUtil.bleStringToUuid(serviceUuid),
+            TextUtils.isEmpty(serviceUuid) ? null : BLEUtil.bleStringToUuid(serviceUuid),
+            null,
             new DeviceCallback() {
               @Override
               public boolean foundDevice(String devname, String mac) {

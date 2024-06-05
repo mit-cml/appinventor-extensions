@@ -21,7 +21,16 @@ public interface BLEDevice extends Component {
   /**
    * Get the UUID of a service that uniquely identifies the type of device.
    *
-   * @return the UUID for the device service
+   * @return the UUID for the device service, or null if this feature isn't supported by the
+   * BLEDevice implementation.
    */
   UUID GetBroadcastUUID();
+
+  /**
+   * Obtain a callback that will be used to test whether a device is a match.
+   *
+   * @return a callback that will be used to test whether a device is a match, or null if this
+   * feature isn't supported by the BLEDevice implementation.
+   */
+  BluetoothLEint.DeviceCallback getDeviceCallback();
 }

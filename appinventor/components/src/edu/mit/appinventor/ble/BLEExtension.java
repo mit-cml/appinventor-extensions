@@ -18,7 +18,7 @@ import java.util.UUID;
 public class BLEExtension extends AndroidNonvisibleComponent
     implements BluetoothConnectionListener, BLEDevice {
 
-  private UUID uuid = UUID.fromString("00000000-0000-0000-0000-000000000000");
+  private UUID uuid;
   private BluetoothLE bleConnection = null;
 
   /**
@@ -114,6 +114,11 @@ public class BLEExtension extends AndroidNonvisibleComponent
   @Override
   public UUID GetBroadcastUUID() {
     return uuid;
+  }
+
+  @Override
+  public BluetoothLEint.DeviceCallback getDeviceCallback() {
+    return null;
   }
   //endregion
 }

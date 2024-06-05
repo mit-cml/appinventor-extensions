@@ -1572,11 +1572,12 @@ final class BluetoothLEint {
     }.run();
   }
 
-  interface DeviceCallback {
+  public interface DeviceCallback {
     boolean foundDevice(String name, String mac);
   }
 
-  void StartScanningForService(String caller, final UUID serviceUuid, final DeviceCallback callback) {
+  void StartScanningForService(String caller, final UUID serviceUuid, final DeviceCallback matcher,
+      final DeviceCallback connectionTest) {
     new BLEAction<Void>(caller) {
       @Override
       public Void action() {
@@ -1592,19 +1593,22 @@ final class BluetoothLEint {
         ScanSettings settings = new ScanSettings.Builder()
             .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
             .build();
-        List<ScanFilter> filters = new ArrayList<ScanFilter>();
-        ScanFilter filter = new ScanFilter.Builder()
-            .setServiceUuid(new ParcelUuid(serviceUuid))
-            .build();
-        filters.add(filter);
-        if (callback != null) {
+        List<ScanFilter> filters = null;
+        if (serviceUuid != null) {
+          filters = new ArrayList<>();
+          ScanFilter filter = new ScanFilter.Builder()
+              .setServiceUuid(new ParcelUuid(serviceUuid))
+              .build();
+          filters.add(filter);
+        }
+        if (matcher != null || connectionTest != null) {
           final ScanCallback scanCallback = new ScanCallback() {
             @Override
             public void onScanResult(int callbackType, ScanResult result) {
               super.onScanResult(callbackType, result);
               if (result != null) {
                 BluetoothDevice device = result.getDevice();
-                if (callback.foundDevice(device.getName(), device.getAddress())) {
+                if (connectionTest != null && connectionTest.foundDevice(device.getName(), device.getAddress())) {
                   mBluetoothLeDeviceScanner.stopScan(this);
                   isScanning = false;
                   Log.i(LOG_TAG, "Connecting to device " + device);
@@ -1615,6 +1619,8 @@ final class BluetoothLEint {
                   } else {
                     scheduleConnectionTimeoutMessage();
                   }
+                } else if (matcher != null && matcher.foundDevice(device.getName(), device.getAddress())) {
+                  addDevice(device, result.getRssi());
                 }
               }
             }
@@ -1751,6 +1757,20 @@ final class BluetoothLEint {
         return null;
       }
     }.run();
+  }
+
+  void ConnectMatchingName(final String name) {
+    // Start a scan for devices and if any match `name` then connect to the first one found.
+    StartScanningForService("ConnectMatchingName", null, null, new DeviceCallback() {
+      @Override
+      public boolean foundDevice(String deviceName, String deviceAddress) {
+        if (deviceName != null && deviceName.contains(name)) {
+          ConnectWithAddress(deviceAddress);
+          return true;
+        }
+        return false;
+      }
+    });
   }
 
   void Disconnect() {
