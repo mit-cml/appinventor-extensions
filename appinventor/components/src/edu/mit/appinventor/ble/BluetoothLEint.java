@@ -1556,6 +1556,7 @@ final class BluetoothLEint {
           
             ScanSettings settings = new ScanSettings.Builder()
               .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+              .setReportDelay(0)
               .build();
 
             List<ScanFilter> filters = new ArrayList<ScanFilter>();
