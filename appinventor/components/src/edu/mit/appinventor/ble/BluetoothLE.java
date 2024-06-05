@@ -61,7 +61,7 @@ import java.util.UUID;
  * @author William Byrne (will2596@gmail.com) (minor bugfixes)
  * @author Evan W. Patton (ewpatton@mit.edu)
  */
-@DesignerComponent(version = 20230728,
+@DesignerComponent(version = 20240604,
     description = "Bluetooth Low Energy, also referred to as Bluetooth LE " +
         "or simply BLE, is a new communication protocol similar to classic Bluetooth except " +
         "that it is designed to consume less power while maintaining comparable " +
@@ -71,6 +71,7 @@ import java.util.UUID;
         "The BluetoothLE extension requires Android 5.0 or higher to avoid known " +
         "issues with Google's Bluetooth LE support prior to Android 5.0.",
     category = ComponentCategory.EXTENSION,
+    versionName = "20240604-beta",  //"20240322-beta2",
     nonVisible = true,
     helpUrl = "https://iot.appinventor.mit.edu/#/bluetoothle/bluetoothleintro",
     iconName = "images/bluetooth.png")
