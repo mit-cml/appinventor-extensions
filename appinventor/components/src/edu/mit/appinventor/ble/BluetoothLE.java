@@ -44,6 +44,7 @@ import edu.mit.appinventor.ble.BluetoothLEint.DeviceCallback;
 import gnu.lists.FString;
 
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -421,7 +422,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
                          Object values) {
     if (inner != null) {
       inner.WriteByteValues(serviceUuid, characteristicUuid, signed,
-          toList(Integer.class, values, 1));
+          toList(Integer.class, values, 1, NullTerminateStrings()));
     }
   }
 
@@ -454,7 +455,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
                                      boolean signed, Object values) {
     if (inner != null) {
       inner.WriteByteValuesWithResponse(serviceUuid, characteristicUuid, signed,
-          toList(Integer.class, values, 1));
+          toList(Integer.class, values, 1, NullTerminateStrings()));
     }
   }
 
@@ -540,7 +541,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
                           Object values) {
     if (inner != null) {
       inner.WriteShortValues(serviceUuid, characteristicUuid, signed,
-          toList(Integer.class, values, 2));
+          toList(Integer.class, values, 2, NullTerminateStrings()));
     }
   }
 
@@ -573,7 +574,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
                                       boolean signed, Object values) {
     if (inner != null) {
       inner.WriteShortValuesWithResponse(serviceUuid, characteristicUuid, signed,
-          toList(Integer.class, values, 2));
+          toList(Integer.class, values, 2, NullTerminateStrings()));
     }
   }
 
@@ -659,7 +660,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
                             Object values) {
     if (inner != null) {
       inner.WriteIntegerValues(serviceUuid, characteristicUuid, signed,
-          toList(Long.class, values, 4));
+          toList(Long.class, values, 4, NullTerminateStrings()));
     }
   }
 
@@ -692,7 +693,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
                                         boolean signed, Object values) {
     if (inner != null) {
       inner.WriteIntegerValuesWithResponse(serviceUuid, characteristicUuid, signed,
-          toList(Long.class, values, 4));
+          toList(Long.class, values, 4, NullTerminateStrings()));
     }
   }
 
@@ -778,7 +779,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
                           Object values) {
     if (inner != null) {
       inner.WriteFloatValues(serviceUuid, characteristicUuid, shortFloat,
-          toList(Float.class, values, shortFloat ? 2 : 4));
+          toList(Float.class, values, shortFloat ? 2 : 4, NullTerminateStrings()));
     }
   }
 
@@ -810,7 +811,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
                                       boolean shortFloat, Object values) {
     if (inner != null) {
       inner.WriteFloatValuesWithResponse(serviceUuid, characteristicUuid, shortFloat,
-          toList(Float.class, values, shortFloat ? 2 : 4));
+          toList(Float.class, values, shortFloat ? 2 : 4, NullTerminateStrings()));
     }
   }
 
@@ -896,7 +897,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
                            Object values) {
     if (inner != null) {
       inner.WriteStringValues(serviceUuid, characteristicUuid, utf16,
-          toList(String.class, values, utf16 ? 2 : 1));
+          toList(String.class, values, utf16 ? 2 : 1, NullTerminateStrings()));
     }
   }
 
@@ -929,7 +930,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
                                        boolean utf16, Object values) {
     if (inner != null) {
       inner.WriteStringValuesWithResponse(serviceUuid, characteristicUuid, utf16,
-          toList(String.class, values, utf16 ? 2 : 1));
+          toList(String.class, values, utf16 ? 2 : 1, NullTerminateStrings()));
     }
   }
 
@@ -2109,7 +2110,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
                                 List<Integer> values) {
     if (inner != null) {
       inner.WriteByteValues(serviceUuid, characteristicUuid, signed,
-          toList(Integer.class, values, 1));
+          toList(Integer.class, values, 1, NullTerminateStrings()));
     }
   }
 
@@ -2132,7 +2133,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
                                 Object value) {
     if (inner != null) {
       inner.WriteByteValues(serviceUuid, characteristicUuid, signed,
-          toList(Integer.class, value, 1));
+          toList(Integer.class, value, 1, NullTerminateStrings()));
     }
   }
 
@@ -2168,7 +2169,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
                                             BLEResponseHandler<Integer> callback) {
     if (inner != null) {
       inner.WriteByteValuesWithResponse(serviceUuid, characteristicUuid, signed,
-          toList(Integer.class, values, 1), callback);
+          toList(Integer.class, values, 1, NullTerminateStrings()), callback);
     }
   }
 
@@ -2191,7 +2192,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
                                             BLEResponseHandler<Integer> callback) {
     if (inner != null) {
       inner.WriteByteValuesWithResponse(serviceUuid, characteristicUuid, signed,
-          toList(Integer.class, value, 1), callback);
+          toList(Integer.class, value, 1, NullTerminateStrings()), callback);
     }
   }
 
@@ -2273,7 +2274,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
                                  List<Integer> values) {
     if (inner != null) {
       inner.WriteShortValues(serviceUuid, characteristicUuid, signed,
-          toList(Integer.class, values, 2));
+          toList(Integer.class, values, 2, NullTerminateStrings()));
     }
   }
 
@@ -2312,7 +2313,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
                                              BLEResponseHandler<Integer> callback) {
     if (inner != null) {
       inner.WriteShortValuesWithResponse(serviceUuid, characteristicUuid, signed,
-          toList(Integer.class, values, 2), callback);
+          toList(Integer.class, values, 2, NullTerminateStrings()), callback);
     }
   }
 
@@ -2393,7 +2394,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
                                    List<Long> values) {
     if (inner != null) {
       inner.WriteIntegerValues(serviceUuid, characteristicUuid, signed,
-          toList(Long.class, values, 4));
+          toList(Long.class, values, 4, NullTerminateStrings()));
     }
   }
 
@@ -2433,7 +2434,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
                                                BLEResponseHandler<Long> callback) {
     if (inner != null) {
       inner.WriteIntegerValuesWithResponse(serviceUuid, characteristicUuid, signed,
-          toList(Long.class, values, 4), callback);
+          toList(Long.class, values, 4, NullTerminateStrings()), callback);
     }
   }
 
@@ -2516,7 +2517,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
                                  List<Float> values) {
     if (inner != null) {
       inner.WriteFloatValues(serviceUuid, characteristicUuid, shortFloats,
-          toList(Float.class, values, shortFloats ? 2 : 4));
+          toList(Float.class, values, shortFloats ? 2 : 4, NullTerminateStrings()));
     }
   }
 
@@ -2555,7 +2556,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
                                              BLEResponseHandler<Float> callback) {
     if (inner != null) {
       inner.WriteFloatValuesWithResponse(serviceUuid, characteristicUuid, shortFloats,
-          toList(Float.class, values, shortFloats ? 2 : 4), callback);
+          toList(Float.class, values, shortFloats ? 2 : 4, NullTerminateStrings()), callback);
     }
   }
 
@@ -2639,7 +2640,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
                                   List<String> values) {
     if (inner != null) {
       inner.WriteStringValues(serviceUuid, characteristicUuid, utf16,
-          toList(String.class, values, utf16 ? 2 : 1));
+          toList(String.class, values, utf16 ? 2 : 1, NullTerminateStrings()));
     }
   }
 
@@ -2679,7 +2680,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
                                               BLEResponseHandler<String> callback) {
     if (inner != null) {
       inner.WriteStringValuesWithResponse(serviceUuid, characteristicUuid, utf16,
-          toList(String.class, values, utf16 ? 2 : 1), callback);
+          toList(String.class, values, utf16 ? 2 : 1, NullTerminateStrings()), callback);
     }
   }
 
@@ -2806,13 +2807,13 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @throws ClassCastException if an entity cannot be converted to a list or
    * an element cannot be converted to type T.
    */
-  private static <T> List<T> toList(Class<T> tClass, Object value, int size) {
+  private static <T> List<T> toList(Class<T> tClass, Object value, int size, boolean nullTerminateStrings) {
     if (tClass.isAssignableFrom(value.getClass())) {
       return Collections.singletonList(tClass.cast(value));
     } else if (value instanceof YailList) {  // must come before List and Collection due to *list* header
       Iterator<?> i = ((YailList) value).iterator();
       i.next();  // skip *list* symbol
-      return listFromIterator(tClass, i);
+      return listFromIterator(tClass, i, nullTerminateStrings);
     } else if (Number.class.isAssignableFrom(tClass)) {
       if (value instanceof FString || value instanceof String) {
         value = value.toString();
@@ -2820,20 +2821,20 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
         if (numval == null) {
           return stringToList(tClass, (String) value, size);
         } else {
-          return toList(tClass, numval, size);
+          return toList(tClass, numval, size, nullTerminateStrings);
         }
       } else if (! (value instanceof Collection)) {
-        return toList(tClass, Collections.singletonList(value), size);
+        return toList(tClass, Collections.singletonList(value), size, nullTerminateStrings);
       } else {
-        return listFromIterator(tClass, ((Collection<?>) value).iterator());
+        return listFromIterator(tClass, ((Collection<?>) value).iterator(), nullTerminateStrings);
       }
     } else if (value instanceof FString) {  // needs to come before List
       // this assumes that the string is being cast to a list of UTF-8 bytes
-      return toList(tClass, value.toString(), size);
+      return toList(tClass, value.toString(), size, nullTerminateStrings);
     } else if (value instanceof List) {
-      return listFromIterator(tClass, ((List<?>) value).iterator());
+      return listFromIterator(tClass, ((List<?>) value).iterator(), nullTerminateStrings);
     } else if (value instanceof Collection) {
-      return listFromIterator(tClass, ((Collection<?>) value).iterator());
+      return listFromIterator(tClass, ((Collection<?>) value).iterator(), nullTerminateStrings);
     } else if (value instanceof String) {
       return stringToList(tClass, (String) value, size);
     } else {
@@ -2852,10 +2853,10 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * an element cannot be converted to type T.
    */
   @SuppressWarnings("unchecked")
-  private static <T> List<T> listFromIterator(Class<T> tClass, Iterator<?> i) {
+  private static <T> List<T> listFromIterator(Class<T> tClass, Iterator<?> i, boolean nullTerminateStrings) {
     // Primitive types cannot be cast to one another using boxed values...
     if (tClass.equals(Integer.class)) {
-      return (List<T>) toIntList((List<? extends Number>)(List<?>) newArrayList(i));
+      return (List<T>) toIntList((List<? extends Number>)(List<?>) newArrayList(i), nullTerminateStrings);
     } else if (tClass.equals(Long.class)) {
       return (List<T>) toLongList((List<? extends Number>)(List<?>) newArrayList(i));
     } else if (tClass.equals(Float.class)) {
@@ -2865,7 +2866,11 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
     while (i.hasNext()) {
       Object o = i.next();
       if (!tClass.isInstance(o) && !tClass.isAssignableFrom(o.getClass())) {
-        throw new ClassCastException("Unable to convert " + o + " of type " + o.getClass().getName() + " to type " + tClass.getName());
+        if (!tClass.equals(String.class)) {
+          throw new ClassCastException("Unable to convert " + o + " of type " + o.getClass().getName() + " to type " + tClass.getName());
+        }
+        result.add(tClass.cast(o.toString()));
+        continue;
       }
       result.add(tClass.cast(o));
     }
@@ -2898,10 +2903,19 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
     return result;
   }
 
-  private static <T extends Number> List<Integer> toIntList(List<T> value) {
+  private static <T extends Number> List<Integer> toIntList(List<T> value, boolean nullTerminateStrings) {
     List<Integer> result = new ArrayList<>(value.size());
-    for (T o : value) {
-      result.add(o.intValue());
+    for (Object o : value) {
+      if (o instanceof Number) {
+        result.add(((Number) o).intValue());
+      } else if (o instanceof String || o instanceof FString) {
+        for (byte b : o.toString().getBytes(StandardCharsets.UTF_8)) {
+          result.add((int) b);
+        }
+        if (nullTerminateStrings) {
+          result.add(0);
+        }
+      }
     }
     return result;
   }
