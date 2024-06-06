@@ -32,5 +32,5 @@ public interface BLEDevice extends Component {
    * @return a callback that will be used to test whether a device is a match, or null if this
    * feature isn't supported by the BLEDevice implementation.
    */
-  BluetoothLEint.DeviceCallback getDeviceCallback();
+  DeviceCallback getDeviceCallback();
 }

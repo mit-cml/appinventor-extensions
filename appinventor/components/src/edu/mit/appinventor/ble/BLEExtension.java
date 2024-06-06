@@ -117,7 +117,7 @@ public class BLEExtension extends AndroidNonvisibleComponent
   }
 
   @Override
-  public BluetoothLEint.DeviceCallback getDeviceCallback() {
+  public DeviceCallback getDeviceCallback() {
     return null;
   }
   //endregion

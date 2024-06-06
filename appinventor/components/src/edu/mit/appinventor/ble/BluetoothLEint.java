@@ -1573,10 +1573,6 @@ final class BluetoothLEint {
     }.run();
   }
 
-  public interface DeviceCallback {
-    boolean foundDevice(String name, String mac);
-  }
-
   void StartScanningForService(String caller, final UUID serviceUuid, final DeviceCallback matcher,
       final DeviceCallback connectionTest) {
     new BLEAction<Void>(caller) {
@@ -1609,6 +1605,9 @@ final class BluetoothLEint {
               super.onScanResult(callbackType, result);
               if (result != null) {
                 BluetoothDevice device = result.getDevice();
+                if (matcher != null && !matcher.foundDevice(device.getName(), device.getAddress())) {
+                  return;  // Device does match desired parameters, skipping it.
+                }
                 if (connectionTest != null && connectionTest.foundDevice(device.getName(), device.getAddress())) {
                   mBluetoothLeDeviceScanner.stopScan(this);
                   isScanning = false;
@@ -1620,7 +1619,7 @@ final class BluetoothLEint {
                   } else {
                     scheduleConnectionTimeoutMessage();
                   }
-                } else if (matcher != null && matcher.foundDevice(device.getName(), device.getAddress())) {
+                } else {
                   addDevice(device, result.getRssi());
                 }
               }

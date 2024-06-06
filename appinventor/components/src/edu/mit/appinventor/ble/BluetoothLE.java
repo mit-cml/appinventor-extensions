@@ -40,7 +40,6 @@ import com.google.appinventor.components.runtime.EventDispatcher;
 import com.google.appinventor.components.runtime.Form;
 import com.google.appinventor.components.runtime.util.SdkLevel;
 import com.google.appinventor.components.runtime.util.YailList;
-import edu.mit.appinventor.ble.BluetoothLEint.DeviceCallback;
 import gnu.lists.FString;
 
 import java.io.UnsupportedEncodingException;
