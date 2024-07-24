@@ -72,7 +72,7 @@ import java.util.UUID;
         "The BluetoothLE extension requires Android 5.0 or higher to avoid known " +
         "issues with Google's Bluetooth LE support prior to Android 5.0.",
     category = ComponentCategory.EXTENSION,
-    versionName = "20240604-beta",  //"20240322-beta2",
+    versionName = "20240724-beta",
     nonVisible = true,
     helpUrl = "https://iot.appinventor.mit.edu/#/bluetoothle/bluetoothleintro",
     iconName = "images/bluetooth.png")
