@@ -38,6 +38,7 @@ import com.google.appinventor.components.runtime.ComponentContainer;
 import com.google.appinventor.components.runtime.Deleteable;
 import com.google.appinventor.components.runtime.EventDispatcher;
 import com.google.appinventor.components.runtime.Form;
+import com.google.appinventor.components.runtime.util.BulkPermissionRequest;
 import com.google.appinventor.components.runtime.util.SdkLevel;
 import com.google.appinventor.components.runtime.util.YailList;
 import gnu.lists.FString;
@@ -45,6 +46,7 @@ import gnu.lists.FString;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -300,7 +302,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
   }
 
   @SimpleFunction
-  @UsesPermissions({BLUETOOTH_SCAN, BLUETOOTH_CONNECT})
+  @UsesPermissions({BLUETOOTH_SCAN, BLUETOOTH_CONNECT, ACCESS_FINE_LOCATION})
   public void ConnectMatchingName(final String name) {
     if (inner == null) {
       return;
@@ -1829,7 +1831,7 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param name the name advertised by the desired device
    */
   @SimpleFunction
-  @UsesPermissions({BLUETOOTH_SCAN, BLUETOOTH_CONNECT})
+  @UsesPermissions({BLUETOOTH_SCAN, BLUETOOTH_CONNECT, ACCESS_FINE_LOCATION})
   public void ConnectToDeviceType(final BLEDevice device, final String name) {
     if (inner == null) {
       return;
@@ -1868,25 +1870,38 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
    * @param name        the name advertised by the desired device
    */
   @SimpleFunction
-  @UsesPermissions({BLUETOOTH_SCAN, BLUETOOTH_CONNECT})
+  @UsesPermissions({BLUETOOTH_SCAN, BLUETOOTH_CONNECT, ACCESS_FINE_LOCATION})
   public void ConnectToDeviceWithServiceAndName(final String serviceUuid, final String name) {
     if (inner == null) {
       return;
     }
-    permissions.askForPermission(computePermissions(false), "ConnectToDeviceWithServiceAndName", new Runnable() {
-      @Override
-      public void run() {
-        inner.StartScanningForService("ConnectToDeviceWithServiceAndName",
-            TextUtils.isEmpty(serviceUuid) ? null : BLEUtil.bleStringToUuid(serviceUuid),
-            null,
-            new DeviceCallback() {
-              @Override
-              public boolean foundDevice(String devname, String mac) {
-                return devname.equals(name);
-              }
-            });
+    String[] permsNeeded = computePermissions(false);
+    boolean ask = false;
+    for (String perm : permsNeeded) {
+      Log.i(LOG_TAG, "Need permission: " + perm);
+      if (form.isDeniedPermission(perm)) {
+        ask = true;
+        break;
       }
-    });
+    }
+    if (ask) {
+      form.askPermission(new BulkPermissionRequest(this, "ConnectToDeviceWithServiceAndName", permsNeeded) {
+        @Override
+        public void onGranted() {
+          ConnectToDeviceWithServiceAndName(serviceUuid, name);
+        }
+      });
+    } else {
+      inner.StartScanningForService("ConnectToDeviceWithServiceAndName",
+          TextUtils.isEmpty(serviceUuid) ? null : BLEUtil.bleStringToUuid(serviceUuid),
+          null,
+          new DeviceCallback() {
+            @Override
+            public boolean foundDevice(String devname, String mac) {
+              return devname.equals(name);
+            }
+          });
+    }
   }
 
   /**
