@@ -46,7 +46,6 @@ import gnu.lists.FString;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -62,7 +61,7 @@ import java.util.UUID;
  * @author William Byrne (will2596@gmail.com) (minor bugfixes)
  * @author Evan W. Patton (ewpatton@mit.edu)
  */
-@DesignerComponent(version = 20240604,
+@DesignerComponent(version = 20240822,
     description = "Bluetooth Low Energy, also referred to as Bluetooth LE " +
         "or simply BLE, is a new communication protocol similar to classic Bluetooth except " +
         "that it is designed to consume less power while maintaining comparable " +
@@ -72,7 +71,7 @@ import java.util.UUID;
         "The BluetoothLE extension requires Android 5.0 or higher to avoid known " +
         "issues with Google's Bluetooth LE support prior to Android 5.0.",
     category = ComponentCategory.EXTENSION,
-    versionName = "20240724-beta",
+    versionName = "20240822",
     nonVisible = true,
     helpUrl = "https://iot.appinventor.mit.edu/#/bluetoothle/bluetoothleintro",
     iconName = "images/bluetooth.png")
