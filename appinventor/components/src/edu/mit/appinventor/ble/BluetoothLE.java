@@ -38,6 +38,7 @@ import com.google.appinventor.components.runtime.ComponentContainer;
 import com.google.appinventor.components.runtime.Deleteable;
 import com.google.appinventor.components.runtime.EventDispatcher;
 import com.google.appinventor.components.runtime.Form;
+import com.google.appinventor.components.runtime.OnClearListener;
 import com.google.appinventor.components.runtime.util.BulkPermissionRequest;
 import com.google.appinventor.components.runtime.util.SdkLevel;
 import com.google.appinventor.components.runtime.util.YailList;
@@ -71,13 +72,13 @@ import java.util.UUID;
         "The BluetoothLE extension requires Android 5.0 or higher to avoid known " +
         "issues with Google's Bluetooth LE support prior to Android 5.0.",
     category = ComponentCategory.EXTENSION,
-    versionName = "20240822",
+    versionName = "20241218",
     nonVisible = true,
     helpUrl = "https://iot.appinventor.mit.edu/#/bluetoothle/bluetoothleintro",
     iconName = "images/bluetooth.png")
 @SimpleObject(external = true)
 @UsesPermissions({ BLUETOOTH, BLUETOOTH_ADMIN })
-public class BluetoothLE extends AndroidNonvisibleComponent implements Component, Deleteable {
+public class BluetoothLE extends AndroidNonvisibleComponent implements Component, Deleteable, OnClearListener {
   public static final int ERROR_DEVICE_INDEX_OOB = 9101;
   public static final int ERROR_SERVICE_INDEX_OOB = 9102;
   public static final int ERROR_SERVICE_INVALID_UUID = 9103;
@@ -95,6 +96,14 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
 
   @Override
   public void onDelete() {
+    if (inner != null) {
+      inner.Disconnect();
+      inner = null;
+    }
+  }
+
+  @Override
+  public void onClear() {
     if (inner != null) {
       inner.Disconnect();
       inner = null;
@@ -135,6 +144,8 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
     } else {
       Log.d(LOG_TAG, "Appear to have Bluetooth LE support, continuing...");
     }
+
+    form.registerForOnClear(this);
 
     inner = new BluetoothLEint(this, form, container);
     permissions = new PermissionHelper(getForm(), this);
