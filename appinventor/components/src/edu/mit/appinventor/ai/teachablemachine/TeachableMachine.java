@@ -127,6 +127,8 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
     // Minimum time classfier should take to load
     private int minClassTime = 0;
 
+    // Store the latest classification result
+    private YailDictionary latestClassificationResult = new YailDictionary();
 
 
     // Setting up of Hardware and Webviewer
@@ -442,6 +444,8 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
     // data we get after classification is done
     @SimpleEvent(description = "Event indicating that classification has finished successfully. Result is of the form [[class1, confidence1], [class2, confidence2], ..., [class10, confidence10]].")
     public void GotClassification(YailDictionary result) {
+        // Store the latest result
+        latestClassificationResult = result;
         EventDispatcher.dispatchEvent(this, "GotClassification", result);
     }
 
@@ -453,13 +457,12 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
     /**
      * GetClassification
      *
-     * @param classificationResult YailDictionary of classification results from GotClassification event
      * @return the category name with the highest confidence score as plaintext
      */
     @SimpleFunction(description = "From a classification result dictionary (from GotClassification event), " +
         "returns the category name with the highest confidence score.")
-    public String GetClassification(YailDictionary classificationResult) {
-        if (classificationResult == null || classificationResult.size() == 0) {
+    public String GetClassification() {
+        if (latestClassificationResult == null || latestClassificationResult.size() == 0) {
             Log.w(LOG_TAG, "GetClassification: Classification result dictionary is empty or null.");
             return ""; // Return empty string if no result
         }
@@ -467,7 +470,7 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
         String classifiedCategory = "";
         double maxClassificationConfidence = -1.0;
 
-        for (Map.Entry<Object, Object> entry : classificationResult.entrySet()) {
+        for (Map.Entry<Object, Object> entry : latestClassificationResult.entrySet()) {
             String categoryName = (String) entry.getKey();
             double confidence = (double) entry.getValue(); // Values are Doubles in YailDictionary in this case
 
