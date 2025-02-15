@@ -450,6 +450,42 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
         EventDispatcher.dispatchEvent(this, "Error", errorCode);
     }
 
+    /**
+     * GetClassification
+     *
+     * @param classificationResult YailDictionary of classification results from GotClassification event
+     * @return the category name with the highest confidence score as plaintext
+     */
+    @SimpleFunction(description = "From a classification result dictionary (from GotClassification event), " +
+        "returns the category name with the highest confidence score.")
+    public String GetClassification(YailDictionary classificationResult) {
+        if (classificationResult == null || classificationResult.size() == 0) {
+            Log.w(LOG_TAG, "GetClassification: Classification result dictionary is empty or null.");
+            return ""; // Return empty string if no result
+        }
+
+        String classifiedCategory = "";
+        double maxClassificationConfidence = -1.0;
+
+        for (Map.Entry<Object, Object> entry : classificationResult.entrySet()) {
+            String categoryName = (String) entry.getKey();
+            double confidence = (double) entry.getValue(); // Values are Doubles in YailDictionary in this case
+
+            if (confidence > maxClassificationConfidence) {
+                maxClassificationConfidence = confidence;
+                classifiedCategory = categoryName;
+            }
+        }
+
+        if (classifiedCategory.isEmpty()) {
+            Log.w(LOG_TAG, "GetClassification: No category with confidence found in dictionary.");
+        } else {
+            Log.d(LOG_TAG, "GetClassification: Classified category is " + classifiedCategory + " with confidence " + maxClassificationConfidence);
+        }
+
+        return classifiedCategory;
+    }
+
     ///REGION: Lifecycle handling
 
 
