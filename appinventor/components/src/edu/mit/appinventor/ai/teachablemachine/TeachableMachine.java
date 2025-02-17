@@ -455,13 +455,12 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
     }
 
     /**
-     * GetClassification
+     * GetClassification Property - returns the most likely category name from the latest result.
      *
-     * @return the category name with the highest confidence score as plaintext
+     * @return The most likely category name as a String. Empty string if no classification yet.
      */
-    @SimpleFunction(description = "From a classification result dictionary (from GotClassification event), " +
-        "returns the category name with the highest confidence score.")
-    public String GetClassification() {
+    @SimpleProperty(category = PropertyCategory.BEHAVIOR, description = "Returns the name of the most likely category from the latest classification.  Will be empty text if no classification has been performed or if the classification result is empty.")
+    public String Classification() {
         if (latestClassificationResult == null || latestClassificationResult.size() == 0) {
             Log.w(LOG_TAG, "GetClassification: Classification result dictionary is empty or null.");
             return ""; // Return empty string if no result
@@ -487,6 +486,31 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
         }
 
         return classifiedCategory;
+    }
+
+    /**
+     * Confidence Property - returns the confidence score of the most likely category from the latest
+     * result.
+     *
+     * @return The confidence score of the most likely category as a Double. 0.0 if no classification
+     *     yet.
+     */
+    @SimpleProperty(category = PropertyCategory.BEHAVIOR, description = "Returns the confidence score (0.0 to 1.0) of the most likely category from the latest classification. Will be 0.0 if no classification has been performed or if the classification result is empty.")
+    public double Confidence() {
+        if (latestClassificationResult == null || latestClassificationResult.size() == 0) {
+            Log.w(LOG_TAG, "Confidence Property: No classification result available yet.");
+            return 0.0; // Return 0.0 if no result available
+        }
+
+        double maxClassificationConfidence = 0.0; // Default to 0.0 if no category found
+        for (Map.Entry<Object, Object> entry : latestClassificationResult.entrySet()) {
+            double confidence = (double) entry.getValue(); // Values are Doubles in YailDictionary in this case
+
+            if (confidence > maxClassificationConfidence) {
+                maxClassificationConfidence = confidence;
+            }
+        }
+        return maxClassificationConfidence;
     }
 
     ///REGION: Lifecycle handling
@@ -603,7 +627,7 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
                 modelLink = modelPath;
 
                 Log.d(LOG_TAG, "Function in JsObject that is called from js");
-                
+
                 return modelLink;
             }
             return modelPath;

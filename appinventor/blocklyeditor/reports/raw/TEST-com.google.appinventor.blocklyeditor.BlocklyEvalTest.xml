@@ -1,0 +1,451 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuite errors="1" failures="14" hostname="joshcaldwell-macbookpro2.roam.internal" name="com.google.appinventor.blocklyeditor.BlocklyEvalTest" skipped="0" tests="15" time="0.055" timestamp="2025-02-15T04:39:01">
+  <properties>
+    <property name="java.vendor" value="Oracle Corporation" />
+    <property name="lib.dir" value="/Users/joshcaldwell/dev/appinventor-extensions/appinventor/lib" />
+    <property name="sun.java.launcher" value="SUN_STANDARD" />
+    <property name="sun.management.compiler" value="HotSpot 64-Bit Tiered Compilers" />
+    <property name="docs.dir" value="/Users/joshcaldwell/dev/appinventor-extensions/appinventor/docs" />
+    <property name="ai.i18n.src.dir" value="/Users/joshcaldwell/dev/appinventor-extensions/appinventor/blocklyeditor/src/msg/ai_blockly" />
+    <property name="ant.file.blocklyeditor" value="/Users/joshcaldwell/dev/appinventor-extensions/appinventor/blocklyeditor/build.xml" />
+    <property name="i18n.src.dir" value="/Users/joshcaldwell/dev/appinventor-extensions/appinventor/blocklyeditor/src/msg" />
+    <property name="os.name" value="Mac OS X" />
+    <property name="blockly.src.dir" value="/Users/joshcaldwell/dev/appinventor-extensions/appinventor/lib/blockly" />
+    <property name="sun.boot.class.path" value="/Library/Java/JavaVirtualMachines/jdk-1.8.jdk/Contents/Home/jre/lib/resources.jar:/Library/Java/JavaVirtualMachines/jdk-1.8.jdk/Contents/Home/jre/lib/rt.jar:/Library/Java/JavaVirtualMachines/jdk-1.8.jdk/Contents/Home/jre/lib/jsse.jar:/Library/Java/JavaVirtualMachines/jdk-1.8.jdk/Contents/Home/jre/lib/jce.jar:/Library/Java/JavaVirtualMachines/jdk-1.8.jdk/Contents/Home/jre/lib/charsets.jar:/Library/Java/JavaVirtualMachines/jdk-1.8.jdk/Contents/Home/jre/lib/jfr.jar:/Library/Java/JavaVirtualMachines/jdk-1.8.jdk/Contents/Home/jre/classes" />
+    <property name="gwt.sdk" value="/Users/joshcaldwell/dev/appinventor-extensions/appinventor/lib/gwt/2.8.1-patched" />
+    <property name="blockly.config" value="ploverConfig-dev.js" />
+    <property name="java.vm.specification.vendor" value="Oracle Corporation" />
+    <property name="ant.home" value="/opt/homebrew/Cellar/ant/1.10.15_1/libexec" />
+    <property name="java.runtime.version" value="1.8.0_441-b07" />
+    <property name="ant.file.type.blocklyeditor" value="file" />
+    <property name="user.name" value="joshcaldwell" />
+    <property name="public.build.dir" value="/Users/joshcaldwell/dev/appinventor-extensions/appinventor/build/blocklyeditor" />
+    <property name="debug" value="true" />
+    <property name="build.dir" value="/Users/joshcaldwell/dev/appinventor-extensions/appinventor/build" />
+    <property name="appinventor.dir" value="/Users/joshcaldwell/dev/appinventor-extensions/appinventor" />
+    <property name="user.language" value="en" />
+    <property name="class.dir" value="/Users/joshcaldwell/dev/appinventor-extensions/appinventor/blocklyeditor/build/classes" />
+    <property name="BlocklyCompile.uptodate" value="true" />
+    <property name="BlocklyTranslator-class.dir" value="/Users/joshcaldwell/dev/appinventor-extensions/appinventor/blocklyeditor/build/classes/BlocklyTranslator-classes" />
+    <property name="sun.boot.library.path" value="/Library/Java/JavaVirtualMachines/jdk-1.8.jdk/Contents/Home/jre/lib" />
+    <property name="reports.dir" value="/Users/joshcaldwell/dev/appinventor-extensions/appinventor/blocklyeditor/reports" />
+    <property name="ant.project.default-target" value="all" />
+    <property name="ant.project.name" value="blocklyeditor" />
+    <property name="java.version" value="1.8.0_441" />
+    <property name="user.timezone" value="" />
+    <property name="sun.arch.data.model" value="64" />
+    <property name="http.nonProxyHosts" value="local|*.local|169.254/16|*.169.254/16" />
+    <property name="java.endorsed.dirs" value="/Library/Java/JavaVirtualMachines/jdk-1.8.jdk/Contents/Home/jre/lib/endorsed" />
+    <property name="sun.cpu.isalist" value="" />
+    <property name="sun.jnu.encoding" value="UTF-8" />
+    <property name="file.encoding.pkg" value="sun.io" />
+    <property name="file.separator" value="/" />
+    <property name="java.specification.name" value="Java Platform API Specification" />
+    <property name="java.class.version" value="52.0" />
+    <property name="user.country" value="US" />
+    <property name="java.home" value="/Library/Java/JavaVirtualMachines/jdk-1.8.jdk/Contents/Home/jre" />
+    <property name="ant.file.AllProjects" value="/Users/joshcaldwell/dev/appinventor-extensions/appinventor/build.xml" />
+    <property name="java.vm.info" value="mixed mode" />
+    <property name="ant.file" value="/Users/joshcaldwell/dev/appinventor-extensions/appinventor/blocklyeditor/build.xml" />
+    <property name="os.version" value="14.7.4" />
+    <property name="BlocklyTranslations.dir" value="/Users/joshcaldwell/dev/appinventor-extensions/appinventor/build/blocklyeditor/msg" />
+    <property name="path.separator" value=":" />
+    <property name="java.vm.version" value="25.441-b07" />
+    <property name="release" value="false" />
+    <property name="ant.library.dir" value="/opt/homebrew/Cellar/ant/1.10.15_1/libexec/lib" />
+    <property name="ant.file.type.AllProjects" value="file" />
+    <property name="java.awt.printerjob" value="sun.lwawt.macosx.CPrinterJob" />
+    <property name="sun.io.unicode.encoding" value="UnicodeBig" />
+    <property name="java.specification.maintenance.version" value="6" />
+    <property name="awt.toolkit" value="sun.lwawt.macosx.LWCToolkit" />
+    <property name="socksNonProxyHosts" value="local|*.local|169.254/16|*.169.254/16" />
+    <property name="debug.compile" value="true" />
+    <property name="ftp.nonProxyHosts" value="local|*.local|169.254/16|*.169.254/16" />
+    <property name="user.home" value="/Users/joshcaldwell" />
+    <property name="java.specification.vendor" value="Oracle Corporation" />
+    <property name="java.library.path" value="/Users/joshcaldwell/Library/Java/Extensions:/Library/Java/Extensions:/Network/Library/Java/Extensions:/System/Library/Java/Extensions:/usr/lib/java:." />
+    <property name="java.vendor.url" value="http://java.oracle.com/" />
+    <property name="run.dir" value="/Users/joshcaldwell/dev/appinventor-extensions/appinventor/blocklyeditor/build/run" />
+    <property name="java.vm.vendor" value="Oracle Corporation" />
+    <property name="gopherProxySet" value="false" />
+    <property name="java.runtime.name" value="Java(TM) SE Runtime Environment" />
+    <property name="sun.java.command" value="org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner testsfile=/Users/joshcaldwell/dev/appinventor-extensions/appinventor/blocklyeditor/junittestcases4893322933329309623.properties skipNonTests=false filtertrace=true haltOnError=false haltOnFailure=false formatter=org.apache.tools.ant.taskdefs.optional.junit.SummaryJUnitResultFormatter showoutput=false outputtoformatters=true logfailedtests=true threadid=0 logtestlistenerevents=false formatter=org.apache.tools.ant.taskdefs.optional.junit.XMLJUnitResultFormatter,/Users/joshcaldwell/dev/appinventor-extensions/appinventor/blocklyeditor/reports/raw/IGNORETHIS.xml crashfile=/Users/joshcaldwell/dev/appinventor-extensions/appinventor/blocklyeditor/junitvmwatcher5291378365518200496.properties propsfile=/Users/joshcaldwell/dev/appinventor-extensions/appinventor/blocklyeditor/junit1467432548641949889.properties" />
+    <property name="java.class.path" value="/Users/joshcaldwell/dev/appinventor-extensions/appinventor/build/common/CommonTestUtils.jar:/Users/joshcaldwell/dev/appinventor-extensions/appinventor/build/components/CommonConstants.jar:/Users/joshcaldwell/dev/appinventor-extensions/appinventor/lib/junit/junit-4.8.2.jar:/Users/joshcaldwell/dev/appinventor-extensions/appinventor/blocklyeditor/build/BlocklyeditorTests.jar:/opt/homebrew/Cellar/ant/1.10.15_1/libexec/lib/ant-launcher.jar:/opt/homebrew/Cellar/ant/1.10.15_1/libexec/lib/ant.jar:/opt/homebrew/Cellar/ant/1.10.15_1/libexec/lib/ant-junit.jar:/opt/homebrew/Cellar/ant/1.10.15_1/libexec/lib/ant-junit4.jar" />
+    <property name="ant.version" value="Apache Ant(TM) version 1.10.15 compiled on August 25 2024" />
+    <property name="ant.file.type.CommonDefinitions" value="file" />
+    <property name="ant.file.CommonDefinitions" value="/Users/joshcaldwell/dev/appinventor-extensions/appinventor/build-common.xml" />
+    <property name="java.vm.specification.name" value="Java Virtual Machine Specification" />
+    <property name="ant.file.type" value="file" />
+    <property name="java.vm.specification.version" value="1.8" />
+    <property name="sun.cpu.endian" value="little" />
+    <property name="sun.os.patch.level" value="unknown" />
+    <property name="java.awt.headless" value="true" />
+    <property name="test_name.class" value="${test_name}" />
+    <property name="java.io.tmpdir" value="/var/folders/fj/s0vxlgdd59v2gycx_yb9s9_m00q71w/T/" />
+    <property name="java.vendor.url.bug" value="http://bugreport.sun.com/bugreport/" />
+    <property name="local.lib.dir" value="/Users/joshcaldwell/dev/appinventor-extensions/appinventor/blocklyeditor/lib" />
+    <property name="java.awt.graphicsenv" value="sun.awt.CGraphicsEnvironment" />
+    <property name="os.arch" value="aarch64" />
+    <property name="java.ext.dirs" value="/Users/joshcaldwell/Library/Java/Extensions:/Library/Java/JavaVirtualMachines/jdk-1.8.jdk/Contents/Home/jre/lib/ext:/Library/Java/Extensions:/Network/Library/Java/Extensions:/System/Library/Java/Extensions:/usr/lib/java" />
+    <property name="tests.dir" value="/Users/joshcaldwell/dev/appinventor-extensions/appinventor/blocklyeditor/tests" />
+    <property name="user.dir" value="/Users/joshcaldwell/dev/appinventor-extensions/appinventor/blocklyeditor" />
+    <property name="line.separator" value="&#xa;" />
+    <property name="java.vm.name" value="Java HotSpot(TM) 64-Bit Server VM" />
+    <property name="basedir" value="/Users/joshcaldwell/dev/appinventor-extensions/appinventor/blocklyeditor" />
+    <property name="local.build.dir" value="/Users/joshcaldwell/dev/appinventor-extensions/appinventor/blocklyeditor/build" />
+    <property name="gwt.args" value="-devMode -logLevel WARN -war /Users/joshcaldwell/dev/appinventor-extensions/appinventor/blocklyeditor/build/build/war" />
+    <property name="ant.java.version" value="1.8" />
+    <property name="ant.core.lib" value="/opt/homebrew/Cellar/ant/1.10.15_1/libexec/lib/ant.jar" />
+    <property name="file.encoding" value="UTF-8" />
+    <property name="blocklyeditor.pkg" value="com/google/appinventor/blocklyeditor" />
+    <property name="java.specification.version" value="1.8" />
+    <property name="src.dir" value="/Users/joshcaldwell/dev/appinventor-extensions/appinventor/blocklyeditor/src" />
+    <property name="ant.project.invoked-targets" value="tests" />
+    <property name="run.lib.dir" value="/Users/joshcaldwell/dev/appinventor-extensions/appinventor/blocklyeditor/build/run/lib" />
+  </properties>
+  <testcase classname="com.google.appinventor.blocklyeditor.BlocklyEvalTest" name="testTooltipInternationalization" time="0.004">
+    <error type="java.io.IOException">java.io.IOException: 
+	at com.google.appinventor.blocklyeditor.CodeBlocksProcessHelper.exec(CodeBlocksProcessHelper.java:122)
+	at com.google.appinventor.blocklyeditor.BlocklyEvalTest.testTooltipInternationalization(BlocklyEvalTest.java:274)
+</error>
+  </testcase>
+  <testcase classname="com.google.appinventor.blocklyeditor.BlocklyEvalTest" name="testBackgroundColor" time="0.003">
+    <failure message="null expected:&lt;[true]&gt; but was:&lt;[]&gt;" type="junit.framework.ComparisonFailure">junit.framework.ComparisonFailure: null expected:&lt;[true]&gt; but was:&lt;[]&gt;
+	at com.google.appinventor.blocklyeditor.BlocklyEvalTest.testBackgroundColor(BlocklyEvalTest.java:39)
+</failure>
+  </testcase>
+  <testcase classname="com.google.appinventor.blocklyeditor.BlocklyEvalTest" name="testMoleMash" time="0.002">
+    <failure message="null expected:&lt;[true]&gt; but was:&lt;[]&gt;" type="junit.framework.ComparisonFailure">junit.framework.ComparisonFailure: null expected:&lt;[true]&gt; but was:&lt;[]&gt;
+	at com.google.appinventor.blocklyeditor.BlocklyEvalTest.testMoleMash(BlocklyEvalTest.java:56)
+</failure>
+  </testcase>
+  <testcase classname="com.google.appinventor.blocklyeditor.BlocklyEvalTest" name="testPaintPot" time="0.006">
+    <failure message="null expected:&lt;[true]&gt; but was:&lt;[]&gt;" type="junit.framework.ComparisonFailure">junit.framework.ComparisonFailure: null expected:&lt;[true]&gt; but was:&lt;[]&gt;
+	at com.google.appinventor.blocklyeditor.BlocklyEvalTest.testPaintPot(BlocklyEvalTest.java:73)
+</failure>
+  </testcase>
+  <testcase classname="com.google.appinventor.blocklyeditor.BlocklyEvalTest" name="testHelloPurr" time="0.003">
+    <failure message="null expected:&lt;[true]&gt; but was:&lt;[]&gt;" type="junit.framework.ComparisonFailure">junit.framework.ComparisonFailure: null expected:&lt;[true]&gt; but was:&lt;[]&gt;
+	at com.google.appinventor.blocklyeditor.BlocklyEvalTest.testHelloPurr(BlocklyEvalTest.java:90)
+</failure>
+  </testcase>
+  <testcase classname="com.google.appinventor.blocklyeditor.BlocklyEvalTest" name="testMakeQuiz" time="0.003">
+    <failure message="null expected:&lt;[true]&gt; but was:&lt;[]&gt;" type="junit.framework.ComparisonFailure">junit.framework.ComparisonFailure: null expected:&lt;[true]&gt; but was:&lt;[]&gt;
+	at com.google.appinventor.blocklyeditor.BlocklyEvalTest.testMakeQuiz(BlocklyEvalTest.java:107)
+</failure>
+  </testcase>
+  <testcase classname="com.google.appinventor.blocklyeditor.BlocklyEvalTest" name="testPictureCycle" time="0.003">
+    <failure message="null expected:&lt;[true]&gt; but was:&lt;[]&gt;" type="junit.framework.ComparisonFailure">junit.framework.ComparisonFailure: null expected:&lt;[true]&gt; but was:&lt;[]&gt;
+	at com.google.appinventor.blocklyeditor.BlocklyEvalTest.testPictureCycle(BlocklyEvalTest.java:124)
+</failure>
+  </testcase>
+  <testcase classname="com.google.appinventor.blocklyeditor.BlocklyEvalTest" name="testSensor" time="0.004">
+    <failure message="null expected:&lt;[true]&gt; but was:&lt;[]&gt;" type="junit.framework.ComparisonFailure">junit.framework.ComparisonFailure: null expected:&lt;[true]&gt; but was:&lt;[]&gt;
+	at com.google.appinventor.blocklyeditor.BlocklyEvalTest.testSensor(BlocklyEvalTest.java:141)
+</failure>
+  </testcase>
+  <testcase classname="com.google.appinventor.blocklyeditor.BlocklyEvalTest" name="testClock" time="0.003">
+    <failure message="null expected:&lt;[true]&gt; but was:&lt;[]&gt;" type="junit.framework.ComparisonFailure">junit.framework.ComparisonFailure: null expected:&lt;[true]&gt; but was:&lt;[]&gt;
+	at com.google.appinventor.blocklyeditor.BlocklyEvalTest.testClock(BlocklyEvalTest.java:158)
+</failure>
+  </testcase>
+  <testcase classname="com.google.appinventor.blocklyeditor.BlocklyEvalTest" name="testCamcorder" time="0.005">
+    <failure message="null expected:&lt;[true]&gt; but was:&lt;[]&gt;" type="junit.framework.ComparisonFailure">junit.framework.ComparisonFailure: null expected:&lt;[true]&gt; but was:&lt;[]&gt;
+	at com.google.appinventor.blocklyeditor.BlocklyEvalTest.testCamcorder(BlocklyEvalTest.java:175)
+</failure>
+  </testcase>
+  <testcase classname="com.google.appinventor.blocklyeditor.BlocklyEvalTest" name="testCopyCat" time="0.003">
+    <failure message="null expected:&lt;[true]&gt; but was:&lt;[]&gt;" type="junit.framework.ComparisonFailure">junit.framework.ComparisonFailure: null expected:&lt;[true]&gt; but was:&lt;[]&gt;
+	at com.google.appinventor.blocklyeditor.BlocklyEvalTest.testCopyCat(BlocklyEvalTest.java:192)
+</failure>
+  </testcase>
+  <testcase classname="com.google.appinventor.blocklyeditor.BlocklyEvalTest" name="testProductLookup" time="0.003">
+    <failure message="null expected:&lt;[true]&gt; but was:&lt;[]&gt;" type="junit.framework.ComparisonFailure">junit.framework.ComparisonFailure: null expected:&lt;[true]&gt; but was:&lt;[]&gt;
+	at com.google.appinventor.blocklyeditor.BlocklyEvalTest.testProductLookup(BlocklyEvalTest.java:209)
+</failure>
+  </testcase>
+  <testcase classname="com.google.appinventor.blocklyeditor.BlocklyEvalTest" name="testfactorial" time="0.003">
+    <failure message="null expected:&lt;[true]&gt; but was:&lt;[]&gt;" type="junit.framework.ComparisonFailure">junit.framework.ComparisonFailure: null expected:&lt;[true]&gt; but was:&lt;[]&gt;
+	at com.google.appinventor.blocklyeditor.BlocklyEvalTest.testfactorial(BlocklyEvalTest.java:226)
+</failure>
+  </testcase>
+  <testcase classname="com.google.appinventor.blocklyeditor.BlocklyEvalTest" name="testunderscore" time="0.003">
+    <failure message="null expected:&lt;[true]&gt; but was:&lt;[]&gt;" type="junit.framework.ComparisonFailure">junit.framework.ComparisonFailure: null expected:&lt;[true]&gt; but was:&lt;[]&gt;
+	at com.google.appinventor.blocklyeditor.BlocklyEvalTest.testunderscore(BlocklyEvalTest.java:243)
+</failure>
+  </testcase>
+  <testcase classname="com.google.appinventor.blocklyeditor.BlocklyEvalTest" name="testmathsconvert" time="0.003">
+    <failure message="null expected:&lt;[true]&gt; but was:&lt;[]&gt;" type="junit.framework.ComparisonFailure">junit.framework.ComparisonFailure: null expected:&lt;[true]&gt; but was:&lt;[]&gt;
+	at com.google.appinventor.blocklyeditor.BlocklyEvalTest.testmathsconvert(BlocklyEvalTest.java:261)
+</failure>
+  </testcase>
+  <system-out><![CDATA[CodeBlocksProcessHelper: Error trying to exec command: Cannot run program "phantomjs": error=2, No such file or directory
+CodeBlocksProcessHelper: Error trying to exec command: Cannot run program "phantomjs": error=2, No such file or directory
+CodeBlocksProcessHelper: Error trying to exec command: Cannot run program "phantomjs": error=2, No such file or directory
+CodeBlocksProcessHelper: Error trying to exec command: Cannot run program "phantomjs": error=2, No such file or directory
+CodeBlocksProcessHelper: Error trying to exec command: Cannot run program "phantomjs": error=2, No such file or directory
+CodeBlocksProcessHelper: Error trying to exec command: Cannot run program "phantomjs": error=2, No such file or directory
+CodeBlocksProcessHelper: Error trying to exec command: Cannot run program "phantomjs": error=2, No such file or directory
+CodeBlocksProcessHelper: Error trying to exec command: Cannot run program "phantomjs": error=2, No such file or directory
+CodeBlocksProcessHelper: Error trying to exec command: Cannot run program "phantomjs": error=2, No such file or directory
+CodeBlocksProcessHelper: Error trying to exec command: Cannot run program "phantomjs": error=2, No such file or directory
+CodeBlocksProcessHelper: Error trying to exec command: Cannot run program "phantomjs": error=2, No such file or directory
+CodeBlocksProcessHelper: Error trying to exec command: Cannot run program "phantomjs": error=2, No such file or directory
+CodeBlocksProcessHelper: Error trying to exec command: Cannot run program "phantomjs": error=2, No such file or directory
+CodeBlocksProcessHelper: Error trying to exec command: Cannot run program "phantomjs": error=2, No such file or directory
+CodeBlocksProcessHelper: Error trying to exec command: Cannot run program "phantomjs": error=2, No such file or directory
+]]></system-out>
+  <system-err><![CDATA[java.io.IOException: 
+	at com.google.appinventor.blocklyeditor.CodeBlocksProcessHelper.exec(CodeBlocksProcessHelper.java:122)
+	at com.google.appinventor.blocklyeditor.BlocklyEvalTest.testBackgroundColor(BlocklyEvalTest.java:34)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at junit.framework.TestCase.runTest(TestCase.java:168)
+	at junit.framework.TestCase.runBare(TestCase.java:134)
+	at junit.framework.TestResult$1.protect(TestResult.java:110)
+	at junit.framework.TestResult.runProtected(TestResult.java:128)
+	at junit.framework.TestResult.run(TestResult.java:113)
+	at junit.framework.TestCase.run(TestCase.java:124)
+	at junit.framework.TestSuite.runTest(TestSuite.java:243)
+	at junit.framework.TestSuite.run(TestSuite.java:238)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.run(JUnitTestRunner.java:535)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.launch(JUnitTestRunner.java:1197)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.main(JUnitTestRunner.java:1015)
+java.io.IOException: 
+	at com.google.appinventor.blocklyeditor.CodeBlocksProcessHelper.exec(CodeBlocksProcessHelper.java:122)
+	at com.google.appinventor.blocklyeditor.BlocklyEvalTest.testMoleMash(BlocklyEvalTest.java:51)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at junit.framework.TestCase.runTest(TestCase.java:168)
+	at junit.framework.TestCase.runBare(TestCase.java:134)
+	at junit.framework.TestResult$1.protect(TestResult.java:110)
+	at junit.framework.TestResult.runProtected(TestResult.java:128)
+	at junit.framework.TestResult.run(TestResult.java:113)
+	at junit.framework.TestCase.run(TestCase.java:124)
+	at junit.framework.TestSuite.runTest(TestSuite.java:243)
+	at junit.framework.TestSuite.run(TestSuite.java:238)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.run(JUnitTestRunner.java:535)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.launch(JUnitTestRunner.java:1197)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.main(JUnitTestRunner.java:1015)
+java.io.IOException: 
+	at com.google.appinventor.blocklyeditor.CodeBlocksProcessHelper.exec(CodeBlocksProcessHelper.java:122)
+	at com.google.appinventor.blocklyeditor.BlocklyEvalTest.testPaintPot(BlocklyEvalTest.java:68)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at junit.framework.TestCase.runTest(TestCase.java:168)
+	at junit.framework.TestCase.runBare(TestCase.java:134)
+	at junit.framework.TestResult$1.protect(TestResult.java:110)
+	at junit.framework.TestResult.runProtected(TestResult.java:128)
+	at junit.framework.TestResult.run(TestResult.java:113)
+	at junit.framework.TestCase.run(TestCase.java:124)
+	at junit.framework.TestSuite.runTest(TestSuite.java:243)
+	at junit.framework.TestSuite.run(TestSuite.java:238)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.run(JUnitTestRunner.java:535)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.launch(JUnitTestRunner.java:1197)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.main(JUnitTestRunner.java:1015)
+java.io.IOException: 
+	at com.google.appinventor.blocklyeditor.CodeBlocksProcessHelper.exec(CodeBlocksProcessHelper.java:122)
+	at com.google.appinventor.blocklyeditor.BlocklyEvalTest.testHelloPurr(BlocklyEvalTest.java:85)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at junit.framework.TestCase.runTest(TestCase.java:168)
+	at junit.framework.TestCase.runBare(TestCase.java:134)
+	at junit.framework.TestResult$1.protect(TestResult.java:110)
+	at junit.framework.TestResult.runProtected(TestResult.java:128)
+	at junit.framework.TestResult.run(TestResult.java:113)
+	at junit.framework.TestCase.run(TestCase.java:124)
+	at junit.framework.TestSuite.runTest(TestSuite.java:243)
+	at junit.framework.TestSuite.run(TestSuite.java:238)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.run(JUnitTestRunner.java:535)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.launch(JUnitTestRunner.java:1197)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.main(JUnitTestRunner.java:1015)
+java.io.IOException: 
+	at com.google.appinventor.blocklyeditor.CodeBlocksProcessHelper.exec(CodeBlocksProcessHelper.java:122)
+	at com.google.appinventor.blocklyeditor.BlocklyEvalTest.testMakeQuiz(BlocklyEvalTest.java:102)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at junit.framework.TestCase.runTest(TestCase.java:168)
+	at junit.framework.TestCase.runBare(TestCase.java:134)
+	at junit.framework.TestResult$1.protect(TestResult.java:110)
+	at junit.framework.TestResult.runProtected(TestResult.java:128)
+	at junit.framework.TestResult.run(TestResult.java:113)
+	at junit.framework.TestCase.run(TestCase.java:124)
+	at junit.framework.TestSuite.runTest(TestSuite.java:243)
+	at junit.framework.TestSuite.run(TestSuite.java:238)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.run(JUnitTestRunner.java:535)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.launch(JUnitTestRunner.java:1197)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.main(JUnitTestRunner.java:1015)
+java.io.IOException: 
+	at com.google.appinventor.blocklyeditor.CodeBlocksProcessHelper.exec(CodeBlocksProcessHelper.java:122)
+	at com.google.appinventor.blocklyeditor.BlocklyEvalTest.testPictureCycle(BlocklyEvalTest.java:119)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at junit.framework.TestCase.runTest(TestCase.java:168)
+	at junit.framework.TestCase.runBare(TestCase.java:134)
+	at junit.framework.TestResult$1.protect(TestResult.java:110)
+	at junit.framework.TestResult.runProtected(TestResult.java:128)
+	at junit.framework.TestResult.run(TestResult.java:113)
+	at junit.framework.TestCase.run(TestCase.java:124)
+	at junit.framework.TestSuite.runTest(TestSuite.java:243)
+	at junit.framework.TestSuite.run(TestSuite.java:238)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.run(JUnitTestRunner.java:535)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.launch(JUnitTestRunner.java:1197)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.main(JUnitTestRunner.java:1015)
+java.io.IOException: 
+	at com.google.appinventor.blocklyeditor.CodeBlocksProcessHelper.exec(CodeBlocksProcessHelper.java:122)
+	at com.google.appinventor.blocklyeditor.BlocklyEvalTest.testSensor(BlocklyEvalTest.java:136)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at junit.framework.TestCase.runTest(TestCase.java:168)
+	at junit.framework.TestCase.runBare(TestCase.java:134)
+	at junit.framework.TestResult$1.protect(TestResult.java:110)
+	at junit.framework.TestResult.runProtected(TestResult.java:128)
+	at junit.framework.TestResult.run(TestResult.java:113)
+	at junit.framework.TestCase.run(TestCase.java:124)
+	at junit.framework.TestSuite.runTest(TestSuite.java:243)
+	at junit.framework.TestSuite.run(TestSuite.java:238)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.run(JUnitTestRunner.java:535)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.launch(JUnitTestRunner.java:1197)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.main(JUnitTestRunner.java:1015)
+java.io.IOException: 
+	at com.google.appinventor.blocklyeditor.CodeBlocksProcessHelper.exec(CodeBlocksProcessHelper.java:122)
+	at com.google.appinventor.blocklyeditor.BlocklyEvalTest.testClock(BlocklyEvalTest.java:153)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at junit.framework.TestCase.runTest(TestCase.java:168)
+	at junit.framework.TestCase.runBare(TestCase.java:134)
+	at junit.framework.TestResult$1.protect(TestResult.java:110)
+	at junit.framework.TestResult.runProtected(TestResult.java:128)
+	at junit.framework.TestResult.run(TestResult.java:113)
+	at junit.framework.TestCase.run(TestCase.java:124)
+	at junit.framework.TestSuite.runTest(TestSuite.java:243)
+	at junit.framework.TestSuite.run(TestSuite.java:238)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.run(JUnitTestRunner.java:535)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.launch(JUnitTestRunner.java:1197)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.main(JUnitTestRunner.java:1015)
+java.io.IOException: 
+	at com.google.appinventor.blocklyeditor.CodeBlocksProcessHelper.exec(CodeBlocksProcessHelper.java:122)
+	at com.google.appinventor.blocklyeditor.BlocklyEvalTest.testCamcorder(BlocklyEvalTest.java:170)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at junit.framework.TestCase.runTest(TestCase.java:168)
+	at junit.framework.TestCase.runBare(TestCase.java:134)
+	at junit.framework.TestResult$1.protect(TestResult.java:110)
+	at junit.framework.TestResult.runProtected(TestResult.java:128)
+	at junit.framework.TestResult.run(TestResult.java:113)
+	at junit.framework.TestCase.run(TestCase.java:124)
+	at junit.framework.TestSuite.runTest(TestSuite.java:243)
+	at junit.framework.TestSuite.run(TestSuite.java:238)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.run(JUnitTestRunner.java:535)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.launch(JUnitTestRunner.java:1197)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.main(JUnitTestRunner.java:1015)
+java.io.IOException: 
+	at com.google.appinventor.blocklyeditor.CodeBlocksProcessHelper.exec(CodeBlocksProcessHelper.java:122)
+	at com.google.appinventor.blocklyeditor.BlocklyEvalTest.testCopyCat(BlocklyEvalTest.java:187)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at junit.framework.TestCase.runTest(TestCase.java:168)
+	at junit.framework.TestCase.runBare(TestCase.java:134)
+	at junit.framework.TestResult$1.protect(TestResult.java:110)
+	at junit.framework.TestResult.runProtected(TestResult.java:128)
+	at junit.framework.TestResult.run(TestResult.java:113)
+	at junit.framework.TestCase.run(TestCase.java:124)
+	at junit.framework.TestSuite.runTest(TestSuite.java:243)
+	at junit.framework.TestSuite.run(TestSuite.java:238)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.run(JUnitTestRunner.java:535)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.launch(JUnitTestRunner.java:1197)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.main(JUnitTestRunner.java:1015)
+java.io.IOException: 
+	at com.google.appinventor.blocklyeditor.CodeBlocksProcessHelper.exec(CodeBlocksProcessHelper.java:122)
+	at com.google.appinventor.blocklyeditor.BlocklyEvalTest.testProductLookup(BlocklyEvalTest.java:204)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at junit.framework.TestCase.runTest(TestCase.java:168)
+	at junit.framework.TestCase.runBare(TestCase.java:134)
+	at junit.framework.TestResult$1.protect(TestResult.java:110)
+	at junit.framework.TestResult.runProtected(TestResult.java:128)
+	at junit.framework.TestResult.run(TestResult.java:113)
+	at junit.framework.TestCase.run(TestCase.java:124)
+	at junit.framework.TestSuite.runTest(TestSuite.java:243)
+	at junit.framework.TestSuite.run(TestSuite.java:238)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.run(JUnitTestRunner.java:535)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.launch(JUnitTestRunner.java:1197)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.main(JUnitTestRunner.java:1015)
+java.io.IOException: 
+	at com.google.appinventor.blocklyeditor.CodeBlocksProcessHelper.exec(CodeBlocksProcessHelper.java:122)
+	at com.google.appinventor.blocklyeditor.BlocklyEvalTest.testfactorial(BlocklyEvalTest.java:221)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at junit.framework.TestCase.runTest(TestCase.java:168)
+	at junit.framework.TestCase.runBare(TestCase.java:134)
+	at junit.framework.TestResult$1.protect(TestResult.java:110)
+	at junit.framework.TestResult.runProtected(TestResult.java:128)
+	at junit.framework.TestResult.run(TestResult.java:113)
+	at junit.framework.TestCase.run(TestCase.java:124)
+	at junit.framework.TestSuite.runTest(TestSuite.java:243)
+	at junit.framework.TestSuite.run(TestSuite.java:238)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.run(JUnitTestRunner.java:535)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.launch(JUnitTestRunner.java:1197)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.main(JUnitTestRunner.java:1015)
+java.io.IOException: 
+	at com.google.appinventor.blocklyeditor.CodeBlocksProcessHelper.exec(CodeBlocksProcessHelper.java:122)
+	at com.google.appinventor.blocklyeditor.BlocklyEvalTest.testunderscore(BlocklyEvalTest.java:238)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at junit.framework.TestCase.runTest(TestCase.java:168)
+	at junit.framework.TestCase.runBare(TestCase.java:134)
+	at junit.framework.TestResult$1.protect(TestResult.java:110)
+	at junit.framework.TestResult.runProtected(TestResult.java:128)
+	at junit.framework.TestResult.run(TestResult.java:113)
+	at junit.framework.TestCase.run(TestCase.java:124)
+	at junit.framework.TestSuite.runTest(TestSuite.java:243)
+	at junit.framework.TestSuite.run(TestSuite.java:238)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.run(JUnitTestRunner.java:535)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.launch(JUnitTestRunner.java:1197)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.main(JUnitTestRunner.java:1015)
+java.io.IOException: 
+	at com.google.appinventor.blocklyeditor.CodeBlocksProcessHelper.exec(CodeBlocksProcessHelper.java:122)
+	at com.google.appinventor.blocklyeditor.BlocklyEvalTest.testmathsconvert(BlocklyEvalTest.java:256)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at junit.framework.TestCase.runTest(TestCase.java:168)
+	at junit.framework.TestCase.runBare(TestCase.java:134)
+	at junit.framework.TestResult$1.protect(TestResult.java:110)
+	at junit.framework.TestResult.runProtected(TestResult.java:128)
+	at junit.framework.TestResult.run(TestResult.java:113)
+	at junit.framework.TestCase.run(TestCase.java:124)
+	at junit.framework.TestSuite.runTest(TestSuite.java:243)
+	at junit.framework.TestSuite.run(TestSuite.java:238)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.run(JUnitTestRunner.java:535)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.launch(JUnitTestRunner.java:1197)
+	at org.apache.tools.ant.taskdefs.optional.junit.JUnitTestRunner.main(JUnitTestRunner.java:1015)
+]]></system-err>
+</testsuite>
