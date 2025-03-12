@@ -81,7 +81,7 @@ import java.util.zip.ZipInputStream;
  */
 
 // Initialization of Extension
-@DesignerComponent(version = 1,
+@DesignerComponent(version = 20250312,
     category = ComponentCategory.EXTENSION,
     description = "Component that classifies images using a user trained model from the image " +
         "classification explorer. You must provide a WebViewer component in the Teachable Machine Extension " +
