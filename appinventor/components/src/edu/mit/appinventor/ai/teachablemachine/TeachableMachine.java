@@ -82,12 +82,12 @@ import java.util.zip.ZipInputStream;
 
 // Initialization of Extension
 @DesignerComponent(version = 1,
-        category = ComponentCategory.EXTENSION,
-        description = "Component that classifies images using a user trained model from the image " +
-                "classification explorer. You must provide a WebViewer component in the Teachable Machine Extension " +
-                "component's WebViewer property in order for classification to work.",
-        iconName = "aiwebres/tm.png",
-        nonVisible = true)
+    category = ComponentCategory.EXTENSION,
+    description = "Component that classifies images using a user trained model from the image " +
+        "classification explorer. You must provide a WebViewer component in the Teachable Machine Extension " +
+        "component's WebViewer property in order for classification to work.",
+    iconName = "aiwebres/tm.png",
+    nonVisible = true)
 @SimpleObject(external = true)
 // Defining the assets
 @UsesAssets(fileNames = "teachable_machine.html, teachable_machine.js")
@@ -95,7 +95,7 @@ import java.util.zip.ZipInputStream;
 
 //@UsesPermissions(permissionNames = "android.permission.INTERNET, android.permission.CAMERA")
 public final class TeachableMachine extends AndroidNonvisibleComponent
-        implements Component, OnPauseListener, OnResumeListener, OnClearListener {
+    implements Component, OnPauseListener, OnResumeListener, OnClearListener {
 
     private static final String LOG_TAG = TeachableMachine.class.getSimpleName();
     private static final int IMAGE_WIDTH = 500;
@@ -103,7 +103,7 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
     private static final String MODE_VIDEO = "Video";
     private static final String MODE_IMAGE = "Image";
     private static final String ERROR_WEBVIEWER_NOT_SET =
-            "You must specify a WebViewer using the WebViewer designer property before you can call %1s";
+        "You must specify a WebViewer using the WebViewer designer property before you can call %1s";
 
     // other error codes are defined in teachable_machine.js
     private static final int ERROR_CLASSIFICATION_NOT_SUPPORTED = -1;
@@ -127,6 +127,8 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
     // Minimum time classfier should take to load
     private int minClassTime = 0;
 
+    // Store the latest classification result
+    private YailDictionary latestClassificationResult = new YailDictionary();
 
 
     // Setting up of Hardware and Webviewer
@@ -229,16 +231,16 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
         Log.d(LOG_TAG, "webview = " + webview);
         if (webview == null) {
             form.dispatchErrorOccurredEvent(this, "WebViewer",
-                    ErrorMessages.ERROR_EXTENSION_ERROR, ERROR_WEBVIEWER_REQUIRED, LOG_TAG,
-                    "You must specify a WebViewer component in the WebViewer property.");
+                ErrorMessages.ERROR_EXTENSION_ERROR, ERROR_WEBVIEWER_REQUIRED, LOG_TAG,
+                "You must specify a WebViewer component in the WebViewer property.");
         }
         // if model link not given
         Log.d(LOG_TAG, "modelPath = " + modelPath);
 
         if (modelPath == null) {
             form.dispatchErrorOccurredEvent(this, "Model",
-                    ErrorMessages.ERROR_EXTENSION_ERROR, ERROR_MODEL_REQUIRED, LOG_TAG,
-                    "You must provide a model file in the Model property");
+                ErrorMessages.ERROR_EXTENSION_ERROR, ERROR_MODEL_REQUIRED, LOG_TAG,
+                "You must provide a model file in the Model property");
         }
     }
 
@@ -254,11 +256,11 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
 
         }
 
-       else {
-           form.dispatchErrorOccurredEvent(this, "ModelLink",
-                   ErrorMessages.ERROR_EXTENSION_ERROR, ERROR_INVALID_MODEL_FILE, LOG_TAG,
-                   "Incorrect Model Link: The link should look like " + MODEL_URL);
-       }
+        else {
+            form.dispatchErrorOccurredEvent(this, "ModelLink",
+                ErrorMessages.ERROR_EXTENSION_ERROR, ERROR_INVALID_MODEL_FILE, LOG_TAG,
+                "Incorrect Model Link: The link should look like " + MODEL_URL);
+        }
     }
 
 
@@ -305,7 +307,7 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
 
     // Defining Input Mode
     @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_CHOICES,
-            editorArgs = {MODE_VIDEO, MODE_IMAGE})
+        editorArgs = {MODE_VIDEO, MODE_IMAGE})
     @SimpleProperty
     public void InputMode(String mode) {
         Log.d(LOG_TAG,"INPUT MODE RUN");
@@ -325,8 +327,8 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
     }
 
     @SimpleProperty(category = PropertyCategory.BEHAVIOR,
-            description = "Gets or sets the input mode for classification. Valid values are \"Video\" " +
-                    "(the default) and \"Image\".")
+        description = "Gets or sets the input mode for classification. Valid values are \"Video\" " +
+            "(the default) and \"Image\".")
     public String InputMode() {
         return inputMode;
     }
@@ -345,7 +347,7 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
     }
 
     @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_NON_NEGATIVE_INTEGER,
-            defaultValue = "0")
+        defaultValue = "0")
     @SimpleProperty(category = PropertyCategory.BEHAVIOR)
     public void MinimumInterval(int interval) {
         minClassTime = interval;
@@ -442,12 +444,73 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
     // data we get after classification is done
     @SimpleEvent(description = "Event indicating that classification has finished successfully. Result is of the form [[class1, confidence1], [class2, confidence2], ..., [class10, confidence10]].")
     public void GotClassification(YailDictionary result) {
+        // Store the latest result
+        latestClassificationResult = result;
         EventDispatcher.dispatchEvent(this, "GotClassification", result);
     }
 
     @SimpleEvent(description = "Event indicating that an error has occurred.")
     public void Error(final int errorCode) {
         EventDispatcher.dispatchEvent(this, "Error", errorCode);
+    }
+
+    /**
+     * GetClassification Property - returns the most likely category name from the latest result.
+     *
+     * @return The most likely category name as a String. Empty string if no classification yet.
+     */
+    @SimpleProperty(category = PropertyCategory.BEHAVIOR, description = "Returns the name of the most likely category from the latest classification.  Will be empty text if no classification has been performed or if the classification result is empty.")
+    public String Classification() {
+        if (latestClassificationResult == null || latestClassificationResult.size() == 0) {
+            Log.w(LOG_TAG, "GetClassification: Classification result dictionary is empty or null.");
+            return ""; // Return empty string if no result
+        }
+
+        String classifiedCategory = "";
+        double maxClassificationConfidence = -1.0;
+
+        for (Map.Entry<Object, Object> entry : latestClassificationResult.entrySet()) {
+            String categoryName = (String) entry.getKey();
+            double confidence = (double) entry.getValue(); // Values are Doubles in YailDictionary in this case
+
+            if (confidence > maxClassificationConfidence) {
+                maxClassificationConfidence = confidence;
+                classifiedCategory = categoryName;
+            }
+        }
+
+        if (classifiedCategory.isEmpty()) {
+            Log.w(LOG_TAG, "GetClassification: No category with confidence found in dictionary.");
+        } else {
+            Log.d(LOG_TAG, "GetClassification: Classified category is " + classifiedCategory + " with confidence " + maxClassificationConfidence);
+        }
+
+        return classifiedCategory;
+    }
+
+    /**
+     * Confidence Property - returns the confidence score of the most likely category from the latest
+     * result.
+     *
+     * @return The confidence score of the most likely category as a Double. 0.0 if no classification
+     *     yet.
+     */
+    @SimpleProperty(category = PropertyCategory.BEHAVIOR, description = "Returns the confidence score (0.0 to 1.0) of the most likely category from the latest classification. Will be 0.0 if no classification has been performed or if the classification result is empty.")
+    public double Confidence() {
+        if (latestClassificationResult == null || latestClassificationResult.size() == 0) {
+            Log.w(LOG_TAG, "Confidence Property: No classification result available yet.");
+            return 0.0; // Return 0.0 if no result available
+        }
+
+        double maxClassificationConfidence = 0.0; // Default to 0.0 if no category found
+        for (Map.Entry<Object, Object> entry : latestClassificationResult.entrySet()) {
+            double confidence = (double) entry.getValue(); // Values are Doubles in YailDictionary in this case
+
+            if (confidence > maxClassificationConfidence) {
+                maxClassificationConfidence = confidence;
+            }
+        }
+        return maxClassificationConfidence;
     }
 
     ///REGION: Lifecycle handling
@@ -564,7 +627,7 @@ public final class TeachableMachine extends AndroidNonvisibleComponent
                 modelLink = modelPath;
 
                 Log.d(LOG_TAG, "Function in JsObject that is called from js");
-                
+
                 return modelLink;
             }
             return modelPath;
