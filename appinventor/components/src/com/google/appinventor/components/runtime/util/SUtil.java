@@ -74,7 +74,10 @@ public class SUtil {
    * Requests Android version specific permissions needed to connect to paired Bluetooth devices.
    *
    * <p>Starting with Android 12, apps must ask for BLUETOOTH_CONNECT permission rather than the
-   * deprecated BLUETOOTH and BLUETOOTH_ADMIN permissions.</p>
+   * deprecated BLUETOOTH and BLUETOOTH_ADMIN permissions. For compatibility with existing BLE
+   * projects, we also request BLUETOOTH_SCAN and ACCESS_FINE_LOCATION (if declared by the app)
+   * so that the Nearby devices/location permission prompt can be triggered from Connect blocks
+   * on fresh installs.</p>
    *
    * @param form the form used for requesting permissions
    * @param client the component requesting the permissions
@@ -85,7 +88,20 @@ public class SUtil {
    */
   public static boolean requestPermissionsForConnecting(Form form, BluetoothClient client,
       String caller, PermissionResultHandler continuation) {
-    return requestPermissionsForS(BLUETOOTH_CONNECT, form, client, caller, continuation);
+    List<String> permsNeeded = new ArrayList<>();
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+      permsNeeded.add(BLUETOOTH_CONNECT);
+      permsNeeded.add(BLUETOOTH_SCAN);
+    } else {
+      permsNeeded.add(BLUETOOTH);
+      permsNeeded.add(BLUETOOTH_ADMIN);
+    }
+
+    if (!client.NoLocationNeeded() && form.doesAppDeclarePermission(ACCESS_FINE_LOCATION)) {
+      permsNeeded.add(ACCESS_FINE_LOCATION);
+    }
+
+    return performRequest(form, client, caller, permsNeeded, continuation);
   }
 
   /**
