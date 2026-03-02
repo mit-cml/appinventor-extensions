@@ -213,7 +213,7 @@ public final class PersonalImageClassifier extends AndroidNonvisibleComponent
   }
 
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_COMPONENT + ":com.google.appinventor.runtime.components.WebViewer")
-  @SimpleProperty(userVisible = false)
+  @SimpleProperty(userVisible = false, category = PropertyCategory.BEHAVIOR)
   public void WebViewer(final WebViewer webviewer) {
     Runnable next = new Runnable() {
       public void run() {
@@ -238,7 +238,7 @@ public final class PersonalImageClassifier extends AndroidNonvisibleComponent
   }
 
   @DesignerProperty(editorType = PropertyTypeConstants.PROPERTY_TYPE_ASSET)
-  @SimpleProperty(userVisible = false)
+  @SimpleProperty(userVisible = false, category = PropertyCategory.BEHAVIOR)
   public void Model(String path) {
     Log.d(LOG_TAG, "Personal model path: " + path);
 
