@@ -240,6 +240,8 @@ function toggleCameraFacingMode() {
 function classifyImageData(imageData) {
   if (!isVideoMode) {
     img.onload = function() {
+      img.width = img.naturalWidth;
+      img.height = img.naturalHeight;
       predict(img).catch(() => PersonalImageClassifier.error(ERROR_CLASSIFICATION_FAILED));
     }
     img.src = "data:image/png;base64," + imageData;
