@@ -203,6 +203,17 @@ public class BluetoothLE extends AndroidNonvisibleComponent implements Component
     locationPermissionNeeded = !setting;
   }
 
+  @SimpleFunction
+  public void OpenDevicePicker() {
+    if (inner != null) {
+      permissions.askForPermission(computePermissions(false), "OpenDevicePicker", new Runnable() {
+        @Override
+        public void run() {
+          // inner.OpenDevicePicker();
+        }
+      });
+    }
+  }
   /**
    * Starts scanning for Bluetooth low energy devices.
    */
